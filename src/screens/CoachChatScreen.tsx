@@ -86,8 +86,8 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
             <Text style={styles.brandSub}>
               {provider === 'openai_compatible'
                 ? `${openAIConfig.modelName || 'LLM'} • OpenAI-Compatible`
-                : provider === 'simulator'
-                ? 'Dev Simulator • Local'
+                : Platform.OS === 'web'
+                ? 'On-Device AI (Web Engine) • Private'
                 : '100% On-Device AI • Private'}
             </Text>
           </View>

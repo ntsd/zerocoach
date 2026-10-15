@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
@@ -192,28 +193,6 @@ export const ModelManagerScreen: React.FC = () => {
                 OpenAI-Compatible
               </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setProvider('simulator')}
-              style={[
-                styles.providerTab,
-                provider === 'simulator' && {
-                  borderColor: modeColors.accent,
-                  backgroundColor: `${modeColors.accent}15`,
-                },
-              ]}
-              activeOpacity={0.8}
-            >
-              <Terminal size={14} color={provider === 'simulator' ? modeColors.accent : COLORS.textMuted} />
-              <Text
-                style={[
-                  styles.providerTabText,
-                  provider === 'simulator' && { color: modeColors.accent, fontWeight: '700' },
-                ]}
-              >
-                Simulator
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Active Provider Description & Configuration */}
@@ -221,16 +200,9 @@ export const ModelManagerScreen: React.FC = () => {
             <View style={styles.providerNoteBox}>
               <Cpu size={14} color={modeColors.accent} />
               <Text style={styles.providerNoteText}>
-                Primary mode for mobile. Runs quantized GGUF weights locally via llama.rn with Metal / OpenCL GPU acceleration and 0 cloud data transfer.
-              </Text>
-            </View>
-          )}
-
-          {provider === 'simulator' && (
-            <View style={styles.providerNoteBox}>
-              <Terminal size={14} color={COLORS.warning} />
-              <Text style={styles.providerNoteText}>
-                Dev Simulator Mode: Emulates Gemma 2 token streaming (~35 tok/s) without downloading weights or connecting to an external endpoint.
+                {Platform.OS === 'web'
+                  ? 'Browser Simulation Active: Automatically running the local on-device streaming simulator (~35 tok/s). On native iOS/Android, executes local GGUF weights via llama.rn with Metal / OpenCL acceleration.'
+                  : 'Mobile Mode: Runs quantized GGUF weights locally via llama.rn with Metal / OpenCL GPU acceleration and 0 cloud data transfer.'}
               </Text>
             </View>
           )}

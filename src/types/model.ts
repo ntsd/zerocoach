@@ -26,7 +26,7 @@ export interface ModelHardwareStats {
   tokensPerSec: number;
 }
 
-export type LLMProviderType = 'on_device' | 'openai_compatible' | 'simulator';
+export type LLMProviderType = 'on_device' | 'openai_compatible';
 
 export interface OpenAICompatibleConfig {
   baseUrl: string;

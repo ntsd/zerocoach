@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { CompletionRequest, CompletionResult, LLMEngine, TokenCallback } from './types';
 import { SimulatorEngine } from './simulatorEngine';
 import { LlamaRNEngine } from './llamaRNEngine';
@@ -40,27 +41,23 @@ export class LLMService {
     return this.openAIEngine.testConnection();
   }
 
-  public setPreferNative(value: boolean) {
-    if (value) {
-      this.provider = 'on_device';
-    } else {
-      this.provider = 'simulator';
-    }
-  }
-
   public getActiveEngine(): LLMEngine {
     if (this.provider === 'openai_compatible') {
       return this.openAIEngine;
     }
 
-    if (this.provider === 'on_device') {
-      if (this.nativeEngine.isReady()) {
-        return this.nativeEngine;
-      }
-      // On web or when native weights are unmounted, fallback to simulator
+    // On-Device Mode:
+    // When running in the browser (web), automatically route to the token streaming simulator
+    if (Platform.OS === 'web') {
       return this.simulator;
     }
 
+    // On mobile devices (iOS / Android), use native llama.rn if weights are loaded
+    if (this.nativeEngine.isReady()) {
+      return this.nativeEngine;
+    }
+
+    // Fallback if weights are not yet loaded
     return this.simulator;
   }
 

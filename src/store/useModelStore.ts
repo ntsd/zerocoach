@@ -114,6 +114,9 @@ export const useModelStore = create<ModelState>()(
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          if ((state.provider as string) === 'simulator') {
+            state.provider = 'on_device';
+          }
           llmService.setProvider(state.provider);
           llmService.updateOpenAIConfig(state.openAIConfig);
         }

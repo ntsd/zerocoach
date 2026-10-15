@@ -24,7 +24,7 @@ import {
   Cpu,
 } from 'lucide-react-native';
 
-type TabKey = 'coach' | 'telemetry' | 'progressions' | 'model';
+type TabKey = 'coach' | 'telemetry' | 'workout' | 'model';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
@@ -43,8 +43,8 @@ export default function App() {
       icon: Activity,
     },
     {
-      key: 'progressions' as const,
-      label: 'SKILLS',
+      key: 'workout' as const,
+      label: 'WORKOUT',
       icon: Dumbbell,
     },
     {
@@ -68,11 +68,11 @@ export default function App() {
             <View style={styles.screenContainer}>
               {activeTab === 'coach' && (
                 <CoachChatScreen
-                  onNavigateToProgressions={() => setActiveTab('progressions')}
+                  onNavigateToWorkout={() => setActiveTab('workout')}
                 />
               )}
               {activeTab === 'telemetry' && <TelemetryScreen />}
-              {activeTab === 'progressions' && (
+              {activeTab === 'workout' && (
                 <ProgressionsScreen
                   onNavigateToChat={() => setActiveTab('coach')}
                 />

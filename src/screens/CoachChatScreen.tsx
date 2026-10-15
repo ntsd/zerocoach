@@ -23,6 +23,7 @@ import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { Send, Square, Trash2, Cpu } from 'lucide-react-native';
 
 interface CoachChatScreenProps {
+  onNavigateToWorkout?: () => void;
   onNavigateToProgressions?: () => void;
 }
 

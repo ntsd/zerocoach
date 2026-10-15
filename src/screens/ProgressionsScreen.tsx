@@ -56,20 +56,45 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           <View>
             <View style={styles.titleRow}>
               <Dumbbell size={20} color={modeColors.accent} />
-              <Text style={styles.title}>CALISTHENICS PROGRESSIONS</Text>
+              <Text style={styles.title}>WORKOUT & PROGRESSIONS</Text>
             </View>
             <Text style={styles.subtitle}>
-              Motor Skill Mastery • Periodized Milestones
+              Adaptive Training Plan • Calisthenics Mastery
             </Text>
           </View>
         </View>
+
+        {/* Generate Today's Workout Quick Banner */}
+        <TouchableOpacity
+          onPress={() => {
+            onNavigateToChat();
+            sendMessage("Coach, please design my complete workout plan for today based on my goals, calisthenics target stage, and live recovery readiness score.");
+          }}
+          style={[styles.workoutPromptCard, { borderColor: `${modeColors.accent}40` }]}
+          activeOpacity={0.8}
+        >
+          <View style={styles.workoutPromptHeader}>
+            <View style={styles.workoutPromptBadge}>
+              <Text style={[styles.workoutPromptBadgeText, { color: modeColors.accent }]}>
+                AI WORKOUT GENERATOR
+              </Text>
+            </View>
+            <ArrowRight size={14} color={modeColors.accent} />
+          </View>
+          <Text style={styles.workoutPromptTitle}>
+            Request Today's Adaptive Workout Session
+          </Text>
+          <Text style={styles.workoutPromptSub}>
+            Tailors sets, reps, and warmups to your recovery readiness & primary goals
+          </Text>
+        </TouchableOpacity>
 
         {/* Overall Mastery Progress Card */}
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
             <View style={styles.trophyRow}>
               <Trophy size={16} color={COLORS.warning} />
-              <Text style={styles.progressTitle}>TOTAL MASTERY PROGRESS</Text>
+              <Text style={styles.progressTitle}>TOTAL SKILL MASTERY</Text>
             </View>
             <Text style={styles.progressValue}>
               {completedCount} of {totalCount} ({progressPercent}%)
@@ -95,10 +120,8 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                 onPress={() => setSelectedFilter(filter)}
                 style={[
                   styles.filterPill,
-                  isSelected && [
-                    styles.filterPillActive,
-                    { borderColor: modeColors.accent },
-                  ],
+                  isSelected && styles.filterPillActive,
+                  isSelected && { borderColor: modeColors.accent },
                 ]}
                 activeOpacity={0.8}
               >
@@ -158,6 +181,42 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     color: COLORS.textMuted,
+  },
+  workoutPromptCard: {
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    gap: 4,
+  },
+  workoutPromptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  workoutPromptBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+  },
+  workoutPromptBadgeText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  workoutPromptTitle: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+  },
+  workoutPromptSub: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    lineHeight: 15,
   },
   progressCard: {
     backgroundColor: COLORS.cardBackground,

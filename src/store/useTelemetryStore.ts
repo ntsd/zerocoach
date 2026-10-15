@@ -14,13 +14,13 @@ import { getPresetMetrics } from '@/services/telemetry/telemetryPresets';
 const INITIAL_MANUAL_METRICS: TelemetryMetrics = {
   steps: 0,
   activeCalories: 0,
-  restingHeartRate: 60,
-  heartRateVariability: 55,
-  sleepHours: 7.0,
-  sleepQualityScore: 70,
-  deepSleepHours: 1.5,
-  readinessScore: 68,
-  lastSyncTimestamp: Date.now(),
+  restingHeartRate: 0,
+  heartRateVariability: 0,
+  sleepHours: 0,
+  sleepQualityScore: 0,
+  deepSleepHours: 0,
+  readinessScore: 0,
+  lastSyncTimestamp: 0,
   source: 'manual',
 };
 
@@ -136,26 +136,33 @@ export const useTelemetryStore = create<TelemetryState>()(
         heartRateVariability?: number;
         steps: number;
         activeCalories: number;
+        weightKg?: number;
+        heightCm?: number;
       }) => {
+        const hasRealMetrics = inputs.sleepHours > 0 || inputs.steps > 0 || inputs.activeCalories > 0;
         const hrv = inputs.heartRateVariability ?? 55;
-        const readiness = calculateReadinessScore({
-          sleepHours: inputs.sleepHours,
-          sleepQualityScore: inputs.sleepQualityScore,
-          restingHeartRate: inputs.restingHeartRate,
-          heartRateVariability: hrv,
-        });
+        const readiness = hasRealMetrics
+          ? calculateReadinessScore({
+              sleepHours: inputs.sleepHours,
+              sleepQualityScore: inputs.sleepQualityScore,
+              restingHeartRate: inputs.restingHeartRate,
+              heartRateVariability: hrv,
+            })
+          : 0;
 
         const newMetrics: TelemetryMetrics = {
           steps: inputs.steps,
           activeCalories: inputs.activeCalories,
           restingHeartRate: inputs.restingHeartRate,
-          heartRateVariability: hrv,
+          heartRateVariability: hasRealMetrics ? hrv : 0,
           sleepHours: inputs.sleepHours,
           sleepQualityScore: inputs.sleepQualityScore,
           deepSleepHours: Number((inputs.sleepHours * 0.22).toFixed(1)),
           readinessScore: readiness,
-          lastSyncTimestamp: Date.now(),
+          lastSyncTimestamp: hasRealMetrics ? Date.now() : 0,
           source: 'manual',
+          weightKg: inputs.weightKg,
+          heightCm: inputs.heightCm,
         };
 
         set({

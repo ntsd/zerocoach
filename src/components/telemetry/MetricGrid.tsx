@@ -12,6 +12,8 @@ interface MetricGridProps {
 }
 
 export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
+  const isSynced = metrics.lastSyncTimestamp > 0 && metrics.source !== 'manual';
+
   return (
     <View style={styles.grid}>
       {/* 1. Sleep Card */}
@@ -20,10 +22,10 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
           <Moon size={16} color={COLORS.purpleAccent} />
           <Text style={styles.cardTitle}>SLEEP ARCHITECTURE</Text>
         </View>
-        <Text style={styles.mainValue}>{metrics.sleepHours} hrs</Text>
+        <Text style={styles.mainValue}>{isSynced ? `${metrics.sleepHours} hrs` : '-- hrs'}</Text>
         <View style={styles.subStats}>
-          <Text style={styles.subText}>Deep: {metrics.deepSleepHours}h</Text>
-          <Text style={styles.subText}>Quality: {metrics.sleepQualityScore}%</Text>
+          <Text style={styles.subText}>{isSynced ? `Deep: ${metrics.deepSleepHours}h` : 'No Wearable'}</Text>
+          <Text style={styles.subText}>{isSynced ? `Quality: ${metrics.sleepQualityScore}%` : 'Sync to Track'}</Text>
         </View>
       </GlassCard>
 
@@ -33,10 +35,10 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
           <Heart size={16} color={COLORS.danger} />
           <Text style={styles.cardTitle}>CARDIAC AUTONOMIC</Text>
         </View>
-        <Text style={styles.mainValue}>{metrics.restingHeartRate} bpm</Text>
+        <Text style={styles.mainValue}>{isSynced ? `${metrics.restingHeartRate} bpm` : '-- bpm'}</Text>
         <View style={styles.subStats}>
-          <Text style={styles.subText}>HRV: {metrics.heartRateVariability} ms</Text>
-          <Text style={styles.subText}>Resting Baseline</Text>
+          <Text style={styles.subText}>{isSynced ? `HRV: ${metrics.heartRateVariability} ms` : 'No Wearable'}</Text>
+          <Text style={styles.subText}>{isSynced ? 'Resting Baseline' : 'Sync to Track'}</Text>
         </View>
       </GlassCard>
 
@@ -46,10 +48,10 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
           <Flame size={16} color={COLORS.warning} />
           <Text style={styles.cardTitle}>ACTIVE EXPENDITURE</Text>
         </View>
-        <Text style={styles.mainValue}>{metrics.activeCalories} kcal</Text>
+        <Text style={styles.mainValue}>{isSynced ? `${metrics.activeCalories} kcal` : '-- kcal'}</Text>
         <View style={styles.subStats}>
-          <Text style={styles.subText}>Burned Today</Text>
-          <Text style={styles.subText}>Adaptive Intake</Text>
+          <Text style={styles.subText}>{isSynced ? 'Burned Today' : 'Standard Baseline'}</Text>
+          <Text style={styles.subText}>{isSynced ? 'Adaptive Intake' : 'Sync to Track'}</Text>
         </View>
       </GlassCard>
 
@@ -60,11 +62,11 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
           <Text style={styles.cardTitle}>DAILY MOVEMENT</Text>
         </View>
         <Text style={styles.mainValue}>
-          {metrics.steps.toLocaleString()}
+          {isSynced ? metrics.steps.toLocaleString() : '--'}
         </Text>
         <View style={styles.subStats}>
           <Text style={styles.subText}>
-            Source: {metrics.source.replace('_', ' ').toUpperCase()}
+            {isSynced ? `Source: ${metrics.source.replace('_', ' ').toUpperCase()}` : 'Sync Wearable'}
           </Text>
         </View>
       </GlassCard>

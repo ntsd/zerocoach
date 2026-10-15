@@ -12,12 +12,15 @@ export const TelemetryBanner: React.FC = () => {
   const { mode } = useCoachStore();
   const modeColors = getModeColors(mode);
 
-  const readinessColor =
-    metrics.readinessScore >= 80
+  const isSynced = metrics.lastSyncTimestamp > 0 && metrics.source !== 'manual';
+
+  const readinessColor = isSynced
+    ? metrics.readinessScore >= 80
       ? COLORS.readinessOptimal
       : metrics.readinessScore >= 60
       ? COLORS.readinessModerate
-      : COLORS.readinessFatigued;
+      : COLORS.readinessFatigued
+    : COLORS.textMuted;
 
   return (
     <View style={[styles.container, { borderColor: `${modeColors.accent}30` }]}>
@@ -26,27 +29,35 @@ export const TelemetryBanner: React.FC = () => {
         <View>
           <View style={styles.titleRow}>
             <Text style={styles.readinessText}>
-              READINESS {metrics.readinessScore}/100
+              {isSynced ? `READINESS ${metrics.readinessScore}/100` : 'NO WEARABLE SYNCED'}
             </Text>
             <Text style={[styles.sourceBadge, { color: modeColors.accent }]}>
-              {metrics.source.replace('_', ' ').toUpperCase()}
+              {isSynced ? metrics.source.replace('_', ' ').toUpperCase() : 'OFFLINE'}
             </Text>
           </View>
           <View style={styles.metricsRow}>
-            <View style={styles.metricItem}>
-              <Moon size={11} color={COLORS.textSecondary} />
-              <Text style={styles.metricText}>{metrics.sleepHours}h Sleep</Text>
-            </View>
-            <Text style={styles.divider}>•</Text>
-            <View style={styles.metricItem}>
-              <Heart size={11} color={COLORS.textSecondary} />
-              <Text style={styles.metricText}>{metrics.restingHeartRate} bpm</Text>
-            </View>
-            <Text style={styles.divider}>•</Text>
-            <View style={styles.metricItem}>
-              <Activity size={11} color={COLORS.textSecondary} />
-              <Text style={styles.metricText}>{metrics.activeCalories} kcal</Text>
-            </View>
+            {isSynced ? (
+              <>
+                <View style={styles.metricItem}>
+                  <Moon size={11} color={COLORS.textSecondary} />
+                  <Text style={styles.metricText}>{metrics.sleepHours}h Sleep</Text>
+                </View>
+                <Text style={styles.divider}>•</Text>
+                <View style={styles.metricItem}>
+                  <Heart size={11} color={COLORS.textSecondary} />
+                  <Text style={styles.metricText}>{metrics.restingHeartRate} bpm</Text>
+                </View>
+                <Text style={styles.divider}>•</Text>
+                <View style={styles.metricItem}>
+                  <Activity size={11} color={COLORS.textSecondary} />
+                  <Text style={styles.metricText}>{metrics.activeCalories} kcal</Text>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.metricText}>
+                Tap Sync button to connect Google Fit / Health Connect
+              </Text>
+            )}
           </View>
         </View>
       </View>

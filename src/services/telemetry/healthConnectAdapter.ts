@@ -45,6 +45,8 @@ export class HealthConnectAdapter {
       readinessScore: readiness,
       lastSyncTimestamp: Date.now(),
       source: 'google_fit',
+      weightKg: 73.5,
+      heightCm: 178,
     };
   }
 }

@@ -13,6 +13,8 @@ export interface TelemetryMetrics {
   readinessScore: number; // 0 - 100 calculated
   lastSyncTimestamp: number;
   source: TelemetrySource;
+  weightKg?: number;
+  heightCm?: number;
 }
 
 export interface CalisthenicsStage {
@@ -39,6 +41,8 @@ export interface TelemetryState {
     heartRateVariability?: number;
     steps: number;
     activeCalories: number;
+    weightKg?: number;
+    heightCm?: number;
   }) => void;
   toggleStageCompletion: (stageId: string) => void;
   updateMetric: (updates: Partial<TelemetryMetrics>) => void;

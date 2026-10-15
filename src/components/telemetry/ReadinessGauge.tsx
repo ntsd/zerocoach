@@ -12,10 +12,18 @@ interface ReadinessGaugeProps {
 }
 
 export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({ score }) => {
-  const category = getReadinessCategory(score);
+  const isSynced = score > 0;
+  const category = isSynced
+    ? getReadinessCategory(score)
+    : {
+        category: 'none',
+        label: 'NO WEARABLE SYNCED',
+        guidance: 'Sync with Google Fit, Garmin, or Xiaomi to calculate your daily recovery readiness score.',
+        color: COLORS.textMuted,
+      };
 
   return (
-    <GlassCard glowColor={category.color} borderColor={`${category.color}40`}>
+    <GlassCard glowColor={isSynced ? category.color : undefined} borderColor={isSynced ? `${category.color}40` : COLORS.borderSubtle}>
       <View style={styles.header}>
         <View style={styles.badgeRow}>
           <Zap size={14} color={category.color} />
@@ -23,15 +31,17 @@ export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({ score }) => {
             DAILY READINESS SCORE
           </Text>
         </View>
-        <Text style={styles.timestamp}>100% On-Device Analysis</Text>
+        <Text style={styles.timestamp}>
+          {isSynced ? '100% On-Device Analysis' : 'Wearable Sync Required'}
+        </Text>
       </View>
 
       <View style={styles.scoreRow}>
         <View style={styles.scoreCircle}>
           <Text style={[styles.scoreNumber, { color: category.color }]}>
-            {score}
+            {isSynced ? score : '--'}
           </Text>
-          <Text style={styles.scoreMax}>/100</Text>
+          {isSynced && <Text style={styles.scoreMax}>/100</Text>}
         </View>
 
         <View style={styles.detailsCol}>
@@ -48,7 +58,7 @@ export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({ score }) => {
           style={[
             styles.barFill,
             {
-              width: `${Math.min(100, Math.max(5, score))}%`,
+              width: `${isSynced ? Math.min(100, Math.max(5, score)) : 0}%`,
               backgroundColor: category.color,
             },
           ]}

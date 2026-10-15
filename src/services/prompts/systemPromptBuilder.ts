@@ -34,6 +34,18 @@ export function buildSystemPrompt(params: {
     .map((g) => GOAL_PROGRAMMING_DIRECTIVES[g])
     .filter(Boolean);
 
+  const hasLiveTelemetry = telemetry.lastSyncTimestamp > 0 && telemetry.source !== 'manual';
+  const telemetryBlock = hasLiveTelemetry
+    ? `- LIVE BIOMETRIC TELEMETRY (Source: Device Bridge ${telemetry.source.replace(/_/g, ' ').toUpperCase()}):
+  * Daily Readiness Score: ${telemetry.readinessScore}/100
+  * Sleep Duration: ${telemetry.sleepHours} hrs (Deep Sleep: ${telemetry.deepSleepHours} hrs, Score: ${telemetry.sleepQualityScore}/100)
+  * Resting Heart Rate: ${telemetry.restingHeartRate} bpm
+  * Heart Rate Variability (HRV): ${telemetry.heartRateVariability} ms
+  * Daily Step Count: ${telemetry.steps.toLocaleString()}
+  * Active Energy Burned: ${telemetry.activeCalories} kcal`
+    : `- LIVE BIOMETRIC TELEMETRY:
+  * Status: No wearable synced. Program sessions and nutrition dynamically using athlete body metrics and target training goals.`;
+
   const contextBlock = `
 === CURRENT LIVE USER & TELEMETRY CONTEXT ===
 - ACTIVE COACHING MODE: ${mode.toUpperCase()}
@@ -47,13 +59,7 @@ export function buildSystemPrompt(params: {
 - TARGET GOAL DIRECTIVES:
 ${goalDirectives.map((d) => `  * ${d}`).join('\n') || '  * Maintain balanced general fitness.'}
 
-- LIVE BIOMETRIC TELEMETRY (Source: ${telemetry.source === 'manual' ? 'Manual User Log (No App Synced)' : `Device Bridge ${telemetry.source.replace(/_/g, ' ').toUpperCase()}`}):
-  * Daily Readiness Score: ${telemetry.readinessScore}/100
-  * Sleep Duration: ${telemetry.sleepHours} hrs (Deep Sleep: ${telemetry.deepSleepHours} hrs, Score: ${telemetry.sleepQualityScore}/100)
-  * Resting Heart Rate: ${telemetry.restingHeartRate} bpm
-  * Heart Rate Variability (HRV): ${telemetry.heartRateVariability} ms
-  * Daily Step Count: ${telemetry.steps.toLocaleString()}
-  * Active Energy Burned: ${telemetry.activeCalories} kcal
+${telemetryBlock}
 
 - CALISTHENICS PROGRESSION TRACKER:
   * Completed Milestones: ${completedStages.map((s) => s.stageTitle).join(', ') || 'None yet'}

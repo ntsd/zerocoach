@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,15 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { CoachingMode, UserProfile, TrainingGoal } from '@/types/coach';
 import { calculateReadinessScore, getReadinessCategory } from '@/services/telemetry/readinessCalculator';
+import { calculateSmartNutrition } from '@/services/nutrition/nutritionCalculator';
+import { healthAdapter } from '@/services/telemetry/healthConnectAdapter';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -32,7 +35,11 @@ import {
   Check,
   Sparkles,
   Watch,
-  Edit3,
+  Weight,
+  Ruler,
+  RefreshCw,
+  Zap,
+  Info,
 } from 'lucide-react-native';
 
 export const COMMON_TRAINING_GOALS: Array<{
@@ -75,44 +82,98 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const { completeOnboarding } = useCoachStore();
   const { setManualTelemetry } = useTelemetryStore();
 
+  // Wizard Steps (1: Telemetry Sync, 2: Mode, 3: Profile & Goals, 4: Nutrition & Macros)
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 1: Mode
-  const [selectedMode, setSelectedMode] = useState<CoachingMode>('strict');
+  // Step 1: Fitness App Sync state
+  const [hasFitnessApp, setHasFitnessApp] = useState<boolean>(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncedSource, setSyncedSource] = useState<string | null>(null);
 
-  // Step 2: Profile
-  const [name, setName] = useState('');
+  // Physical Metrics (Body weight & height are the only metrics a human knows)
   const [weightKg, setWeightKg] = useState('74');
   const [heightCm, setHeightCm] = useState('178');
+
+  // Wearable Telemetry (NEVER manually counted - only populated when fitness app is synced)
+  const [sleepHours, setSleepHours] = useState<number | null>(null);
+  const [sleepQuality, setSleepQuality] = useState<number | null>(null);
+  const [restingHeartRate, setRestingHeartRate] = useState<number | null>(null);
+  const [steps, setSteps] = useState<number | null>(null);
+  const [activeCalories, setActiveCalories] = useState<number | null>(null);
+
+  // Step 2: Coaching Philosophy
+  const [selectedMode, setSelectedMode] = useState<CoachingMode>('strict');
+
+  // Step 3: Profile & Goals
+  const [name, setName] = useState('');
   const [selectedGoals, setSelectedGoals] = useState<TrainingGoal[]>([
     'calisthenics_mastery',
     'strength_hypertrophy',
   ]);
 
-  // Step 3: Nutrition
-  const [calorieTarget, setCalorieTarget] = useState('2800');
-  const [proteinGrams, setProteinGrams] = useState('170');
-  const [carbsGrams, setCarbsGrams] = useState('320');
-  const [fatGrams, setFatGrams] = useState('65');
-
-  // Step 4: Telemetry Mode
-  const [telemetryChoice, setTelemetryChoice] = useState<'manual' | 'sync'>('manual');
-  const [sleepHours, setSleepHours] = useState('7.5');
-  const [sleepQuality, setSleepQuality] = useState('80');
-  const [restingHeartRate, setRestingHeartRate] = useState('54');
-  const [steps, setSteps] = useState('8500');
-  const [activeCalories, setActiveCalories] = useState('550');
+  // Step 4: Nutrition State
+  const [calorieTarget, setCalorieTarget] = useState('');
+  const [proteinGrams, setProteinGrams] = useState('');
+  const [carbsGrams, setCarbsGrams] = useState('');
+  const [fatGrams, setFatGrams] = useState('');
+  const [hasCustomMacros, setHasCustomMacros] = useState(false);
 
   const modeColors = getModeColors(selectedMode);
 
-  // Preview readiness calculation
-  const previewReadiness = calculateReadinessScore({
-    sleepHours: parseFloat(sleepHours) || 7.5,
-    sleepQualityScore: parseInt(sleepQuality, 10) || 80,
-    restingHeartRate: parseInt(restingHeartRate, 10) || 54,
-    heartRateVariability: 60,
-  });
-  const readinessCategory = getReadinessCategory(previewReadiness);
+  // Calculate smart nutrition reactively from Profile, Goals, and Telemetry Active Burn (if synced)
+  const smartRecommendation = useMemo(() => {
+    return calculateSmartNutrition({
+      weightKg: parseFloat(weightKg) || 74,
+      heightCm: parseFloat(heightCm) || 178,
+      mode: selectedMode,
+      goals: selectedGoals,
+      activeCaloriesBurned: activeCalories ?? 0,
+    });
+  }, [weightKg, heightCm, selectedMode, selectedGoals, activeCalories]);
+
+  // Automatically update macro fields when recommendation changes, unless customized by user
+  useEffect(() => {
+    if (!hasCustomMacros) {
+      setCalorieTarget(smartRecommendation.dailyCalories.toString());
+      setProteinGrams(smartRecommendation.proteinGrams.toString());
+      setCarbsGrams(smartRecommendation.carbsGrams.toString());
+      setFatGrams(smartRecommendation.fatGrams.toString());
+    }
+  }, [smartRecommendation, hasCustomMacros]);
+
+  // Preview readiness calculation (only when wearable telemetry is synced)
+  const previewReadiness = useMemo(() => {
+    if (sleepHours === null || restingHeartRate === null) return null;
+    return calculateReadinessScore({
+      sleepHours,
+      sleepQualityScore: sleepQuality ?? 80,
+      restingHeartRate,
+      heartRateVariability: 60,
+    });
+  }, [sleepHours, sleepQuality, restingHeartRate]);
+
+  const readinessCategory = previewReadiness !== null ? getReadinessCategory(previewReadiness) : null;
+
+  // Sync with local fitness bridge (Google Fit / Health Connect / Garmin / Xiaomi)
+  const handleSyncFitnessApp = async () => {
+    setIsSyncing(true);
+    try {
+      const fresh = await healthAdapter.fetchLatestMetrics();
+      if (fresh.weightKg) setWeightKg(fresh.weightKg.toString());
+      if (fresh.heightCm) setHeightCm(fresh.heightCm.toString());
+      setSleepHours(fresh.sleepHours);
+      setSleepQuality(fresh.sleepQualityScore);
+      setRestingHeartRate(fresh.restingHeartRate);
+      setSteps(fresh.steps);
+      setActiveCalories(fresh.activeCalories);
+      setSyncedSource(fresh.source === 'google_fit' ? 'Google Fit' : 'Health Connect');
+      setHasFitnessApp(true);
+    } catch (e) {
+      console.warn('Sync failed:', e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const toggleGoal = (goalId: TrainingGoal) => {
     setSelectedGoals((prev) => {
@@ -124,30 +185,70 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     });
   };
 
+  const resetToAutoCalculated = () => {
+    setHasCustomMacros(false);
+    setCalorieTarget(smartRecommendation.dailyCalories.toString());
+    setProteinGrams(smartRecommendation.proteinGrams.toString());
+    setCarbsGrams(smartRecommendation.carbsGrams.toString());
+    setFatGrams(smartRecommendation.fatGrams.toString());
+  };
+
   const handleFinish = () => {
+    const finalWeight = parseFloat(weightKg) || 74;
+    const finalHeight = parseFloat(heightCm) || 178;
+
     const profile: UserProfile = {
       name: name.trim() || 'Athlete',
-      weightKg: parseFloat(weightKg) || 74,
-      heightCm: parseFloat(heightCm) || 178,
-      dailyCalorieTarget: parseInt(calorieTarget, 10) || 2800,
-      proteinGrams: parseInt(proteinGrams, 10) || 170,
-      carbsGrams: parseInt(carbsGrams, 10) || 320,
-      fatGrams: parseInt(fatGrams, 10) || 65,
+      weightKg: finalWeight,
+      heightCm: finalHeight,
+      dailyCalorieTarget: parseInt(calorieTarget, 10) || smartRecommendation.dailyCalories,
+      proteinGrams: parseInt(proteinGrams, 10) || smartRecommendation.proteinGrams,
+      carbsGrams: parseInt(carbsGrams, 10) || smartRecommendation.carbsGrams,
+      fatGrams: parseInt(fatGrams, 10) || smartRecommendation.fatGrams,
       primaryGoals: selectedGoals,
     };
 
-    // Save manual telemetry entered during onboarding
-    setManualTelemetry({
-      sleepHours: parseFloat(sleepHours) || 7.5,
-      sleepQualityScore: parseInt(sleepQuality, 10) || 80,
-      restingHeartRate: parseInt(restingHeartRate, 10) || 54,
-      heartRateVariability: 60,
-      steps: parseInt(steps, 10) || 8500,
-      activeCalories: parseInt(activeCalories, 10) || 550,
-    });
+    if (syncedSource && sleepHours !== null && steps !== null && activeCalories !== null) {
+      // Telemetry was synced from fitness app
+      setManualTelemetry({
+        sleepHours,
+        sleepQualityScore: sleepQuality ?? 80,
+        restingHeartRate: restingHeartRate ?? 55,
+        heartRateVariability: 60,
+        steps,
+        activeCalories,
+        weightKg: finalWeight,
+        heightCm: finalHeight,
+      });
+    } else {
+      // No fitness app synced - baseline without fabricated metrics
+      setManualTelemetry({
+        sleepHours: 0,
+        sleepQualityScore: 0,
+        restingHeartRate: 0,
+        heartRateVariability: 0,
+        steps: 0,
+        activeCalories: 0,
+        weightKg: finalWeight,
+        heightCm: finalHeight,
+      });
+    }
 
     completeOnboarding(profile, selectedMode);
     onComplete();
+  };
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 1:
+        return 'Fitness Telemetry & App Sync';
+      case 2:
+        return 'Coaching Philosophy';
+      case 3:
+        return 'Profile & Training Goals';
+      case 4:
+        return 'Daily Nutrition & Smart Macros';
+    }
   };
 
   return (
@@ -172,9 +273,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               />
             ))}
           </View>
-          <Text style={[styles.stepCountText, { color: modeColors.accent }]}>
-            STEP {currentStep} OF 4
-          </Text>
+          <View style={styles.headerRight}>
+            <Text style={[styles.stepCountText, { color: modeColors.accent }]}>
+              STEP {currentStep} OF 4
+            </Text>
+            <Text style={styles.stepTitleSubtitle}>{getStepTitle()}</Text>
+          </View>
         </View>
 
         <ScrollView
@@ -182,8 +286,226 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* STEP 1: COACHING MODE */}
+          {/* ===================================================================
+              STEP 1: FITNESS TELEMETRY & WEARABLE SYNC (1st PAGE)
+              =================================================================== */}
           {currentStep === 1 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.titleBox}>
+                <Text style={styles.mainTitle}>Connect Fitness Telemetry</Text>
+                <Text style={styles.subtitle}>
+                  Sync with your fitness app (Google Fit, Garmin, Xiaomi, Health Connect) to automatically pull your Weight, Height, Active Burn, and Sleep. Or continue without a wearable:
+                </Text>
+              </View>
+
+              {/* Mode Toggle: Sync App vs No App */}
+              <View style={styles.telemetryToggleRow}>
+                <TouchableOpacity
+                  onPress={() => setHasFitnessApp(true)}
+                  style={[
+                    styles.toggleBtn,
+                    hasFitnessApp && styles.toggleBtnActive,
+                    hasFitnessApp && { borderColor: modeColors.accent },
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Watch size={16} color={hasFitnessApp ? modeColors.accent : COLORS.textMuted} />
+                  <Text
+                    style={[
+                      styles.toggleBtnText,
+                      hasFitnessApp && { color: modeColors.accent, fontWeight: '700' },
+                    ]}
+                  >
+                    Fitness App Sync
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setHasFitnessApp(false);
+                    setSyncedSource(null);
+                    setSleepHours(null);
+                    setSleepQuality(null);
+                    setRestingHeartRate(null);
+                    setSteps(null);
+                    setActiveCalories(null);
+                  }}
+                  style={[
+                    styles.toggleBtn,
+                    !hasFitnessApp && styles.toggleBtnActive,
+                    !hasFitnessApp && { borderColor: modeColors.accent },
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <User size={16} color={!hasFitnessApp ? modeColors.accent : COLORS.textMuted} />
+                  <Text
+                    style={[
+                      styles.toggleBtnText,
+                      !hasFitnessApp && { color: modeColors.accent, fontWeight: '700' },
+                    ]}
+                  >
+                    No Fitness App (Skip)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {hasFitnessApp ? (
+                <GlassCard style={styles.formCard}>
+                  {/* Supported Providers Badge Row */}
+                  <View style={styles.providersRow}>
+                    <Text style={styles.providerBadge}>Google Fit</Text>
+                    <Text style={styles.providerBadge}>Garmin</Text>
+                    <Text style={styles.providerBadge}>Xiaomi</Text>
+                    <Text style={styles.providerBadge}>Health Connect</Text>
+                  </View>
+
+                  {/* Sync Trigger CTA */}
+                  <TouchableOpacity
+                    onPress={handleSyncFitnessApp}
+                    disabled={isSyncing}
+                    style={[styles.syncCTAButton, { backgroundColor: modeColors.accent }]}
+                    activeOpacity={0.85}
+                  >
+                    {isSyncing ? (
+                      <ActivityIndicator size="small" color={COLORS.textDark} />
+                    ) : (
+                      <Zap size={18} color={COLORS.textDark} />
+                    )}
+                    <Text style={styles.syncCTAButtonText}>
+                      {isSyncing ? 'Connecting Local Bridge...' : 'Sync Fitness App Now'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {syncedSource ? (
+                    <View style={styles.syncedDetailsBox}>
+                      <View style={styles.syncedHeaderRow}>
+                        <View style={styles.syncedCheckBadge}>
+                          <Check size={12} color={COLORS.success} />
+                          <Text style={styles.syncedCheckText}>
+                            Connected to {syncedSource} (Local On-Device)
+                          </Text>
+                        </View>
+                        <Text style={styles.syncedTimestamp}>Just now</Text>
+                      </View>
+
+                      {/* 4-Stat Synced Grid */}
+                      <View style={styles.statsGrid}>
+                        <View style={styles.statTile}>
+                          <Weight size={14} color={modeColors.accent} />
+                          <Text style={styles.statLabel}>BODY WEIGHT</Text>
+                          <Text style={styles.statValue}>{weightKg} kg</Text>
+                        </View>
+
+                        <View style={styles.statTile}>
+                          <Ruler size={14} color={modeColors.accent} />
+                          <Text style={styles.statLabel}>HEIGHT</Text>
+                          <Text style={styles.statValue}>{heightCm} cm</Text>
+                        </View>
+
+                        <View style={styles.statTile}>
+                          <Flame size={14} color={COLORS.warning} />
+                          <Text style={styles.statLabel}>ACTIVE BURN</Text>
+                          <Text style={styles.statValue}>{activeCalories} kcal</Text>
+                        </View>
+
+                        <View style={styles.statTile}>
+                          <Footprints size={14} color={COLORS.strict.accent} />
+                          <Text style={styles.statLabel}>DAILY STEPS</Text>
+                          <Text style={styles.statValue}>{Number(steps ?? 0).toLocaleString()}</Text>
+                        </View>
+                      </View>
+
+                      {/* Resting HR and Sleep Row */}
+                      <View style={styles.metricsSummaryRow}>
+                        <View style={styles.metricPill}>
+                          <Heart size={12} color={COLORS.danger} />
+                          <Text style={styles.metricPillText}>RHR: {restingHeartRate} bpm</Text>
+                        </View>
+                        <View style={styles.metricPill}>
+                          <Moon size={12} color={COLORS.purpleAccent} />
+                          <Text style={styles.metricPillText}>Sleep: {sleepHours}h ({sleepQuality}/100)</Text>
+                        </View>
+                      </View>
+
+                      {/* Readiness Score Preview */}
+                      {readinessCategory && (
+                        <View style={styles.readinessPreviewBox}>
+                          <View style={styles.previewTop}>
+                            <Text style={styles.previewTitle}>RECOVERY READINESS</Text>
+                            <Text style={[styles.previewScore, { color: readinessCategory.color }]}>
+                              {previewReadiness}/100
+                            </Text>
+                          </View>
+                          <Text style={[styles.previewCategory, { color: readinessCategory.color }]}>
+                            {readinessCategory.label}
+                          </Text>
+                          <Text style={styles.previewGuidance}>{readinessCategory.guidance}</Text>
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={styles.syncCardContent}>
+                      <Watch size={28} color={modeColors.accent} />
+                      <Text style={styles.syncCardTitle}>Local Wearable Bridges Ready</Text>
+                      <Text style={styles.syncCardDesc}>
+                        Tap "Sync Fitness App Now" to pull local health records. Weight, height, active calories, and recovery sleep will be automatically transferred into your profile and nutrition plans.
+                      </Text>
+                    </View>
+                  )}
+                </GlassCard>
+              ) : (
+                <GlassCard style={styles.formCard}>
+                  <View style={styles.noAppInfoBox}>
+                    <Info size={18} color={modeColors.accent} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.noAppTitle}>Continuing Without a Fitness App</Text>
+                      <Text style={styles.noAppDesc}>
+                        No wearable tracker needed. ZeroCoach will calculate your customized workout volume and nutrition blueprint using only your body metrics and training goals. You can sync a wearable anytime later in the Telemetry tab.
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Weight & Height Inputs Only */}
+                  <View style={[styles.rowInputs, { marginTop: SPACING.md }]}>
+                    <View style={styles.halfInput}>
+                      <View style={styles.labelRow}>
+                        <Weight size={13} color={modeColors.accent} />
+                        <Text style={styles.inputLabel}>BODY WEIGHT (KG)</Text>
+                      </View>
+                      <TextInput
+                        style={styles.textInput}
+                        keyboardType="decimal-pad"
+                        placeholder="74"
+                        placeholderTextColor={COLORS.textMuted}
+                        value={weightKg}
+                        onChangeText={setWeightKg}
+                      />
+                    </View>
+
+                    <View style={styles.halfInput}>
+                      <View style={styles.labelRow}>
+                        <Ruler size={13} color={modeColors.accent} />
+                        <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                      </View>
+                      <TextInput
+                        style={styles.textInput}
+                        keyboardType="number-pad"
+                        placeholder="178"
+                        placeholderTextColor={COLORS.textMuted}
+                        value={heightCm}
+                        onChangeText={setHeightCm}
+                      />
+                    </View>
+                  </View>
+                </GlassCard>
+              )}
+            </View>
+          )}
+
+          {/* ===================================================================
+              STEP 2: COACHING PHILOSOPHY
+              =================================================================== */}
+          {currentStep === 2 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
                 <Text style={styles.mainTitle}>Choose Your Coaching Philosophy</Text>
@@ -254,30 +576,32 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     )}
                   </View>
                   <Text style={styles.modeDescription}>
-                    Compassionate lifestyle guide. Emphasizes consistency over intensity, gentle habit building, joint longevity, and sustainable progress.
+                    Compassionate wellness guide. Flexible, encouraging, focused on lifelong health, stress management, and sustainable micro-habits.
                   </Text>
                   <View style={styles.bulletList}>
-                    <Text style={styles.bullet}>• Accessible exercise regressions & pain-free holds</Text>
-                    <Text style={styles.bullet}>• Intuitive nourishment without obsessive counting</Text>
-                    <Text style={styles.bullet}>• Encourages micro-wins and nervous system rest</Text>
+                    <Text style={styles.bullet}>• Encouraging feedback and positive reinforcement</Text>
+                    <Text style={styles.bullet}>• Adaptable goals that fit around busy schedules</Text>
+                    <Text style={styles.bullet}>• Focuses on energy, vitality, and well-being</Text>
                   </View>
                 </GlassCard>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* STEP 2: PROFILE & BIOMETRICS */}
-          {currentStep === 2 && (
+          {/* ===================================================================
+              STEP 3: PROFILE & TRAINING GOALS (5 PILLARS)
+              =================================================================== */}
+          {currentStep === 3 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
                 <Text style={styles.mainTitle}>Your Profile & Goals</Text>
                 <Text style={styles.subtitle}>
-                  Enter your stats so the on-device model can personalize training volume and bodyweight leverage:
+                  Verify your body metrics and select your primary training objectives from the 5 Core Pillars:
                 </Text>
               </View>
 
               <GlassCard style={styles.formCard}>
-                <Text style={styles.inputLabel}>WHAT SHOULD THE COACH CALL YOU?</Text>
+                <Text style={styles.inputLabel}>YOUR ATHLETE NAME</Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g. Alex"
@@ -286,9 +610,17 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   onChangeText={setName}
                 />
 
-                <View style={styles.rowInputs}>
+                {/* Body Metrics with sync indicator */}
+                <View style={[styles.rowInputs, { marginTop: SPACING.md }]}>
                   <View style={styles.halfInput}>
-                    <Text style={styles.inputLabel}>BODY WEIGHT (KG)</Text>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.inputLabel}>WEIGHT (KG)</Text>
+                      {syncedSource && (
+                        <View style={styles.syncedMiniTag}>
+                          <Text style={styles.syncedMiniText}>Synced</Text>
+                        </View>
+                      )}
+                    </View>
                     <TextInput
                       style={styles.textInput}
                       keyboardType="decimal-pad"
@@ -298,8 +630,16 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                       onChangeText={setWeightKg}
                     />
                   </View>
+
                   <View style={styles.halfInput}>
-                    <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                      {syncedSource && (
+                        <View style={styles.syncedMiniTag}>
+                          <Text style={styles.syncedMiniText}>Synced</Text>
+                        </View>
+                      )}
+                    </View>
                     <TextInput
                       style={styles.textInput}
                       keyboardType="number-pad"
@@ -311,12 +651,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   </View>
                 </View>
 
+                {/* Primary Training Goals */}
                 <View style={styles.goalsHeaderRow}>
                   <Text style={styles.inputLabel}>PRIMARY TRAINING GOALS (MULTI-SELECT)</Text>
                   <Text style={[styles.goalsCountBadge, { color: modeColors.accent }]}>
                     {selectedGoals.length} SELECTED
                   </Text>
                 </View>
+
                 <View style={styles.goalsWrap}>
                   {COMMON_TRAINING_GOALS.map((goal) => {
                     const isSelected = selectedGoals.includes(goal.id);
@@ -364,45 +706,132 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
             </View>
           )}
 
-          {/* STEP 3: NUTRITION TARGETS */}
-          {currentStep === 3 && (
+          {/* ===================================================================
+              STEP 4: DAILY NUTRITION BASELINE & SMART MACROS
+              =================================================================== */}
+          {currentStep === 4 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
-                <Text style={styles.mainTitle}>Daily Nutrition Baseline</Text>
+                <Text style={styles.mainTitle}>Daily Nutrition & Smart Macros</Text>
                 <Text style={styles.subtitle}>
-                  Set your daily nutritional foundation. The coach dynamically adjusts these macros based on your active burn:
+                  Dynamically calculated from your Profile ({weightKg}kg, {heightCm}cm), Training Goals ({selectedGoals.length} selected), and Fitness Telemetry:
                 </Text>
               </View>
 
               <GlassCard style={styles.formCard}>
-                <View style={styles.headerWithIcon}>
+                {/* Science Calculation Breakdown Card */}
+                <View style={styles.breakdownBox}>
+                  <View style={styles.breakdownHeaderRow}>
+                    <Text style={styles.breakdownHeaderTitle}>SMART METRIC BREAKDOWN</Text>
+                    {syncedSource ? (
+                      <View style={styles.syncedTagBadge}>
+                        <Zap size={10} color={modeColors.accent} />
+                        <Text style={[styles.syncedTagText, { color: modeColors.accent }]}>
+                          Synced with {syncedSource}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.manualTagText}>Standard Metabolic Baseline</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.breakdownList}>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownItemLabel}>BMR (Mifflin-St Jeor):</Text>
+                      <Text style={styles.breakdownItemVal}>{smartRecommendation.bmr} kcal</Text>
+                    </View>
+
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownItemLabel}>
+                        {smartRecommendation.isActiveBurnFromWearable
+                          ? 'Active Wearable Burn:'
+                          : 'Estimated Baseline Activity:'}
+                      </Text>
+                      <Text style={[styles.breakdownItemVal, { color: COLORS.warning }]}>
+                        +{smartRecommendation.isActiveBurnFromWearable
+                          ? `${activeCalories} kcal`
+                          : `${Math.round(smartRecommendation.bmr * 0.35)} kcal`}
+                      </Text>
+                    </View>
+
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownItemLabel}>
+                        Goal ({smartRecommendation.goalSummary}):
+                      </Text>
+                      <Text
+                        style={[
+                          styles.breakdownItemVal,
+                          smartRecommendation.goalAdjustmentKcal < 0
+                            ? { color: COLORS.strict.accent }
+                            : { color: COLORS.success },
+                        ]}
+                      >
+                        {smartRecommendation.goalAdjustmentKcal >= 0 ? '+' : ''}
+                        {smartRecommendation.goalAdjustmentKcal} kcal
+                      </Text>
+                    </View>
+
+                    <View style={[styles.breakdownRow, styles.breakdownRowTotal]}>
+                      <Text style={styles.breakdownTotalLabel}>Calculated Target:</Text>
+                      <Text style={[styles.breakdownTotalVal, { color: modeColors.accent }]}>
+                        {smartRecommendation.dailyCalories} kcal / day
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Calorie Input */}
+                <View style={[styles.headerWithIcon, { marginTop: SPACING.md }]}>
                   <Flame size={18} color={COLORS.warning} />
-                  <Text style={styles.inputLabel}>DAILY CALORIE BASELINE (KCAL)</Text>
+                  <Text style={styles.inputLabel}>DAILY CALORIE TARGET (KCAL)</Text>
                 </View>
                 <TextInput
                   style={styles.textInput}
                   keyboardType="number-pad"
-                  placeholder="2800"
+                  placeholder="2400"
                   placeholderTextColor={COLORS.textMuted}
                   value={calorieTarget}
-                  onChangeText={setCalorieTarget}
+                  onChangeText={(val) => {
+                    setCalorieTarget(val);
+                    setHasCustomMacros(true);
+                  }}
                 />
 
-                <Text style={[styles.inputLabel, { marginTop: SPACING.md }]}>
-                  MACRONUTRIENT DISTRIBUTION
-                </Text>
+                {/* Macronutrient Distribution */}
+                <View style={styles.macroHeaderRow}>
+                  <Text style={styles.inputLabel}>MACRONUTRIENT DISTRIBUTION</Text>
+                  {hasCustomMacros && (
+                    <TouchableOpacity
+                      onPress={resetToAutoCalculated}
+                      style={styles.resetBtn}
+                      activeOpacity={0.7}
+                    >
+                      <RefreshCw size={11} color={modeColors.accent} />
+                      <Text style={[styles.resetBtnText, { color: modeColors.accent }]}>
+                        Reset to Auto
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
                 <View style={styles.macroRow}>
                   <View style={styles.macroCol}>
                     <Text style={styles.macroBadge}>PROTEIN</Text>
                     <TextInput
                       style={styles.macroInput}
                       keyboardType="number-pad"
-                      placeholder="170"
+                      placeholder="165"
                       placeholderTextColor={COLORS.textMuted}
                       value={proteinGrams}
-                      onChangeText={setProteinGrams}
+                      onChangeText={(val) => {
+                        setProteinGrams(val);
+                        setHasCustomMacros(true);
+                      }}
                     />
                     <Text style={styles.macroUnit}>grams</Text>
+                    <Text style={styles.macroKcalSub}>
+                      {(parseInt(proteinGrams, 10) || 0) * 4} kcal
+                    </Text>
                   </View>
 
                   <View style={styles.macroCol}>
@@ -410,12 +839,18 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <TextInput
                       style={styles.macroInput}
                       keyboardType="number-pad"
-                      placeholder="320"
+                      placeholder="260"
                       placeholderTextColor={COLORS.textMuted}
                       value={carbsGrams}
-                      onChangeText={setCarbsGrams}
+                      onChangeText={(val) => {
+                        setCarbsGrams(val);
+                        setHasCustomMacros(true);
+                      }}
                     />
                     <Text style={styles.macroUnit}>grams</Text>
+                    <Text style={styles.macroKcalSub}>
+                      {(parseInt(carbsGrams, 10) || 0) * 4} kcal
+                    </Text>
                   </View>
 
                   <View style={styles.macroCol}>
@@ -423,191 +858,46 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <TextInput
                       style={styles.macroInput}
                       keyboardType="number-pad"
-                      placeholder="65"
+                      placeholder="55"
                       placeholderTextColor={COLORS.textMuted}
                       value={fatGrams}
-                      onChangeText={setFatGrams}
+                      onChangeText={(val) => {
+                        setFatGrams(val);
+                        setHasCustomMacros(true);
+                      }}
                     />
                     <Text style={styles.macroUnit}>grams</Text>
+                    <Text style={styles.macroKcalSub}>
+                      {(parseInt(fatGrams, 10) || 0) * 9} kcal
+                    </Text>
                   </View>
                 </View>
+
+                {/* Quick Re-sync CTA on Step 4 */}
+                <TouchableOpacity
+                  onPress={handleSyncFitnessApp}
+                  disabled={isSyncing}
+                  style={styles.reSyncBtn}
+                  activeOpacity={0.75}
+                >
+                  <RefreshCw
+                    size={12}
+                    color={modeColors.accent}
+                    style={isSyncing ? { transform: [{ rotate: '45deg' }] } : undefined}
+                  />
+                  <Text style={[styles.reSyncBtnText, { color: modeColors.accent }]}>
+                    {isSyncing
+                      ? 'Re-syncing Fitness App...'
+                      : 'Re-sync Wearable Active Calories & Weight'}
+                  </Text>
+                </TouchableOpacity>
               </GlassCard>
             </View>
           )}
 
-          {/* STEP 4: WEARABLE & MANUAL TELEMETRY INPUT */}
-          {currentStep === 4 && (
-            <View style={styles.stepContainer}>
-              <View style={styles.titleBox}>
-                <Text style={styles.mainTitle}>Fitness Telemetry Setup</Text>
-                <Text style={styles.subtitle}>
-                  If you have a fitness app (Google Fit, Garmin, Xiaomi), you can sync it. If not, enter your metrics manually below:
-                </Text>
-              </View>
-
-              {/* Toggle Choice */}
-              <View style={styles.telemetryToggleRow}>
-                <TouchableOpacity
-                  onPress={() => setTelemetryChoice('manual')}
-                  style={[
-                    styles.toggleBtn,
-                    telemetryChoice === 'manual' && styles.toggleBtnActive,
-                    telemetryChoice === 'manual' && { borderColor: modeColors.accent },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Edit3 size={16} color={telemetryChoice === 'manual' ? modeColors.accent : COLORS.textMuted} />
-                  <Text
-                    style={[
-                      styles.toggleBtnText,
-                      telemetryChoice === 'manual' && { color: modeColors.accent, fontWeight: '700' },
-                    ]}
-                  >
-                    Manual Input (No App)
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setTelemetryChoice('sync')}
-                  style={[
-                    styles.toggleBtn,
-                    telemetryChoice === 'sync' && styles.toggleBtnActive,
-                    telemetryChoice === 'sync' && { borderColor: modeColors.accent },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Watch size={16} color={telemetryChoice === 'sync' ? modeColors.accent : COLORS.textMuted} />
-                  <Text
-                    style={[
-                      styles.toggleBtnText,
-                      telemetryChoice === 'sync' && { color: modeColors.accent, fontWeight: '700' },
-                    ]}
-                  >
-                    Fitness App Sync
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {telemetryChoice === 'manual' ? (
-                <GlassCard style={styles.formCard}>
-                  <Text style={styles.sectionSubtitle}>
-                    Enter your recent physiological metrics:
-                  </Text>
-
-                  {/* Sleep & Quality */}
-                  <View style={styles.rowInputs}>
-                    <View style={styles.halfInput}>
-                      <View style={styles.labelRow}>
-                        <Moon size={13} color={COLORS.purpleAccent} />
-                        <Text style={styles.inputLabel}>SLEEP (HOURS)</Text>
-                      </View>
-                      <TextInput
-                        style={styles.textInput}
-                        keyboardType="decimal-pad"
-                        placeholder="7.5"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={sleepHours}
-                        onChangeText={setSleepHours}
-                      />
-                    </View>
-
-                    <View style={styles.halfInput}>
-                      <View style={styles.labelRow}>
-                        <Sparkles size={13} color={COLORS.warning} />
-                        <Text style={styles.inputLabel}>SLEEP QUALITY (0-100)</Text>
-                      </View>
-                      <TextInput
-                        style={styles.textInput}
-                        keyboardType="number-pad"
-                        placeholder="80"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={sleepQuality}
-                        onChangeText={setSleepQuality}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Heart Rate & Steps */}
-                  <View style={[styles.rowInputs, { marginTop: SPACING.sm }]}>
-                    <View style={styles.halfInput}>
-                      <View style={styles.labelRow}>
-                        <Heart size={13} color={COLORS.danger} />
-                        <Text style={styles.inputLabel}>RESTING HR (BPM)</Text>
-                      </View>
-                      <TextInput
-                        style={styles.textInput}
-                        keyboardType="number-pad"
-                        placeholder="54"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={restingHeartRate}
-                        onChangeText={setRestingHeartRate}
-                      />
-                    </View>
-
-                    <View style={styles.halfInput}>
-                      <View style={styles.labelRow}>
-                        <Footprints size={13} color={COLORS.strict.accent} />
-                        <Text style={styles.inputLabel}>TODAY'S STEPS</Text>
-                      </View>
-                      <TextInput
-                        style={styles.textInput}
-                        keyboardType="number-pad"
-                        placeholder="8500"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={steps}
-                        onChangeText={setSteps}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Active Calories */}
-                  <View style={{ marginTop: SPACING.sm }}>
-                    <View style={styles.labelRow}>
-                      <Flame size={13} color={COLORS.warning} />
-                      <Text style={styles.inputLabel}>ACTIVE CALORIES BURNED (KCAL)</Text>
-                    </View>
-                    <TextInput
-                      style={styles.textInput}
-                      keyboardType="number-pad"
-                      placeholder="550"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={activeCalories}
-                      onChangeText={setActiveCalories}
-                    />
-                  </View>
-
-                  {/* Dynamic Readiness Preview */}
-                  <View style={styles.readinessPreviewBox}>
-                    <View style={styles.previewTop}>
-                      <Text style={styles.previewTitle}>CALCULATED READINESS SCORE</Text>
-                      <Text style={[styles.previewScore, { color: readinessCategory.color }]}>
-                        {previewReadiness}/100
-                      </Text>
-                    </View>
-                    <Text style={[styles.previewCategory, { color: readinessCategory.color }]}>
-                      {readinessCategory.label}
-                    </Text>
-                    <Text style={styles.previewGuidance}>{readinessCategory.guidance}</Text>
-                  </View>
-                </GlassCard>
-              ) : (
-                <GlassCard style={styles.formCard}>
-                  <View style={styles.syncCardContent}>
-                    <Watch size={32} color={modeColors.accent} />
-                    <Text style={styles.syncCardTitle}>Local Wearable Bridges Active</Text>
-                    <Text style={styles.syncCardDesc}>
-                      ZeroCoach pulls locally from Android Health Connect (Google Fit, Garmin, Xiaomi) on-device. No cloud APIs or logins required.
-                    </Text>
-                    <View style={styles.syncStatusTag}>
-                      <Text style={styles.syncStatusText}>Ready to Sync on Main Dashboard</Text>
-                    </View>
-                  </View>
-                </GlassCard>
-              )}
-            </View>
-          )}
-
-          {/* Navigation Controls */}
+          {/* ===================================================================
+              NAVIGATION CONTROLS
+              =================================================================== */}
           <View style={styles.navRow}>
             {currentStep > 1 ? (
               <TouchableOpacity
@@ -618,7 +908,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 <ArrowLeft size={16} color={COLORS.textSecondary} />
                 <Text style={styles.backBtnText}>Back</Text>
               </TouchableOpacity>
-            ) : <View style={{ width: 80 }} />}
+            ) : (
+              <View style={{ width: 80 }} />
+            )}
 
             {currentStep < 4 ? (
               <TouchableOpacity
@@ -677,10 +969,19 @@ const styles = StyleSheet.create({
     width: 32,
   },
   stepDotCompleted: {},
+  headerRight: {
+    alignItems: 'flex-end',
+  },
   stepCountText: {
     ...TYPOGRAPHY.badge,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
+  },
+  stepTitleSubtitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   scrollContent: {
     padding: SPACING.lg,
@@ -704,54 +1005,118 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 18,
   },
-  modeCard: {
-    marginBottom: SPACING.md,
+  formCard: {
     padding: SPACING.lg,
   },
-  modeCardSelected: {
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  providersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: SPACING.md,
   },
-  modeCardHeader: {
+  providerBadge: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    backgroundColor: COLORS.cardSecondary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  syncCTAButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  syncCTAButtonText: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 14,
+    color: COLORS.textDark,
+  },
+  syncedDetailsBox: {
+    marginTop: SPACING.xs,
+  },
+  syncedHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: SPACING.md,
   },
-  modeIconRow: {
+  syncedCheckBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.round,
   },
-  modeTitle: {
-    ...TYPOGRAPHY.h3,
-    fontSize: 15,
-    fontWeight: '800',
+  syncedCheckText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.success,
+    fontWeight: '700',
   },
-  checkCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  syncedTimestamp: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
   },
-  modeDescription: {
-    ...TYPOGRAPHY.body,
-    fontSize: 13,
-    color: COLORS.textPrimary,
-    lineHeight: 18,
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
     marginBottom: SPACING.sm,
   },
-  bulletList: {
-    gap: 3,
+  statTile: {
+    width: '48%',
+    backgroundColor: COLORS.cardSecondary,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    gap: 2,
   },
-  bullet: {
+  statLabel: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  statValue: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+  },
+  metricsSummaryRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  metricPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.cardSecondary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  metricPillText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textSecondary,
-  },
-  formCard: {
-    padding: SPACING.lg,
   },
   inputLabel: {
     ...TYPOGRAPHY.badge,
@@ -766,28 +1131,86 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: 10,
+    color: COLORS.textPrimary,
     ...TYPOGRAPHY.body,
     fontSize: 14,
-    color: COLORS.textPrimary,
   },
   rowInputs: {
     flexDirection: 'row',
     gap: SPACING.md,
-    marginTop: SPACING.md,
   },
   halfInput: {
     flex: 1,
+  },
+  syncedMiniTag: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  syncedMiniText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 8,
+    color: COLORS.success,
+    fontWeight: '800',
+  },
+  modeCard: {
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  modeCardSelected: {
+    backgroundColor: COLORS.surfaceElevated,
+  },
+  modeCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  modeIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modeTitle: {
+    ...TYPOGRAPHY.h3,
+    fontSize: 15,
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeDescription: {
+    ...TYPOGRAPHY.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+    marginBottom: SPACING.sm,
+  },
+  bulletList: {
+    gap: 4,
+  },
+  bullet: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textMuted,
   },
   goalsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
     marginBottom: 6,
   },
   goalsCountBadge: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
   },
   goalsWrap: {
@@ -830,11 +1253,101 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 15,
   },
+  breakdownBox: {
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  breakdownHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  breakdownHeaderTitle: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    color: COLORS.textMuted,
+  },
+  syncedTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+  },
+  syncedTagText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  manualTagText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 9,
+    color: COLORS.textMuted,
+  },
+  breakdownList: {
+    gap: 6,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  breakdownRowTotal: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderSubtle,
+    paddingTop: 6,
+    marginTop: 2,
+  },
+  breakdownItemLabel: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  breakdownItemVal: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  breakdownTotalLabel: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 12,
+    color: COLORS.textPrimary,
+  },
+  breakdownTotalVal: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   headerWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginBottom: 6,
+  },
+  macroHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    marginBottom: 6,
+  },
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  resetBtnText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    fontWeight: '700',
   },
   macroRow: {
     flexDirection: 'row',
@@ -857,7 +1370,7 @@ const styles = StyleSheet.create({
   },
   macroInput: {
     ...TYPOGRAPHY.metricMedium,
-    fontSize: 20,
+    fontSize: 19,
     color: COLORS.textPrimary,
     textAlign: 'center',
     padding: 0,
@@ -865,9 +1378,28 @@ const styles = StyleSheet.create({
   },
   macroUnit: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10,
+    fontSize: 9,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  macroKcalSub: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 8,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  reSyncBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: SPACING.md,
+    paddingVertical: 8,
+  },
+  reSyncBtnText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '700',
   },
   telemetryToggleRow: {
     flexDirection: 'row',
@@ -894,16 +1426,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
   },
-  sectionSubtitle: {
-    ...TYPOGRAPHY.body,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
-  },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  noAppInfoBox: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+  },
+  noAppTitle: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  noAppDesc: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    lineHeight: 16,
   },
   readinessPreviewBox: {
     marginTop: SPACING.md,
@@ -956,20 +1503,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: SPACING.md,
-  },
-  syncStatusTag: {
-    marginTop: SPACING.sm,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.round,
-  },
-  syncStatusText: {
-    ...TYPOGRAPHY.badge,
-    fontSize: 10,
-    color: COLORS.success,
   },
   navRow: {
     flexDirection: 'row',

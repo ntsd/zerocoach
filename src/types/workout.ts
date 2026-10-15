@@ -12,6 +12,13 @@ export interface ExerciseItem {
   intensityNote: string;
   coachingCue: string;
   completed?: boolean;
+  equipment?: string;
+  bodyPart?: string;
+  primaryMuscles?: string[];
+  mechanic?: string;
+  difficulty?: string;
+  isBodyweight?: boolean;
+  met?: number;
 }
 
 export type WorkoutIntensityTier = 'peak' | 'optimal' | 'deload' | 'baseline';
@@ -24,8 +31,11 @@ export interface GeneratedWorkoutPlan {
   tierLabel: string;
   readinessMultiplierDesc: string;
   estimatedDurationMin: number;
+  estimatedCaloriesBurn?: number;
+  equipmentMode?: 'all' | 'bodyweight';
   targetSkillMilestone?: string;
   exercises: ExerciseItem[];
   coachingNotes: string;
   generatedDate: string;
+  sourceAttribution?: string;
 }

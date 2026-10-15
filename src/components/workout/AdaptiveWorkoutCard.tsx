@@ -17,12 +17,30 @@ import {
   Info,
   Flame,
   Activity,
+  Database,
+  Layers,
 } from 'lucide-react-native';
 
 interface AdaptiveWorkoutCardProps {
   plan: GeneratedWorkoutPlan;
   mode: CoachingMode;
   onAskCoach: (plan: GeneratedWorkoutPlan) => void;
+}
+
+function formatEquipment(eq?: string): string {
+  if (!eq) return 'Bodyweight';
+  return eq
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function formatMuscle(muscle?: string): string {
+  if (!muscle) return '';
+  return muscle
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
@@ -84,7 +102,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           <View style={[styles.iconCircle, { backgroundColor: `${modeColors.accent}20` }]}>
             <Dumbbell size={16} color={modeColors.accent} />
           </View>
-          <View>
+          <View style={styles.headerTitleBox}>
             <Text style={styles.planSuperTitle}>DATA-GENERATED EXERCISE PLAN</Text>
             <Text style={styles.planTitle}>{plan.title}</Text>
           </View>
@@ -96,22 +114,33 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         </View>
       </View>
 
-      {/* Meta Specs (Duration, Target Skill, Readiness note) */}
+      {/* Meta Specs (Duration, Calories, Movements, Mode) */}
       <View style={styles.metaRow}>
         <View style={styles.metaPill}>
-          <Clock size={12} color={COLORS.textSecondary} />
+          <Clock size={11} color={COLORS.textSecondary} />
           <Text style={styles.metaPillText}>~{plan.estimatedDurationMin} MIN</Text>
         </View>
 
+        {plan.estimatedCaloriesBurn && (
+          <View style={styles.metaPill}>
+            <Flame size={11} color={COLORS.warning} />
+            <Text style={[styles.metaPillText, { color: COLORS.warning }]}>
+              ~{plan.estimatedCaloriesBurn} KCAL
+            </Text>
+          </View>
+        )}
+
         <View style={styles.metaPill}>
-          <Activity size={12} color={modeColors.accent} />
+          <Activity size={11} color={modeColors.accent} />
           <Text style={[styles.metaPillText, { color: modeColors.accent }]}>
             {plan.exercises.length} MOVEMENTS
           </Text>
         </View>
 
         <View style={styles.metaPill}>
-          <Text style={styles.metaPillDate}>{plan.generatedDate}</Text>
+          <Text style={styles.metaPillDate}>
+            {plan.equipmentMode === 'bodyweight' ? 'HOME / BODYWEIGHT' : 'ALL GYM'}
+          </Text>
         </View>
       </View>
 
@@ -125,7 +154,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       {plan.targetSkillMilestone && (
         <View style={styles.milestoneHighlight}>
           <Sparkles size={13} color={COLORS.warning} />
-          <Text style={styles.milestoneLabel}>TARGET SKILL:</Text>
+          <Text style={styles.milestoneLabel}>TARGET MILESTONE:</Text>
           <Text style={styles.milestoneValue} numberOfLines={1}>
             {plan.targetSkillMilestone}
           </Text>
@@ -152,9 +181,10 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
       {/* Exercises List */}
       <View style={styles.exerciseList}>
-        {plan.exercises.map((item, idx) => {
+        {plan.exercises.map((item) => {
           const isDone = !!completedExercises[item.id];
           const catColor = getCategoryColor(item.category);
+          const firstMuscle = item.primaryMuscles?.[0];
 
           return (
             <TouchableOpacity
@@ -198,6 +228,37 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                     {item.name}
                   </Text>
 
+                  {/* RepDB Biomechanical Specs Row */}
+                  <View style={styles.badgeTagsRow}>
+                    {item.equipment && (
+                      <View style={styles.tagBadge}>
+                        <Dumbbell size={9} color={COLORS.textMuted} />
+                        <Text style={styles.tagBadgeText}>{formatEquipment(item.equipment)}</Text>
+                      </View>
+                    )}
+
+                    {item.mechanic && (
+                      <View style={styles.tagBadge}>
+                        <Layers size={9} color={COLORS.textMuted} />
+                        <Text style={styles.tagBadgeText}>
+                          {item.mechanic.charAt(0).toUpperCase() + item.mechanic.slice(1)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {firstMuscle && (
+                      <View style={styles.tagBadge}>
+                        <Text style={styles.tagBadgeText}>{formatMuscle(firstMuscle)}</Text>
+                      </View>
+                    )}
+
+                    {item.met && (
+                      <View style={styles.metTagBadge}>
+                        <Text style={styles.metTagText}>{item.met} MET</Text>
+                      </View>
+                    )}
+                  </View>
+
                   {/* Volume (Sets x Reps, Rest) */}
                   <View style={styles.volumeRow}>
                     <Text style={styles.volumeText}>
@@ -216,6 +277,14 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
             </TouchableOpacity>
           );
         })}
+      </View>
+
+      {/* RepDB Dataset Attribution Footer */}
+      <View style={styles.repDbAttributionRow}>
+        <Database size={11} color={COLORS.textMuted} />
+        <Text style={styles.repDbAttributionText}>
+          Exercise dataset by <Text style={{ color: modeColors.accent }}>RepDB (repdb.co)</Text> • 643 Science-Backed Movements
+        </Text>
       </View>
 
       {/* Ask Coach CTA */}
@@ -250,10 +319,13 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     flex: 1,
   },
+  headerTitleBox: {
+    flex: 1,
+  },
   iconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: RADIUS.round,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -261,12 +333,13 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.badge,
     fontSize: 9,
     color: COLORS.textMuted,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   planTitle: {
-    ...TYPOGRAPHY.h3,
-    fontSize: 16,
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 15,
     color: COLORS.textPrimary,
+    marginTop: 1,
   },
   tierBadge: {
     flexDirection: 'row',
@@ -274,28 +347,32 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: RADIUS.round,
+    borderRadius: RADIUS.xs,
     borderWidth: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   tierBadgeText: {
     ...TYPOGRAPHY.badge,
     fontSize: 9,
     fontWeight: '800',
+    letterSpacing: 0.8,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: SPACING.xs,
   },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: COLORS.cardSecondary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
   },
   metaPillText: {
     ...TYPOGRAPHY.badge,
@@ -304,15 +381,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   metaPillDate: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.badge,
     fontSize: 10,
     color: COLORS.textMuted,
   },
   guidanceBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: SPACING.sm,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
@@ -323,16 +400,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textSecondary,
     flex: 1,
-    lineHeight: 16,
+    lineHeight: 15,
   },
   milestoneHighlight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.xs,
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.25)',
   },
@@ -343,10 +420,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   milestoneValue: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.captionBold,
     fontSize: 11,
     color: COLORS.textPrimary,
-    fontWeight: '700',
     flex: 1,
   },
   progressContainer: {
@@ -404,7 +480,7 @@ const styles = StyleSheet.create({
   },
   exerciseDetails: {
     flex: 1,
-    gap: 3,
+    gap: 4,
   },
   catBadgeRow: {
     flexDirection: 'row',
@@ -436,11 +512,43 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: COLORS.textSecondary,
   },
+  badgeTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 1,
+  },
+  tagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 3,
+  },
+  tagBadgeText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 9,
+    color: COLORS.textSecondary,
+  },
+  metTagBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 3,
+  },
+  metTagText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 9,
+    color: COLORS.warning,
+  },
   volumeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    marginTop: 1,
+    marginTop: 2,
   },
   volumeText: {
     ...TYPOGRAPHY.caption,
@@ -478,6 +586,19 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     flex: 1,
     lineHeight: 14,
+  },
+  repDbAttributionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 4,
+    marginTop: 2,
+  },
+  repDbAttributionText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
   },
   askCoachBtn: {
     flexDirection: 'row',

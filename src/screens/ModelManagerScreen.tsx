@@ -35,6 +35,7 @@ import {
   Eye,
   EyeOff,
   Settings,
+  Database,
 } from 'lucide-react-native';
 import {
   clearAllUserData,
@@ -548,6 +549,36 @@ export const ModelManagerScreen: React.FC = () => {
               <Text style={styles.otaStatusText}>{otaStatus}</Text>
             </View>
           )}
+        </GlassCard>
+
+        {/* Open Source Exercise Dataset & Attributions */}
+        <GlassCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Database size={16} color={modeColors.accent} />
+            <Text style={styles.cardTitle}>OPEN SOURCE EXERCISE DATASET</Text>
+          </View>
+          <Text style={styles.otaDesc}>
+            Exercise mechanics, metabolic equivalents (MET), and biomechanical coaching cues are powered by RepDB.
+          </Text>
+
+          <View style={styles.datasetInfoBox}>
+            <View style={styles.datasetInfoRow}>
+              <Text style={styles.datasetInfoLabel}>SOURCE DATASET:</Text>
+              <Text style={[styles.datasetInfoVal, { color: modeColors.accent }]}>RepDB (repdb.co)</Text>
+            </View>
+            <View style={styles.datasetInfoRow}>
+              <Text style={styles.datasetInfoLabel}>TOTAL MOVEMENTS:</Text>
+              <Text style={styles.datasetInfoVal}>643 Exercises (195 Bodyweight + 448 Gym Equipment)</Text>
+            </View>
+            <View style={styles.datasetInfoRow}>
+              <Text style={styles.datasetInfoLabel}>CALORIE SCI-METRICS:</Text>
+              <Text style={styles.datasetInfoVal}>ACSM Metabolic Equivalent of Task (MET)</Text>
+            </View>
+            <View style={styles.datasetInfoRow}>
+              <Text style={styles.datasetInfoLabel}>ATTRIBUTION:</Text>
+              <Text style={styles.datasetInfoVal}>Exercise data by RepDB (repdb.co)</Text>
+            </View>
+          </View>
         </GlassCard>
 
         {/* Local Storage & Data Privacy Wipe */}
@@ -1124,5 +1155,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     flex: 1,
+  },
+  datasetInfoBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    padding: SPACING.sm,
+    gap: 6,
+  },
+  datasetInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  datasetInfoLabel: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    fontWeight: '800',
+  },
+  datasetInfoVal: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    textAlign: 'right',
   },
 });

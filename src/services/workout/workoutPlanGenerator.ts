@@ -1,4 +1,4 @@
-import { CoachingMode, TrainingGoal, Gender } from '@/types/coach';
+import { CoachingMode, TrainingGoal, Sex } from '@/types/coach';
 import { CalisthenicsStage } from '@/types/telemetry';
 import { GeneratedWorkoutPlan, ExerciseItem, WorkoutIntensityTier } from '@/types/workout';
 import { exerciseRepository } from './exerciseRepository';
@@ -13,7 +13,7 @@ export interface WorkoutPlanGenerationParams {
   activeStages: CalisthenicsStage[];
   activeCalories?: number;
   equipmentMode?: 'all' | 'bodyweight';
-  gender?: Gender;
+  sex?: Sex;
 }
 
 /**
@@ -54,7 +54,7 @@ function createExerciseItemFromRepDB(
 /**
  * Generates an adaptive, evidence-based exercise plan dynamically tailored to:
  * 1. Equipment Environment (Full Gym vs Bodyweight/Home)
- * 2. User Gender & Exercise Physiology (Volume tolerance, rep cadence, rest curves)
+ * 2. Biological Sex & Exercise Physiology (Volume tolerance, rep cadence, rest curves)
  * 3. Selected Training Goals (Strength, Calisthenics, Fat Loss, Cardio, Longevity)
  * 4. Wearable Telemetry & Recovery Readiness (Autoregulated Sets, Reps, RPE)
  * 5. RepDB Open Exercise Dataset (643 exercises with verified METs, mechanics, and cues)
@@ -69,13 +69,13 @@ export function generateAdaptiveWorkoutPlan(
     weightKg = 0,
     activeStages = [],
     equipmentMode = 'all',
-    gender = 'male',
+    sex = 'male',
   } = params;
 
   const isStrict = mode === 'strict';
   const isGym = equipmentMode === 'all';
-  const isFemale = gender === 'female';
-  const isMale = gender === 'male';
+  const isFemale = sex === 'female';
+  const isMale = sex === 'male';
 
   // 1. Determine Autoregulated Intensity Tier from Readiness
   let tier: WorkoutIntensityTier = 'baseline';
@@ -108,7 +108,7 @@ export function generateAdaptiveWorkoutPlan(
       `Depressed recovery (${readinessScore}/100). Volume reduced by 35% to protect joints and facilitate CNS repair.`;
   }
 
-  // Physiological Rep Cadence & Rest Curves (Gender & Tier Adjusted)
+  // Physiological Rep Cadence & Rest Curves (Sex & Tier Adjusted)
   const compoundReps = isFemale
     ? tier === 'peak' ? '6–8 strict reps' : tier === 'deload' ? '8 reps (light)' : '8–10 controlled reps'
     : isMale
@@ -122,21 +122,19 @@ export function generateAdaptiveWorkoutPlan(
   const compoundRestSec = isFemale ? (tier === 'peak' ? 90 : 60) : (tier === 'peak' ? 120 : 90);
   const accessoryRestSec = isFemale ? 45 : 60;
 
-  // 2. Resolve Target Milestone:
-  // Calisthenics progression is ONLY targeted if the user specifically chose calisthenics_mastery
-  // OR is in Home/Bodyweight equipment mode.
+  // 2. Resolve Target Milestone from Progression Stages:
   const wantsCalisthenics = goals.includes('calisthenics_mastery') || !isGym;
-  const nextStage = wantsCalisthenics ? activeStages.find((s) => !s.completed) : undefined;
+  const nextStage = wantsCalisthenics
+    ? activeStages.find((s) => !s.completed && s.category === 'bodyweight') || activeStages.find((s) => !s.completed)
+    : activeStages.find((s) => !s.completed && s.category === 'gym') || activeStages.find((s) => !s.completed);
 
   let targetSkillMilestone: string;
-  if (wantsCalisthenics && nextStage) {
+  if (nextStage) {
     targetSkillMilestone = `${nextStage.skillName} Stage ${nextStage.stageNumber}: ${nextStage.stageTitle}`;
   } else if (isGym) {
-    targetSkillMilestone = tier === 'peak'
-      ? 'Barbell Bench Press: Heavy Overload Protocol (4–6 Reps)'
-      : 'Barbell Bench Press: Progressive Hypertrophy Benchmark';
+    targetSkillMilestone = 'Barbell Bench Press: Progressive Hypertrophy Benchmark';
   } else {
-    targetSkillMilestone = 'Strict Calisthenics Bodyweight Standards';
+    targetSkillMilestone = 'Strict Bodyweight Progression Standards';
   }
 
   const exercises: ExerciseItem[] = [];

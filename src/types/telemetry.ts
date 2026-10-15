@@ -17,22 +17,26 @@ export interface TelemetryMetrics {
   heightCm?: number;
 }
 
-export interface CalisthenicsStage {
+export interface ProgressionStage {
   id: string;
+  category: 'gym' | 'bodyweight';
   skillName: string;
   stageNumber: number;
   stageTitle: string;
   standard: string;
   completed: boolean;
   notes?: string;
+  equipment?: string;
 }
+
+export type CalisthenicsStage = ProgressionStage;
 
 export interface TelemetryState {
   metrics: TelemetryMetrics;
   activePreset: TelemetryPresetId;
   syncing: boolean;
   syncError: string | null;
-  calisthenicsStages: CalisthenicsStage[];
+  calisthenicsStages: ProgressionStage[];
   syncTelemetry: () => Promise<void>;
   clearSyncError: () => void;
   applyPreset: (presetId: TelemetryPresetId) => void;

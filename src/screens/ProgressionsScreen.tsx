@@ -26,7 +26,7 @@ interface ProgressionsScreenProps {
 export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
-  const [selectedFilter, setSelectedFilter] = useState<'All' | 'L-Sit' | 'Bar Muscle-Up'>('All');
+  const [selectedFilter, setSelectedFilter] = useState<string>('All');
   const { mode, userProfile } = useCoachStore();
   const defaultMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
@@ -45,22 +45,55 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
       activeStages: calisthenicsStages,
       activeCalories: metrics.activeCalories,
       equipmentMode,
-      gender: userProfile.gender,
+      sex: userProfile.sex,
     });
   }, [userProfile, mode, metrics, calisthenicsStages, equipmentMode]);
 
-  const filteredStages = calisthenicsStages.filter((stage) => {
-    if (selectedFilter === 'All') return true;
-    return stage.skillName === selectedFilter;
-  });
+  // Dynamic filter options based on current equipment environment
+  const filterOptions = useMemo(() => {
+    if (equipmentMode === 'all') {
+      return [
+        { id: 'All', label: 'All Gym Benchmarks' },
+        { id: 'Barbell Bench Press', label: 'Bench Press' },
+        { id: 'Barbell Back Squat', label: 'Back Squat' },
+        { id: 'Barbell Bent-Over Row', label: 'Barbell Row' },
+        { id: 'bodyweight_all', label: '🤸 Bodyweight Skills' },
+      ];
+    } else {
+      return [
+        { id: 'All', label: 'All Bodyweight Skills' },
+        { id: 'Push-Up & Dip Mastery', label: 'Push-Up & Dips' },
+        { id: 'Pull-Up & Muscle-Up', label: 'Pull-Up & Muscle-Up' },
+        { id: 'Core & L-Sit', label: 'Core & L-Sit' },
+        { id: 'gym_all', label: '🏋️ Gym Benchmarks' },
+      ];
+    }
+  }, [equipmentMode]);
 
-  const completedCount = calisthenicsStages.filter((s) => s.completed).length;
-  const totalCount = calisthenicsStages.length;
-  const progressPercent = Math.round((completedCount / totalCount) * 100);
+  const filteredStages = useMemo(() => {
+    return calisthenicsStages.filter((stage) => {
+      if (selectedFilter === 'All') {
+        return equipmentMode === 'all'
+          ? (stage.category === 'gym' || !stage.category)
+          : stage.category === 'bodyweight';
+      }
+      if (selectedFilter === 'bodyweight_all') {
+        return stage.category === 'bodyweight';
+      }
+      if (selectedFilter === 'gym_all') {
+        return stage.category === 'gym' || !stage.category;
+      }
+      return stage.skillName === selectedFilter;
+    });
+  }, [calisthenicsStages, selectedFilter, equipmentMode]);
+
+  const completedCount = filteredStages.filter((s) => s.completed).length;
+  const totalCount = filteredStages.length;
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const handleAskCoach = async (stage: CalisthenicsStage) => {
     onNavigateToChat();
-    const prompt = `Coach, I am currently working on ${stage.skillName} Stage ${stage.stageNumber}: "${stage.stageTitle}". The standard is "${stage.standard}". What form cues, common pitfalls, and set/rep schemes should I adhere to based on my readiness?`;
+    const prompt = `Coach, I am currently working on ${stage.skillName} Stage ${stage.stageNumber}: "${stage.stageTitle}". The standard is "${stage.standard}". What form cues, setup mechanics, and set/rep progression schemes should I adhere to based on my readiness?`;
     await sendMessage(prompt);
   };
 
@@ -86,7 +119,10 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         {/* Equipment Mode Segmented Selector */}
         <View style={styles.equipmentToggleContainer}>
           <TouchableOpacity
-            onPress={() => setEquipmentMode('all')}
+            onPress={() => {
+              setEquipmentMode('all');
+              setSelectedFilter('All');
+            }}
             style={[
               styles.equipmentOption,
               equipmentMode === 'all' && {
@@ -111,7 +147,10 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setEquipmentMode('bodyweight')}
+            onPress={() => {
+              setEquipmentMode('bodyweight');
+              setSelectedFilter('All');
+            }}
             style={[
               styles.equipmentOption,
               equipmentMode === 'bodyweight' && {
@@ -148,9 +187,11 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           }}
         />
 
-        {/* Calisthenics Mastery Tree Section Header */}
+        {/* Training Progression & Benchmark Section Header */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>CALISTHENICS SKILL PROGRESSION</Text>
+          <Text style={styles.sectionTitle}>
+            {equipmentMode === 'all' ? 'GYM BENCHMARK PROGRESSIONS' : 'BODYWEIGHT & SKILL PROGRESSIONS'}
+          </Text>
           <Text style={styles.sectionSubtitle}>Milestone Standards & Mastery Tree</Text>
         </View>
 
@@ -159,7 +200,9 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           <View style={styles.progressHeader}>
             <View style={styles.trophyRow}>
               <Trophy size={16} color={COLORS.warning} />
-              <Text style={styles.progressTitle}>TOTAL SKILL MASTERY</Text>
+              <Text style={styles.progressTitle}>
+                {equipmentMode === 'all' ? 'GYM BENCHMARK MASTERY' : 'SKILL PROGRESSION MASTERY'}
+              </Text>
             </View>
             <Text style={styles.progressValue}>
               {completedCount} of {totalCount} ({progressPercent}%)
@@ -175,14 +218,14 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           </View>
         </View>
 
-        {/* Skill Filter Pills */}
+        {/* Progression Filter Pills */}
         <View style={styles.filterRow}>
-          {(['All', 'L-Sit', 'Bar Muscle-Up'] as const).map((filter) => {
-            const isSelected = selectedFilter === filter;
+          {filterOptions.map((filter) => {
+            const isSelected = selectedFilter === filter.id;
             return (
               <TouchableOpacity
-                key={filter}
-                onPress={() => setSelectedFilter(filter)}
+                key={filter.id}
+                onPress={() => setSelectedFilter(filter.id)}
                 style={[
                   styles.filterPill,
                   isSelected && styles.filterPillActive,
@@ -196,7 +239,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                     isSelected && { color: modeColors.accent, fontWeight: '700' },
                   ]}
                 >
-                  {filter}
+                  {filter.label}
                 </Text>
               </TouchableOpacity>
             );

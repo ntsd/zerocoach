@@ -563,22 +563,21 @@ export const ModelManagerScreen: React.FC = () => {
           </Text>
 
           <View style={{ gap: SPACING.sm }}>
-            {/* Gender Selector */}
+            {/* Biological Sex Selector */}
             <View>
-              <Text style={styles.profileSectionLabel}>GENDER / BIOLOGICAL PROFILE</Text>
+              <Text style={styles.profileSectionLabel}>BIOLOGICAL SEX</Text>
               <View style={styles.pillRow}>
                 {(
                   [
                     { id: 'male', label: 'Male 👨' },
                     { id: 'female', label: 'Female 👩' },
-                    { id: 'other', label: 'Other 🧑' },
                   ] as const
-                ).map((g) => {
-                  const isSelected = (userProfile.gender || 'male') === g.id;
+                ).map((s) => {
+                  const isSelected = (userProfile.sex || 'male') === s.id;
                   return (
                     <TouchableOpacity
-                      key={g.id}
-                      onPress={() => updateProfile({ gender: g.id })}
+                      key={s.id}
+                      onPress={() => updateProfile({ sex: s.id })}
                       style={[
                         styles.profilePill,
                         isSelected && {
@@ -594,7 +593,7 @@ export const ModelManagerScreen: React.FC = () => {
                           isSelected && { color: modeColors.accent, fontWeight: '700' },
                         ]}
                       >
-                        {g.label}
+                        {s.label}
                       </Text>
                     </TouchableOpacity>
                   );

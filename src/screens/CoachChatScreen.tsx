@@ -144,7 +144,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
             style={styles.textInput}
             placeholder={
               mode === 'strict'
-                ? "Ask coach for macros, sets, or L-sit form..."
+                ? "Ask coach for macros, sets, or exercise form..."
                 : "Ask coach about daily wellness, food, or movement..."
             }
             placeholderTextColor={COLORS.textMuted}

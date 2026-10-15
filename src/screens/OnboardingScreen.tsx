@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
-import { CoachingMode, UserProfile, TrainingGoal, Gender, EquipmentPreference } from '@/types/coach';
+import { CoachingMode, UserProfile, TrainingGoal, Sex, EquipmentPreference } from '@/types/coach';
 import { calculateReadinessScore, getReadinessCategory } from '@/services/telemetry/readinessCalculator';
 import { calculateSmartNutrition } from '@/services/nutrition/nutritionCalculator';
 import { healthAdapter } from '@/services/telemetry/healthConnectAdapter';
@@ -107,7 +107,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
   // Step 3: Profile & Goals (starts empty by default)
   const [name, setName] = useState('');
-  const [gender, setGender] = useState<Gender>('male');
+  const [sex, setSex] = useState<Sex>('male');
   const [equipmentPreference, setEquipmentPreference] = useState<EquipmentPreference>('gym');
   const [selectedGoals, setSelectedGoals] = useState<TrainingGoal[]>([]);
 
@@ -125,7 +125,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const isBodyMetricsValid =
     !isNaN(parsedWeight) && parsedWeight > 0 && !isNaN(parsedHeight) && parsedHeight > 0;
 
-  // Calculate smart nutrition reactively from Profile, Goals, Gender, and Telemetry Active Burn (if synced)
+  // Calculate smart nutrition reactively from Profile, Goals, Sex, and Telemetry Active Burn (if synced)
   const smartRecommendation = useMemo(() => {
     if (!isBodyMetricsValid) {
       return {
@@ -146,9 +146,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       mode: selectedMode,
       goals: selectedGoals,
       activeCaloriesBurned: activeCalories ?? 0,
-      gender,
+      sex,
     });
-  }, [parsedWeight, parsedHeight, isBodyMetricsValid, selectedMode, selectedGoals, activeCalories, gender]);
+  }, [parsedWeight, parsedHeight, isBodyMetricsValid, selectedMode, selectedGoals, activeCalories, sex]);
 
   // Automatically update macro fields when recommendation changes, unless customized by user
   useEffect(() => {
@@ -233,7 +233,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
     const profile: UserProfile = {
       name: name.trim(),
-      gender,
+      sex,
       equipmentPreference,
       weightKg: finalWeight,
       heightCm: finalHeight,
@@ -728,22 +728,21 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   </View>
                 </View>
 
-                {/* Gender / Biological Profile */}
+                {/* Biological Sex */}
                 <View style={{ marginTop: SPACING.md }}>
-                  <Text style={styles.inputLabel}>GENDER / BIOLOGICAL PROFILE</Text>
+                  <Text style={styles.inputLabel}>BIOLOGICAL SEX</Text>
                   <View style={styles.segmentedSelectorRow}>
                     {(
                       [
                         { id: 'male', label: 'Male 👨', sub: 'Neural Drive Focus' },
                         { id: 'female', label: 'Female 👩', sub: 'Volume Tolerance' },
-                        { id: 'other', label: 'Other 🧑', sub: 'Balanced Protocol' },
                       ] as const
                     ).map((item) => {
-                      const isSelected = gender === item.id;
+                      const isSelected = sex === item.id;
                       return (
                         <TouchableOpacity
                           key={item.id}
-                          onPress={() => setGender(item.id)}
+                          onPress={() => setSex(item.id)}
                           style={[
                             styles.segmentedSelectorOption,
                             isSelected && {

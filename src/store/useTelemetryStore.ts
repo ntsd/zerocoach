@@ -24,89 +24,269 @@ const INITIAL_MANUAL_METRICS: TelemetryMetrics = {
   source: 'manual',
 };
 
-const DEFAULT_CALISTHENICS_STAGES: CalisthenicsStage[] = [
-  // L-Sit progression
+import { ProgressionStage } from '@/types/telemetry';
+
+export const DEFAULT_PROGRESSION_STAGES: ProgressionStage[] = [
+  // 1. Full Gym Benchmarks: Barbell Bench Press
   {
-    id: 'lsit-1',
-    skillName: 'L-Sit',
+    id: 'bench-1',
+    category: 'gym',
+    skillName: 'Barbell Bench Press',
     stageNumber: 1,
-    stageTitle: 'Seated Floor Compression Tucks',
-    standard: '3 sets of 30s continuous hold with active scapular depression',
+    stageTitle: 'Push-Up Mechanical Mastery',
+    standard: '3 sets of 15 strict reps with full chest contact and locked lockout',
     completed: false,
+    equipment: 'barbell',
   },
   {
-    id: 'lsit-2',
-    skillName: 'L-Sit',
+    id: 'bench-2',
+    category: 'gym',
+    skillName: 'Barbell Bench Press',
     stageNumber: 2,
-    stageTitle: 'Parallettes Tuck L-Sit',
-    standard: '3 sets of 20s hold with knees pulled tight to chest',
+    stageTitle: 'Dumbbell Bench Press Stability',
+    standard: '3 sets of 10 reps with dumbbells (~50% bodyweight combined)',
     completed: false,
+    equipment: 'dumbbell',
   },
   {
-    id: 'lsit-3',
-    skillName: 'L-Sit',
+    id: 'bench-3',
+    category: 'gym',
+    skillName: 'Barbell Bench Press',
     stageNumber: 3,
-    stageTitle: 'One-Leg Extended L-Sit',
-    standard: '3 sets of 15s per leg with pointed toes and locked quad',
+    stageTitle: 'Barbell Bench Press Baseline (0.75x BW)',
+    standard: '3 sets of 8 reps with controlled 3-second descent and clean bar path',
     completed: false,
+    equipment: 'barbell',
   },
   {
-    id: 'lsit-4',
-    skillName: 'L-Sit',
+    id: 'bench-4',
+    category: 'gym',
+    skillName: 'Barbell Bench Press',
     stageNumber: 4,
-    stageTitle: 'Full L-Sit on Floor/Parallettes',
-    standard: '3 sets of 15s hold, hips aligned forward, no foot sag',
+    stageTitle: 'Bodyweight Bench Press Mastery (1.0x BW)',
+    standard: '3 sets of 5 reps paused at sternum with zero bounce',
     completed: false,
+    equipment: 'barbell',
   },
   {
-    id: 'lsit-5',
-    skillName: 'L-Sit',
+    id: 'bench-5',
+    category: 'gym',
+    skillName: 'Barbell Bench Press',
     stageNumber: 5,
-    stageTitle: 'V-Sit Compression Angle (>45°)',
-    standard: '2 sets of 10s hold with legs elevated above parallel',
+    stageTitle: 'Heavy Strength Overload (1.25x BW)',
+    standard: '3 sets of 3 explosive reps with leg drive and retracted scapulae',
     completed: false,
+    equipment: 'barbell',
   },
 
-  // Muscle-Up progression
+  // 2. Full Gym Benchmarks: Barbell Back Squat
+  {
+    id: 'squat-1',
+    category: 'gym',
+    skillName: 'Barbell Back Squat',
+    stageNumber: 1,
+    stageTitle: 'Deep Bodyweight Squat Mobility',
+    standard: '3 sets of 20 full-depth reps below parallel with upright torso',
+    completed: false,
+    equipment: 'bodyweight',
+  },
+  {
+    id: 'squat-2',
+    category: 'gym',
+    skillName: 'Barbell Back Squat',
+    stageNumber: 2,
+    stageTitle: 'Dumbbell Goblet Squat Anchor',
+    standard: '3 sets of 12 reps with 30% bodyweight dumbbell held at chest',
+    completed: false,
+    equipment: 'dumbbell',
+  },
+  {
+    id: 'squat-3',
+    category: 'gym',
+    skillName: 'Barbell Back Squat',
+    stageNumber: 3,
+    stageTitle: 'Barbell Squat Baseline (1.0x BW)',
+    standard: '3 sets of 8 strict reps with hip crease below patella',
+    completed: false,
+    equipment: 'barbell',
+  },
+  {
+    id: 'squat-4',
+    category: 'gym',
+    skillName: 'Barbell Back Squat',
+    stageNumber: 4,
+    stageTitle: 'Barbell Squat Mastery (1.25x BW)',
+    standard: '3 sets of 5 reps with braced intra-abdominal pressure',
+    completed: false,
+    equipment: 'barbell',
+  },
+
+  // 3. Full Gym Benchmarks: Bent-Over Barbell Row
+  {
+    id: 'row-1',
+    category: 'gym',
+    skillName: 'Barbell Bent-Over Row',
+    stageNumber: 1,
+    stageTitle: 'Inverted Bodyweight Row',
+    standard: '3 sets of 12 horizontal pulls touching chest to bar',
+    completed: false,
+    equipment: 'bodyweight',
+  },
+  {
+    id: 'row-2',
+    category: 'gym',
+    skillName: 'Barbell Bent-Over Row',
+    stageNumber: 2,
+    stageTitle: 'Single-Arm Dumbbell Row Control',
+    standard: '3 sets of 10 reps per arm with flat lumbar spine and elbow drive',
+    completed: false,
+    equipment: 'dumbbell',
+  },
+  {
+    id: 'row-3',
+    category: 'gym',
+    skillName: 'Barbell Bent-Over Row',
+    stageNumber: 3,
+    stageTitle: 'Barbell Row Benchmark (0.75x BW)',
+    standard: '3 sets of 8 strict reps pulling to lower ribcage with zero momentum',
+    completed: false,
+    equipment: 'barbell',
+  },
+
+  // 4. Bodyweight & Calisthenics: Push-Up & Dips
+  {
+    id: 'push-1',
+    category: 'bodyweight',
+    skillName: 'Push-Up & Dip Mastery',
+    stageNumber: 1,
+    stageTitle: 'Strict Bodyweight Push-Ups',
+    standard: '3 sets of 20 clean reps with locked core and full lockout',
+    completed: false,
+    equipment: 'bodyweight',
+  },
+  {
+    id: 'push-2',
+    category: 'bodyweight',
+    skillName: 'Push-Up & Dip Mastery',
+    stageNumber: 2,
+    stageTitle: 'Diamond Push-Ups',
+    standard: '3 sets of 12 reps focusing on triceps and anterior deltoid',
+    completed: false,
+    equipment: 'bodyweight',
+  },
+  {
+    id: 'push-3',
+    category: 'bodyweight',
+    skillName: 'Push-Up & Dip Mastery',
+    stageNumber: 3,
+    stageTitle: 'Parallel Bar Dips',
+    standard: '3 sets of 10 full-range dips with 90° elbow flexion',
+    completed: false,
+    equipment: 'dip_bars',
+  },
+
+  // 5. Bodyweight & Calisthenics: Pull-Up & Muscle-Up
   {
     id: 'mu-1',
-    skillName: 'Bar Muscle-Up',
+    category: 'bodyweight',
+    skillName: 'Pull-Up & Muscle-Up',
     stageNumber: 1,
     stageTitle: 'Strict Chest-to-Bar Pull-Ups',
     standard: '3 sets of 8 strict reps with hollow body and no kipping',
     completed: false,
+    equipment: 'pullup_bar',
   },
   {
     id: 'mu-2',
-    skillName: 'Bar Muscle-Up',
+    category: 'bodyweight',
+    skillName: 'Pull-Up & Muscle-Up',
     stageNumber: 2,
     stageTitle: 'Explosive Sternum Pull-Ups',
     standard: '4 sets of 5 explosive reps pulling to lower ribcage',
     completed: false,
+    equipment: 'pullup_bar',
   },
   {
     id: 'mu-3',
-    skillName: 'Bar Muscle-Up',
+    category: 'bodyweight',
+    skillName: 'Pull-Up & Muscle-Up',
     stageNumber: 3,
     stageTitle: 'Straight-Bar Dips',
     standard: '3 sets of 10 deep reps touching lower chest to bar',
     completed: false,
+    equipment: 'pullup_bar',
   },
   {
     id: 'mu-4',
-    skillName: 'Bar Muscle-Up',
+    category: 'bodyweight',
+    skillName: 'Pull-Up & Muscle-Up',
     stageNumber: 4,
     stageTitle: 'Jumping Muscle-Up + 5s Slow Negative',
     standard: '4 sets of 3 reps with controlled eccentric descent',
     completed: false,
+    equipment: 'pullup_bar',
   },
   {
     id: 'mu-5',
-    skillName: 'Bar Muscle-Up',
+    category: 'bodyweight',
+    skillName: 'Pull-Up & Muscle-Up',
     stageNumber: 5,
     stageTitle: 'Strict Bar Muscle-Up (Zero Chicken-Wing)',
     standard: 'Clean turnover with simultaneous arm extension',
     completed: false,
+    equipment: 'pullup_bar',
+  },
+
+  // 6. Bodyweight & Calisthenics: Core & L-Sit
+  {
+    id: 'lsit-1',
+    category: 'bodyweight',
+    skillName: 'Core & L-Sit',
+    stageNumber: 1,
+    stageTitle: 'Seated Floor Compression Tucks',
+    standard: '3 sets of 30s continuous hold with active scapular depression',
+    completed: false,
+    equipment: 'bodyweight',
+  },
+  {
+    id: 'lsit-2',
+    category: 'bodyweight',
+    skillName: 'Core & L-Sit',
+    stageNumber: 2,
+    stageTitle: 'Parallettes Tuck L-Sit',
+    standard: '3 sets of 20s hold with knees pulled tight to chest',
+    completed: false,
+    equipment: 'parallettes',
+  },
+  {
+    id: 'lsit-3',
+    category: 'bodyweight',
+    skillName: 'Core & L-Sit',
+    stageNumber: 3,
+    stageTitle: 'One-Leg Extended L-Sit',
+    standard: '3 sets of 15s per leg with pointed toes and locked quad',
+    completed: false,
+    equipment: 'parallettes',
+  },
+  {
+    id: 'lsit-4',
+    category: 'bodyweight',
+    skillName: 'Core & L-Sit',
+    stageNumber: 4,
+    stageTitle: 'Full L-Sit on Floor/Parallettes',
+    standard: '3 sets of 15s hold, hips aligned forward, no foot sag',
+    completed: false,
+    equipment: 'parallettes',
+  },
+  {
+    id: 'lsit-5',
+    category: 'bodyweight',
+    skillName: 'Core & L-Sit',
+    stageNumber: 5,
+    stageTitle: 'V-Sit Compression Angle (>45°)',
+    standard: '2 sets of 10s hold with legs elevated above parallel',
+    completed: false,
+    equipment: 'parallettes',
   },
 ];
 
@@ -117,7 +297,7 @@ export const useTelemetryStore = create<TelemetryState>()(
       activePreset: 'manual',
       syncing: false,
       syncError: null,
-      calisthenicsStages: DEFAULT_CALISTHENICS_STAGES,
+      calisthenicsStages: DEFAULT_PROGRESSION_STAGES,
 
       clearSyncError: () => set({ syncError: null }),
 
@@ -210,13 +390,28 @@ export const useTelemetryStore = create<TelemetryState>()(
           activePreset: 'manual',
           syncing: false,
           syncError: null,
-          calisthenicsStages: DEFAULT_CALISTHENICS_STAGES,
+          calisthenicsStages: DEFAULT_PROGRESSION_STAGES,
         });
       },
     }),
     {
       name: 'zerocoach-telemetry-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (
+          state &&
+          (!state.calisthenicsStages ||
+            state.calisthenicsStages.length < DEFAULT_PROGRESSION_STAGES.length)
+        ) {
+          const completedMap = new Map(
+            (state.calisthenicsStages || []).map((s) => [s.id, s.completed])
+          );
+          state.calisthenicsStages = DEFAULT_PROGRESSION_STAGES.map((s) => ({
+            ...s,
+            completed: completedMap.get(s.id) ?? s.completed,
+          }));
+        }
+      },
     }
   )
 );

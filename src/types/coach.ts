@@ -7,12 +7,12 @@ export type TrainingGoal =
   | 'cardio_endurance'
   | 'daily_health_longevity';
 
-export type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
+export type Sex = 'male' | 'female';
 export type EquipmentPreference = 'gym' | 'home' | 'both';
 
 export interface UserProfile {
   name: string;
-  gender?: Gender;
+  sex?: Sex;
   weightKg: number;
   heightCm: number;
   dailyCalorieTarget: number;

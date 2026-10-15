@@ -1,4 +1,4 @@
-import { CoachingMode, TrainingGoal, Gender } from '@/types/coach';
+import { CoachingMode, TrainingGoal, Sex } from '@/types/coach';
 
 export interface NutritionCalcParams {
   weightKg: number;
@@ -6,7 +6,7 @@ export interface NutritionCalcParams {
   mode: CoachingMode;
   goals: TrainingGoal[];
   activeCaloriesBurned: number; // e.g. from wearable sync or manual entry
-  gender?: Gender;
+  sex?: Sex;
 }
 
 export interface NutritionRecommendation {
@@ -24,10 +24,10 @@ export interface NutritionRecommendation {
 /**
  * Calculates evidence-based daily caloric targets and macronutrient distributions
  * based on body metrics (Mifflin-St Jeor), fitness telemetry (active burn),
- * gender metabolism characteristics, and training goal directives.
+ * biological sex metabolism characteristics, and training goal directives.
  */
 export function calculateSmartNutrition(params: NutritionCalcParams): NutritionRecommendation {
-  const { weightKg, heightCm, mode, goals, activeCaloriesBurned, gender = 'male' } = params;
+  const { weightKg, heightCm, mode, goals, activeCaloriesBurned, sex = 'male' } = params;
 
   if (!weightKg || weightKg <= 0 || !heightCm || heightCm <= 0) {
     return {
@@ -50,8 +50,8 @@ export function calculateSmartNutrition(params: NutritionCalcParams): NutritionR
   // Mifflin-St Jeor BMR formula (athlete baseline ~age 28):
   // Men: 10 * weight + 6.25 * height - (5 * 28) + 5  => -135
   // Women: 10 * weight + 6.25 * height - (5 * 28) - 161 => -301
-  const genderOffset = gender === 'female' ? -301 : gender === 'male' ? -135 : -218;
-  const bmr = Math.round(10 * validWeight + 6.25 * validHeight + genderOffset);
+  const sexOffset = sex === 'female' ? -301 : -135;
+  const bmr = Math.round(10 * validWeight + 6.25 * validHeight + sexOffset);
 
   // Total Daily Energy Expenditure (TDEE):
   // If active calories are reported by wearable or manual input, TDEE = BMR + Active Calories + TEF

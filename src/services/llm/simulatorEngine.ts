@@ -113,49 +113,116 @@ Listen to your natural satiety cues today. Nourish your body to recover and feel
       }
     }
 
-    // 2. CALISTHENICS / L-SIT / MUSCLE-UP QUERY
-    if (prompt.includes('l-sit') || prompt.includes('muscle-up') || prompt.includes('calisthenic') || prompt.includes('skill') || prompt.includes('progression')) {
+    // 2. GYM COMPOUND LIFTS (BENCH, SQUAT, ROW, DEADLIFT)
+    if (
+      prompt.includes('bench') ||
+      prompt.includes('squat') ||
+      prompt.includes('row') ||
+      prompt.includes('deadlift') ||
+      prompt.includes('compound')
+    ) {
+      if (isStrict) {
+        return `### 🏋️ COMPOUND LIFT BIOMECHANICAL DIRECTIVE (Readiness ${readiness}/100)
+
+Readiness calibrated at **${readiness}/100**. Biomechanical standards for today's primary compound execution:
+
+**1. Barbell Bench Press & Horizontal Mechanics:**
+• *Scapular Setup:* Retract and depress scapulae firmly into the bench pad to establish an unyielding foundation.
+• *Bar Path:* Touch slightly below the nipple line at the sternum; press back in an efficient diagonal arc toward the rack.
+• *Leg Drive:* Drive heels into the floor at set initialization to stabilize pelvis and prevent energy bleed.
+• *Cadence:* 3-second controlled eccentric descent, 0.5s pause, explosive concentric press (${readiness >= 80 ? 'RPE 8.5' : 'RPE 7.5'}).
+
+**2. Progressive Overload Directive:**
+• Today's Scheme: Target 3–4 working sets at prescribed RPE. If all reps are completed with clean bar speed, increment load by 2.5 kg next session.
+
+**YOUR MOVE:** Set safety catches before load initialization. Rest 90–120s between work sets.`;
+      } else {
+        return `### 🏋️ Compound Exercise Form & Guidance
+
+Your readiness today is **${readiness}/100**. Here are key cues to make your gym session smooth and joint-friendly:
+
+• **Set Up Your Foundation:** Keep your feet planted firmly, engage your core with a natural breath, and focus on moving with steady rhythm.
+• **Control The Descent:** Lower weights with control (2-3 seconds) and press smoothly without rushing or locking out abruptly.
+• **Listen to Your Joints:** Stop 1-2 reps before fatigue affects your posture. Smooth reps build lifelong joint resilience!
+
+Enjoy your session and take restful pauses between sets!`;
+      }
+    }
+
+    // 3. PROGRESSION & OVERLOAD QUERY
+    if (prompt.includes('progression') || prompt.includes('overload') || prompt.includes('load')) {
+      if (isStrict) {
+        return `### ⚡ PROGRESSION & OVERLOAD PROTOCOL (Readiness ${readiness}/100)
+
+${
+  readiness >= 80
+    ? `Readiness is primed at **${readiness}/100** (High CNS drive). Green light for progressive overload:
+• **Primary Lifts:** Add 1 rep to each working set or increment load by 2–2.5%.
+• **Double Progression Model:** Hit top of rep bracket (e.g. 8 reps on all sets) before increasing resistance.
+• **RPE Ceiling:** RPE 8.5–9. Keep 1 clean rep in reserve.`
+    : readiness >= 60
+    ? `Readiness is balanced at **${readiness}/100**. Maintain planned loading:
+• **Volume Directive:** Perform prescribed baseline sets (RPE 7.5–8). Do not force extra reps to failure.
+• **Tempo Quality:** Focus on explosive bar acceleration and controlled eccentrics.`
+    : `Readiness is depressed at **${readiness}/100**. Autoregulated deload active:
+• **Volume Reduction:** Cut total sets by 35% and drop weight to 70% of working load.
+• **CNS Protection:** Zero sets taken past RPE 6. Protect connective tissue.`
+}
+
+**YOUR MOVE:** Log each set and adhere strictly to designated rest intervals.`;
+      } else {
+        return `### 🌱 Progression & Steady Growth (Readiness ${readiness}/100)
+
+With today's readiness at **${readiness}/100**, the secret to progress is steady, sustainable momentum:
+
+• **Quality Over Load:** If you feel strong, add a repetition or slightly increase weight while keeping movement smooth.
+• **Rest When Needed:** Take generous rest intervals (60–90 seconds) so every set feels energized and rewarding.
+• **Celebrate Consistency:** Showing up and moving with good form is the ultimate foundation for long-term health!`;
+      }
+    }
+
+    // 4. CALISTHENICS / BODYWEIGHT QUERY (Explicitly asked)
+    if (prompt.includes('l-sit') || prompt.includes('muscle-up') || prompt.includes('calisthenic') || prompt.includes('bodyweight')) {
       if (isStrict) {
         if (readiness < 60) {
-          return `### ⚠️ READINESS ALERT: DELOAD SKILL PROTOCOL (Readiness ${readiness}/100)
+          return `### ⚠️ READINESS ALERT: DELOAD BODYWEIGHT PROTOCOL (Readiness ${readiness}/100)
 
-Your CNS readiness is depressed (${readiness}/100). Max-effort dynamic attempts today will reinforce poor motor patterns and elevate tendinopathy risk.
+Your CNS readiness is depressed (${readiness}/100). Max-effort dynamic attempts today will elevate tendinopathy risk.
 
 **Mandatory Adjustments:**
-• **L-Sit:** Substitute full hold with *Seated Compression Knee Lifts*: 3 sets of 10 controlled reps, 2s hold at apex.
-• **Scapular Mechanics:** 4 sets of 12 *Active Scapular Pull-Downs* on bar (no elbow bending, pure lat depression).
-• **Core Stability:** Hollow body hold: 3 sets of 25 seconds.
+• **Push/Pull Mechanics:** 3 sets of 12 controlled push-ups or inverted rows, focusing on full range of motion.
+• **Core Stability:** 3 sets of 25s hollow body hold or plank.
+• **Rest:** 60s between sets. Avoid ballistic kipping or max holds.
 
-**YOUR MOVE:** Execute strict 90s rest intervals. Terminate set if form breaks down by even 5%.`;
+**YOUR MOVE:** Terminate set if form breaks down by even 5%.`;
         } else {
-          return `### ⚡ HIGH-INTENSITY CALISTHENICS PROTOCOL (Readiness ${readiness}/100)
+          return `### ⚡ BODYWEIGHT STRENGTH & SKILL PROTOCOL (Readiness ${readiness}/100)
 
-Readiness is primed at **${readiness}/100**. Today is the day to push kinetic chain progression.
+Readiness is primed at **${readiness}/100**. Target upper body kinetic chain mastery:
 
-**1. L-Sit Progression (Stage 2: Advanced Tuck on Parallettes)**
-• 4 sets of 15-20s holds.
-• *Mechanical Cues:* Drive palms down with maximum scapular depression. Keep knees locked tight to chest, toes actively pointed, pelvis tucked forward.
+**1. Primary Push / Pull Progression:**
+• 4 sets of 6–8 strict pull-ups or deep dips.
+• *Mechanical Cues:* Full dead-hang to chest-to-bar contact. Zero kipping, full scapular engagement.
 
-**2. Muscle-Up Transition Mechanics**
-• 4 sets of 3 explosive chest-to-bar pull-ups with violent hip drive.
-• Focus on the transit over the bar: lean chest aggressively over the bar at the apex.
+**2. Core & Isometric Holds:**
+• 4 sets of 15-20s compression holds with pointed toes and active scapular depression.
 
-**YOUR MOVE:** Record your second set on video to evaluate hip height. Rest 2.5 minutes between holds.`;
+**YOUR MOVE:** Record your working set on video to evaluate joint alignment. Rest 2 minutes between holds.`;
         }
       } else {
-        return `### 🤸 Calisthenics Movement Practice
+        return `### 🤸 Bodyweight Movement Practice
 
 Your readiness today is sitting at **${readiness}/100**. Let's build strength while keeping your joints happy!
 
-• **L-Sit Foundation:** Try 3 easy sets of supported tuck holds on parallettes or chairs for 10-15 seconds. If that feels intense, keep your feet lightly touching the floor for balance.
-• **Shoulder Prep:** Gentle hanging from a bar with active shoulders for 20 seconds. It decompresses the spine and builds grip naturally.
-• **Mindset:** Focus on smooth breathing rather than holding your breath.
+• **Push & Pull Foundation:** Try 3 easy sets of push-ups and supported rows within your comfortable range.
+• **Core & Posture:** Gentle planks and compression stretches to decompress the spine and build stability.
+• **Mindset:** Focus on smooth breathing rather than straining.
 
 Take plenty of rest between sets and celebrate the micro-gains!`;
       }
     }
 
-    // 3. RECOVERY / SLEEP / READINESS QUERY
+    // 5. RECOVERY / SLEEP / READINESS QUERY
     if (prompt.includes('recovery') || prompt.includes('sleep') || prompt.includes('readiness') || prompt.includes('tired') || prompt.includes('heart rate')) {
       if (readiness >= 80) {
         return `### 🔋 READINESS ANALYSIS: PEAK RECOVERY (${readiness}/100)
@@ -164,7 +231,7 @@ Your physiological indicators are exceptional:
 • **Parasympathetic Balance:** Elevated HRV and steady resting heart rate demonstrate complete neuromuscular adaptation.
 • **Tissue Repair:** Deep sleep stages were sufficient for cellular restoration and growth hormone secretion.
 
-**Programming Directive:** You have full green light for maximum volume, heavy pull sessions, or skill PR attempts today.`;
+**Programming Directive:** You have full green light for maximum volume, heavy compound sessions, or progressive overload PRs today.`;
       } else if (readiness >= 60) {
         return `### ⚖️ READINESS ANALYSIS: MODERATE STATE (${readiness}/100)
 
@@ -183,24 +250,24 @@ Critical metrics indicate inadequate recovery:
       }
     }
 
-    // 4. GENERAL / WORKOUT QUERY
+    // 6. GENERAL / WORKOUT QUERY
     if (isStrict) {
       return `### 🎯 ZEROCOACH DIRECTIVE (Readiness: ${readiness}/100 | STRICT MODE)
 
 Analyzing your current training cycle and biometric status:
 
-1. **Session Focus:** Calisthenics strength endurance & posterior chain alignment.
+1. **Session Focus:** Targeted strength progression & kinetic chain alignment.
 2. **Readiness Calibration:** At ${readiness}/100, we adapt the training volume accordingly.
-3. **Daily Accountability:** Ensure your 170g protein baseline is met before 8:00 PM.
+3. **Daily Accountability:** Ensure your prescribed daily protein baseline is met before 8:00 PM.
 
-What specific exercise or progression do you need broken down right now?`;
+What specific exercise, lift, or macro targets do you need broken down right now?`;
     } else {
       return `### 👋 ZeroCoach Daily Check-In (Readiness: ${readiness}/100)
 
 Welcome back! I'm here to support your health journey today.
 
 • With your readiness at **${readiness}/100**, today is all about mindful momentum.
-• Whether you want to practice some bodyweight movements, adjust your meals, or take an active recovery walk, I'm here to guide you.
+• Whether you want to do a gym session, practice some bodyweight movements, or adjust your meals, I'm here to guide you.
 
 How is your body feeling right now, and what would you like to focus on today?`;
     }

@@ -11,39 +11,104 @@ interface QuickPromptChipsProps {
   disabled?: boolean;
 }
 
-const CHIPS = [
-  {
-    id: 'macros',
-    label: "Adjust today's macros",
-    prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
-    icon: Flame,
-  },
-  {
-    id: 'lsit',
-    label: 'L-Sit progression hold',
-    prompt: "I'm practicing the L-sit hold today. What cues and sets should I perform given my readiness?",
-    icon: Dumbbell,
-  },
-  {
-    id: 'muscleup',
-    label: 'Muscle-Up transition check',
-    prompt: 'How do I master the chest-to-bar transit on the bar muscle-up without chicken-winging?',
-    icon: Zap,
-  },
-  {
-    id: 'recovery',
-    label: 'Readiness & recovery review',
-    prompt: "Break down my sleep and HRV readiness metrics from last night and give me today's plan.",
-    icon: ShieldCheck,
-  },
-];
-
 export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
   onSelectPrompt,
   disabled,
 }) => {
-  const { mode } = useCoachStore();
+  const { mode, userProfile } = useCoachStore();
   const modeColors = getModeColors(mode);
+
+  const chips = React.useMemo(() => {
+    const isGym = userProfile.equipmentPreference === 'gym';
+    const isHome = userProfile.equipmentPreference === 'home';
+    const wantsCalisthenics = userProfile.primaryGoals?.includes('calisthenics_mastery');
+
+    if (isGym && !wantsCalisthenics) {
+      return [
+        {
+          id: 'macros',
+          label: "Adjust today's macros",
+          prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
+          icon: Flame,
+        },
+        {
+          id: 'bench',
+          label: 'Bench Press form check',
+          prompt: 'What cues ensure optimal bar path, scapular retraction, and leg drive on the bench press today?',
+          icon: Dumbbell,
+        },
+        {
+          id: 'overload',
+          label: 'Compound overload plan',
+          prompt: 'How should I progress my main compound lifts (bench, squat, row) today based on my readiness?',
+          icon: Zap,
+        },
+        {
+          id: 'recovery',
+          label: 'Readiness & recovery review',
+          prompt: "Break down my sleep and HRV readiness metrics from last night and give me today's plan.",
+          icon: ShieldCheck,
+        },
+      ];
+    }
+
+    if (isHome || wantsCalisthenics) {
+      return [
+        {
+          id: 'macros',
+          label: "Adjust today's macros",
+          prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
+          icon: Flame,
+        },
+        {
+          id: 'bw_form',
+          label: 'Bodyweight form cues',
+          prompt: 'What form cues should I focus on for my bodyweight push and pull exercises today?',
+          icon: Dumbbell,
+        },
+        {
+          id: 'bw_progression',
+          label: 'Skill progression check',
+          prompt: 'How should I progress my bodyweight holds and repetitions given my readiness?',
+          icon: Zap,
+        },
+        {
+          id: 'recovery',
+          label: 'Readiness & recovery review',
+          prompt: "Break down my sleep and HRV readiness metrics from last night and give me today's plan.",
+          icon: ShieldCheck,
+        },
+      ];
+    }
+
+    // Default / Hybrid (Both Gym & Bodyweight)
+    return [
+      {
+        id: 'macros',
+        label: "Adjust today's macros",
+        prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
+        icon: Flame,
+      },
+      {
+        id: 'exercise_form',
+        label: 'Exercise form check',
+        prompt: "What are the key biomechanical cues and tempo for today's primary strength movements?",
+        icon: Dumbbell,
+      },
+      {
+        id: 'overload',
+        label: 'Progression & overload',
+        prompt: 'How should I progress my sets, reps, and load today based on my readiness?',
+        icon: Zap,
+      },
+      {
+        id: 'recovery',
+        label: 'Readiness & recovery review',
+        prompt: "Break down my sleep and HRV readiness metrics from last night and give me today's plan.",
+        icon: ShieldCheck,
+      },
+    ];
+  }, [userProfile.equipmentPreference, userProfile.primaryGoals]);
 
   return (
     <ScrollView
@@ -51,7 +116,7 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
-      {CHIPS.map((chip) => {
+      {chips.map((chip) => {
         const IconComponent = chip.icon;
         return (
           <TouchableOpacity

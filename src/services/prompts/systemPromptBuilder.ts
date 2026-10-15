@@ -8,7 +8,7 @@ const GOAL_PROGRAMMING_DIRECTIVES: Record<TrainingGoal, string> = {
   strength_hypertrophy:
     'STRENGTH & HYPERTROPHY: Prioritize progressive overload, 6–12 rep hypertrophy ranges, mechanical tension, and 1.8–2.2g/kg protein synthesis.',
   calisthenics_mastery:
-    'CALISTHENICS MASTERY: Focus on relative bodyweight strength, scapular depression, isometric hold volume, and mastering L-Sit and Muscle-Up progression milestones.',
+    'CALISTHENICS MASTERY: Focus on relative bodyweight strength, scapular depression, isometric hold volume, and bodyweight skill progression milestones.',
   fat_loss_recomp:
     'FAT LOSS & RECOMP: Prescribe a moderate caloric deficit (300–500 kcal), high protein retention to spare lean muscle, and high daily active movement.',
   cardio_endurance:
@@ -47,6 +47,7 @@ export function buildSystemPrompt(params: {
     : `- LIVE BIOMETRIC TELEMETRY:
   * Status: No wearable synced. Program sessions and nutrition dynamically using athlete body metrics and target training goals.`;
 
+  const equipmentMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const adaptivePlan = generateAdaptiveWorkoutPlan({
     goals: userProfile.primaryGoals || [],
     mode,
@@ -55,6 +56,8 @@ export function buildSystemPrompt(params: {
     heightCm: userProfile.heightCm,
     activeStages,
     activeCalories: telemetry.activeCalories,
+    equipmentMode,
+    sex: userProfile.sex,
   });
 
   const workoutPlanBlock = `- DATA-GENERATED EXERCISE PLAN:
@@ -70,6 +73,8 @@ ${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.nam
 - ACTIVE COACHING MODE: ${mode.toUpperCase()}
 - USER PROFILE:
   * Name: ${userProfile.name || 'Athlete'}
+  * Biological Sex: ${(userProfile.sex || 'male').toUpperCase()} (${userProfile.sex === 'female' ? 'Higher relative volume tolerance, faster intra-set recovery' : 'Higher relative mechanical tension, longer recovery intervals'})
+  * Training Environment: ${userProfile.equipmentPreference === 'home' ? 'Home / Bodyweight (Calisthenics)' : userProfile.equipmentPreference === 'both' ? 'Hybrid (Gym & Bodyweight)' : 'Full Gym (Barbells, DBs, Cables)'}
   * Body Weight: ${userProfile.weightKg} kg | Height: ${userProfile.heightCm} cm
   * Calorie Baseline: ${userProfile.dailyCalorieTarget} kcal
   * Macro Split: ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat
@@ -82,9 +87,9 @@ ${telemetryBlock}
 
 ${workoutPlanBlock}
 
-- CALISTHENICS PROGRESSION TRACKER:
-  * Completed Milestones: ${completedStages.map((s) => s.stageTitle).join(', ') || 'None yet'}
-  * Current Target Milestone: ${nextStage ? `${nextStage.stageTitle} (${nextStage.standard})` : 'All mastered'}
+- ATHLETE PROGRESSION & BENCHMARKS TRACKER:
+  * Completed Milestones: ${completedStages.map((s) => `${s.skillName} Stg ${s.stageNumber}: ${s.stageTitle}`).join(', ') || 'None yet'}
+  * Current Target Milestone: ${nextStage ? `${nextStage.skillName} Stg ${nextStage.stageNumber}: ${nextStage.stageTitle} (${nextStage.standard})` : 'All mastered'}
 =============================================
 
 Incorporate this physiological state into your response immediately. If the user asks for advice or a workout adjustment, tailor your answer precisely to their current readiness score, target goal directives, and active metrics.`;

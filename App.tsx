@@ -113,9 +113,8 @@ export default function App() {
                       <Text
                         style={[
                           styles.tabLabel,
-                          isActive
-                            ? [styles.tabLabelActive, { color: modeColors.accent }]
-                            : styles.tabLabelInactive,
+                          isActive ? styles.tabLabelActive : styles.tabLabelInactive,
+                          isActive && { color: modeColors.accent },
                         ]}
                       >
                         {tab.label}

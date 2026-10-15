@@ -1,5 +1,6 @@
 import { CoachingMode, UserProfile, TrainingGoal } from '@/types/coach';
 import { TelemetryMetrics, CalisthenicsStage } from '@/types/telemetry';
+import { generateAdaptiveWorkoutPlan } from '@/services/workout/workoutPlanGenerator';
 import { STRICT_COACH_BASE_PROMPT } from './strictCoach';
 import { COMFORTABLE_COACH_BASE_PROMPT } from './comfortableCoach';
 
@@ -46,11 +47,29 @@ export function buildSystemPrompt(params: {
     : `- LIVE BIOMETRIC TELEMETRY:
   * Status: No wearable synced. Program sessions and nutrition dynamically using athlete body metrics and target training goals.`;
 
+  const adaptivePlan = generateAdaptiveWorkoutPlan({
+    goals: userProfile.primaryGoals || [],
+    mode,
+    readinessScore: telemetry.readinessScore,
+    weightKg: userProfile.weightKg,
+    heightCm: userProfile.heightCm,
+    activeStages,
+    activeCalories: telemetry.activeCalories,
+  });
+
+  const workoutPlanBlock = `- DATA-GENERATED EXERCISE PLAN:
+  * Focus: ${adaptivePlan.title} (${adaptivePlan.tierLabel})
+  * Estimated Session Duration: ${adaptivePlan.estimatedDurationMin} min
+  * Target Skill Milestone: ${adaptivePlan.targetSkillMilestone || 'None'}
+  * Autoregulation Directive: ${adaptivePlan.readinessMultiplierDesc}
+  * Prescribed Exercises:
+${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.name} (${e.targetSets} sets × ${e.targetReps}, rest ${e.restPeriodSeconds}s, ${e.intensityNote}) | Cue: ${e.coachingCue}`).join('\n')}`;
+
   const contextBlock = `
 === CURRENT LIVE USER & TELEMETRY CONTEXT ===
 - ACTIVE COACHING MODE: ${mode.toUpperCase()}
 - USER PROFILE:
-  * Name: ${userProfile.name}
+  * Name: ${userProfile.name || 'Athlete'}
   * Body Weight: ${userProfile.weightKg} kg | Height: ${userProfile.heightCm} cm
   * Calorie Baseline: ${userProfile.dailyCalorieTarget} kcal
   * Macro Split: ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat
@@ -60,6 +79,8 @@ export function buildSystemPrompt(params: {
 ${goalDirectives.map((d) => `  * ${d}`).join('\n') || '  * Maintain balanced general fitness.'}
 
 ${telemetryBlock}
+
+${workoutPlanBlock}
 
 - CALISTHENICS PROGRESSION TRACKER:
   * Completed Milestones: ${completedStages.map((s) => s.stageTitle).join(', ') || 'None yet'}

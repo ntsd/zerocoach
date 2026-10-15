@@ -4,14 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CoachState, CoachingMode, UserProfile } from '@/types/coach';
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: 'Athlete',
-  weightKg: 74,
-  heightCm: 178,
-  dailyCalorieTarget: 2800,
-  proteinGrams: 170,
-  carbsGrams: 320,
-  fatGrams: 65,
-  primaryGoals: ['calisthenics_mastery', 'strength_hypertrophy'],
+  name: '',
+  weightKg: 0,
+  heightCm: 0,
+  dailyCalorieTarget: 0,
+  proteinGrams: 0,
+  carbsGrams: 0,
+  fatGrams: 0,
+  primaryGoals: [],
 };
 
 export const useCoachStore = create<CoachState>()(
@@ -43,6 +43,13 @@ export const useCoachStore = create<CoachState>()(
       resetOnboarding: () =>
         set({
           hasCompletedOnboarding: false,
+        }),
+
+      clearUserData: () =>
+        set({
+          hasCompletedOnboarding: false,
+          mode: 'strict',
+          userProfile: DEFAULT_PROFILE,
         }),
     }),
     {

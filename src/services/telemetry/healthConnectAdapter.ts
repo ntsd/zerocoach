@@ -10,7 +10,6 @@ export class HealthConnectAdapter {
   private isAvailable: boolean = false;
 
   constructor() {
-    // Check local Health Connect availability
     this.isAvailable = false;
   }
 
@@ -19,35 +18,14 @@ export class HealthConnectAdapter {
   }
 
   public async fetchLatestMetrics(): Promise<TelemetryMetrics> {
-    // Simulates reading local health connect records
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const available = await this.checkAvailability();
+    if (!available) {
+      throw new Error(
+        'No Health Connect or Fitness App detected on this device.'
+      );
+    }
 
-    const simulatedHours = 7.4 + (Math.random() * 0.8 - 0.4);
-    const simulatedRHR = Math.round(52 + (Math.random() * 6 - 3));
-    const simulatedHRV = Math.round(64 + (Math.random() * 10 - 5));
-    const sleepQuality = Math.round(82 + (Math.random() * 10 - 5));
-
-    const readiness = calculateReadinessScore({
-      sleepHours: simulatedHours,
-      sleepQualityScore: sleepQuality,
-      restingHeartRate: simulatedRHR,
-      heartRateVariability: simulatedHRV,
-    });
-
-    return {
-      steps: 9240 + Math.round(Math.random() * 1500),
-      activeCalories: 680 + Math.round(Math.random() * 120),
-      restingHeartRate: simulatedRHR,
-      heartRateVariability: simulatedHRV,
-      sleepHours: Number(simulatedHours.toFixed(1)),
-      sleepQualityScore: sleepQuality,
-      deepSleepHours: 1.8,
-      readinessScore: readiness,
-      lastSyncTimestamp: Date.now(),
-      source: 'google_fit',
-      weightKg: 73.5,
-      heightCm: 178,
-    };
+    throw new Error('No records returned from local health provider.');
   }
 }
 

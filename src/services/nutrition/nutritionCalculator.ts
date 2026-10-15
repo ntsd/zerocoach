@@ -28,8 +28,22 @@ export interface NutritionRecommendation {
 export function calculateSmartNutrition(params: NutritionCalcParams): NutritionRecommendation {
   const { weightKg, heightCm, mode, goals, activeCaloriesBurned } = params;
 
-  const validWeight = Math.max(35, Math.min(250, weightKg || 74));
-  const validHeight = Math.max(120, Math.min(230, heightCm || 178));
+  if (!weightKg || weightKg <= 0 || !heightCm || heightCm <= 0) {
+    return {
+      dailyCalories: 0,
+      proteinGrams: 0,
+      carbsGrams: 0,
+      fatGrams: 0,
+      bmr: 0,
+      tdee: 0,
+      goalAdjustmentKcal: 0,
+      goalSummary: 'Weight and height required for calculation',
+      isActiveBurnFromWearable: false,
+    };
+  }
+
+  const validWeight = Math.max(35, Math.min(250, weightKg));
+  const validHeight = Math.max(120, Math.min(230, heightCm));
   const validActiveCal = Math.max(0, Math.min(3000, activeCaloriesBurned || 0));
 
   // Mifflin-St Jeor BMR formula (athlete baseline ~age 28)

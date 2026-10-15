@@ -10,19 +10,12 @@ import { llmService } from '@/services/llm/llmService';
 const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
   role: 'assistant',
-  content: `### ⚡ ZeroCoach Initialized
-On-device intelligence active. Data stays 100% private on your phone.
+  content: `### ⚡ ZeroCoach Ready
+On-device AI active. All your training and biometrics stay 100% private on your phone.
 
-• **Mode:** STRICT ATHLETE
-• **Readiness:** 88/100 (Optimal Peak Recovery)
-• **Telemetry:** Garmin Sync Active • 8.2h Sleep • 48 bpm RHR
-
-Ask me to adjust today's macros, evaluate your L-sit or muscle-up progression, or program your training session.`,
+Ask me to design your workout session, adjust your daily macros, or guide your skill progression.`,
   timestamp: Date.now(),
   modeAtCreation: 'strict',
-  readinessAtCreation: 88,
-  tokensGenerated: 62,
-  tokensPerSecond: 38.2,
 };
 
 export const useChatStore = create<ChatState>()(

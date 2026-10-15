@@ -31,8 +31,10 @@ export interface TelemetryState {
   metrics: TelemetryMetrics;
   activePreset: TelemetryPresetId;
   syncing: boolean;
+  syncError: string | null;
   calisthenicsStages: CalisthenicsStage[];
   syncTelemetry: () => Promise<void>;
+  clearSyncError: () => void;
   applyPreset: (presetId: TelemetryPresetId) => void;
   setManualTelemetry: (inputs: {
     sleepHours: number;
@@ -46,4 +48,5 @@ export interface TelemetryState {
   }) => void;
   toggleStageCompletion: (stageId: string) => void;
   updateMetric: (updates: Partial<TelemetryMetrics>) => void;
+  clearTelemetryData: () => void;
 }

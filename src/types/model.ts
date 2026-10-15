@@ -6,7 +6,7 @@ export type ModelStatus =
   | 'loaded'
   | 'error';
 
-export type AccelerationEngine = 'metal' | 'opencl' | 'cpu_fallback';
+export type AccelerationEngine = 'metal' | 'opencl' | 'cpu_fallback' | 'none';
 
 export interface ModelMetadata {
   id: string;

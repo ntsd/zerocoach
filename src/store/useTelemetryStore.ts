@@ -32,7 +32,7 @@ const DEFAULT_CALISTHENICS_STAGES: CalisthenicsStage[] = [
     stageNumber: 1,
     stageTitle: 'Seated Floor Compression Tucks',
     standard: '3 sets of 30s continuous hold with active scapular depression',
-    completed: true,
+    completed: false,
   },
   {
     id: 'lsit-2',
@@ -40,7 +40,7 @@ const DEFAULT_CALISTHENICS_STAGES: CalisthenicsStage[] = [
     stageNumber: 2,
     stageTitle: 'Parallettes Tuck L-Sit',
     standard: '3 sets of 20s hold with knees pulled tight to chest',
-    completed: true,
+    completed: false,
   },
   {
     id: 'lsit-3',
@@ -74,7 +74,7 @@ const DEFAULT_CALISTHENICS_STAGES: CalisthenicsStage[] = [
     stageNumber: 1,
     stageTitle: 'Strict Chest-to-Bar Pull-Ups',
     standard: '3 sets of 8 strict reps with hollow body and no kipping',
-    completed: true,
+    completed: false,
   },
   {
     id: 'mu-2',
@@ -116,16 +116,24 @@ export const useTelemetryStore = create<TelemetryState>()(
       metrics: INITIAL_MANUAL_METRICS,
       activePreset: 'manual',
       syncing: false,
+      syncError: null,
       calisthenicsStages: DEFAULT_CALISTHENICS_STAGES,
 
+      clearSyncError: () => set({ syncError: null }),
+
       syncTelemetry: async () => {
-        set({ syncing: true });
+        set({ syncing: true, syncError: null });
         try {
           const fresh = await healthAdapter.fetchLatestMetrics();
-          set({ metrics: fresh, syncing: false });
-        } catch (e) {
+          set({ metrics: fresh, syncing: false, syncError: null });
+        } catch (e: any) {
           console.warn('[TelemetryStore] Sync failed, maintaining cache:', e);
-          set({ syncing: false });
+          set({
+            syncing: false,
+            syncError:
+              e?.message ||
+              'No fitness app detected on this device. Data remains un-synced.',
+          });
         }
       },
 
@@ -194,6 +202,16 @@ export const useTelemetryStore = create<TelemetryState>()(
         set((state) => ({
           metrics: { ...state.metrics, ...updates },
         }));
+      },
+
+      clearTelemetryData: () => {
+        set({
+          metrics: INITIAL_MANUAL_METRICS,
+          activePreset: 'manual',
+          syncing: false,
+          syncError: null,
+          calisthenicsStages: DEFAULT_CALISTHENICS_STAGES,
+        });
       },
     }),
     {

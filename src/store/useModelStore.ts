@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { File, Paths } from 'expo-file-system';
 import { ModelMetadata, ModelState, ModelStatus } from '@/types/model';
 import { llmService } from '@/services/llm/llmService';
 
@@ -20,15 +21,15 @@ export const useModelStore = create<ModelState>()(
   persist(
     (set, get) => ({
       currentModel: GEMMA_2_MODEL,
-      status: 'ready',
-      downloadProgress: 100,
-      useMockFallback: true, // Default to true for zero-latency instant dev/demo
+      status: 'unloaded',
+      downloadProgress: 0,
+      useMockFallback: false,
       errorMessage: null,
       stats: {
-        acceleration: 'opencl',
-        memoryUsageMb: 890,
-        gpuLayersOffloaded: 1,
-        tokensPerSec: 38.5,
+        acceleration: 'none',
+        memoryUsageMb: 0,
+        gpuLayersOffloaded: 0,
+        tokensPerSec: 0,
       },
 
       setUseMockFallback: (val: boolean) => {
@@ -37,12 +38,27 @@ export const useModelStore = create<ModelState>()(
       },
 
       downloadModel: async () => {
-        set({ status: 'downloading', downloadProgress: 0 });
-        for (let i = 0; i <= 100; i += 10) {
-          await new Promise((res) => setTimeout(res, 250));
-          set({ downloadProgress: i });
+        set({ status: 'downloading', downloadProgress: 0, errorMessage: null });
+        try {
+          if (!Paths.document) {
+            throw new Error(
+              'Local filesystem storage is not accessible in this browser/environment. Native device required for local GGUF weights.'
+            );
+          }
+          const destinationFile = new File(Paths.document, `${GEMMA_2_MODEL.id}.gguf`);
+          const downloaded = await File.downloadFileAsync(
+            GEMMA_2_MODEL.downloadUrl,
+            destinationFile,
+            { idempotent: true }
+          );
+          if (downloaded && downloaded.uri) {
+            set({ status: 'ready', downloadProgress: 100 });
+          } else {
+            throw new Error('Model download did not complete successfully.');
+          }
+        } catch (err: any) {
+          set({ status: 'error', errorMessage: err?.message || 'Download failed' });
         }
-        set({ status: 'ready', downloadProgress: 100 });
       },
 
       loadModel: async () => {

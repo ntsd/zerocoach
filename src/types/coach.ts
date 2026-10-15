@@ -29,4 +29,5 @@ export interface CoachState {
   updateProfile: (updates: Partial<UserProfile>) => void;
   completeOnboarding: (profile: UserProfile, mode: CoachingMode) => void;
   resetOnboarding: () => void;
+  clearUserData: () => void;
 }

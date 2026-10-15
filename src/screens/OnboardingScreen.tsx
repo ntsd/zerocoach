@@ -89,10 +89,11 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const [hasFitnessApp, setHasFitnessApp] = useState<boolean>(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncedSource, setSyncedSource] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Physical Metrics (Body weight & height are the only metrics a human knows)
-  const [weightKg, setWeightKg] = useState('74');
-  const [heightCm, setHeightCm] = useState('178');
+  // Physical Metrics (Body weight & height must be entered by user or synced)
+  const [weightKg, setWeightKg] = useState('');
+  const [heightCm, setHeightCm] = useState('');
 
   // Wearable Telemetry (NEVER manually counted - only populated when fitness app is synced)
   const [sleepHours, setSleepHours] = useState<number | null>(null);
@@ -104,12 +105,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   // Step 2: Coaching Philosophy
   const [selectedMode, setSelectedMode] = useState<CoachingMode>('strict');
 
-  // Step 3: Profile & Goals
+  // Step 3: Profile & Goals (starts empty by default)
   const [name, setName] = useState('');
-  const [selectedGoals, setSelectedGoals] = useState<TrainingGoal[]>([
-    'calisthenics_mastery',
-    'strength_hypertrophy',
-  ]);
+  const [selectedGoals, setSelectedGoals] = useState<TrainingGoal[]>([]);
 
   // Step 4: Nutrition State
   const [calorieTarget, setCalorieTarget] = useState('');
@@ -120,35 +118,53 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
   const modeColors = getModeColors(selectedMode);
 
+  const parsedWeight = parseFloat(weightKg);
+  const parsedHeight = parseFloat(heightCm);
+  const isBodyMetricsValid =
+    !isNaN(parsedWeight) && parsedWeight > 0 && !isNaN(parsedHeight) && parsedHeight > 0;
+
   // Calculate smart nutrition reactively from Profile, Goals, and Telemetry Active Burn (if synced)
   const smartRecommendation = useMemo(() => {
+    if (!isBodyMetricsValid) {
+      return {
+        dailyCalories: 0,
+        proteinGrams: 0,
+        carbsGrams: 0,
+        fatGrams: 0,
+        bmr: 0,
+        tdee: 0,
+        goalAdjustmentKcal: 0,
+        goalSummary: 'Weight and height required for calculation',
+        isActiveBurnFromWearable: false,
+      };
+    }
     return calculateSmartNutrition({
-      weightKg: parseFloat(weightKg) || 74,
-      heightCm: parseFloat(heightCm) || 178,
+      weightKg: parsedWeight,
+      heightCm: parsedHeight,
       mode: selectedMode,
       goals: selectedGoals,
       activeCaloriesBurned: activeCalories ?? 0,
     });
-  }, [weightKg, heightCm, selectedMode, selectedGoals, activeCalories]);
+  }, [parsedWeight, parsedHeight, isBodyMetricsValid, selectedMode, selectedGoals, activeCalories]);
 
   // Automatically update macro fields when recommendation changes, unless customized by user
   useEffect(() => {
-    if (!hasCustomMacros) {
+    if (!hasCustomMacros && isBodyMetricsValid && smartRecommendation.dailyCalories > 0) {
       setCalorieTarget(smartRecommendation.dailyCalories.toString());
       setProteinGrams(smartRecommendation.proteinGrams.toString());
       setCarbsGrams(smartRecommendation.carbsGrams.toString());
       setFatGrams(smartRecommendation.fatGrams.toString());
     }
-  }, [smartRecommendation, hasCustomMacros]);
+  }, [smartRecommendation, hasCustomMacros, isBodyMetricsValid]);
 
   // Preview readiness calculation (only when wearable telemetry is synced)
   const previewReadiness = useMemo(() => {
     if (sleepHours === null || restingHeartRate === null) return null;
     return calculateReadinessScore({
       sleepHours,
-      sleepQualityScore: sleepQuality ?? 80,
+      sleepQualityScore: sleepQuality ?? 0,
       restingHeartRate,
-      heartRateVariability: 60,
+      heartRateVariability: 50,
     });
   }, [sleepHours, sleepQuality, restingHeartRate]);
 
@@ -157,6 +173,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   // Sync with local fitness bridge (Google Fit / Health Connect / Garmin / Xiaomi)
   const handleSyncFitnessApp = async () => {
     setIsSyncing(true);
+    setSyncError(null);
     try {
       const fresh = await healthAdapter.fetchLatestMetrics();
       if (fresh.weightKg) setWeightKg(fresh.weightKg.toString());
@@ -166,10 +183,13 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       setRestingHeartRate(fresh.restingHeartRate);
       setSteps(fresh.steps);
       setActiveCalories(fresh.activeCalories);
-      setSyncedSource(fresh.source === 'google_fit' ? 'Google Fit' : 'Health Connect');
+      setSyncedSource(fresh.source === 'google_fit' ? 'Google Fit' : fresh.source.toUpperCase());
       setHasFitnessApp(true);
-    } catch (e) {
-      console.warn('Sync failed:', e);
+    } catch (e: any) {
+      setSyncError(
+        e?.message ||
+          'No fitness app detected on this device. Please enter your weight and height directly.'
+      );
     } finally {
       setIsSyncing(false);
     }
@@ -178,7 +198,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const toggleGoal = (goalId: TrainingGoal) => {
     setSelectedGoals((prev) => {
       if (prev.includes(goalId)) {
-        if (prev.length <= 1) return prev; // keep at least 1 selected
         return prev.filter((g) => g !== goalId);
       }
       return [...prev, goalId];
@@ -187,18 +206,30 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
   const resetToAutoCalculated = () => {
     setHasCustomMacros(false);
-    setCalorieTarget(smartRecommendation.dailyCalories.toString());
-    setProteinGrams(smartRecommendation.proteinGrams.toString());
-    setCarbsGrams(smartRecommendation.carbsGrams.toString());
-    setFatGrams(smartRecommendation.fatGrams.toString());
+    if (isBodyMetricsValid && smartRecommendation.dailyCalories > 0) {
+      setCalorieTarget(smartRecommendation.dailyCalories.toString());
+      setProteinGrams(smartRecommendation.proteinGrams.toString());
+      setCarbsGrams(smartRecommendation.carbsGrams.toString());
+      setFatGrams(smartRecommendation.fatGrams.toString());
+    }
   };
 
+  const canProceed = useMemo(() => {
+    if (currentStep === 1) {
+      return isBodyMetricsValid;
+    }
+    if (currentStep === 3) {
+      return selectedGoals.length > 0;
+    }
+    return true;
+  }, [currentStep, isBodyMetricsValid, selectedGoals]);
+
   const handleFinish = () => {
-    const finalWeight = parseFloat(weightKg) || 74;
-    const finalHeight = parseFloat(heightCm) || 178;
+    const finalWeight = parseFloat(weightKg) || 0;
+    const finalHeight = parseFloat(heightCm) || 0;
 
     const profile: UserProfile = {
-      name: name.trim() || 'Athlete',
+      name: name.trim(),
       weightKg: finalWeight,
       heightCm: finalHeight,
       dailyCalorieTarget: parseInt(calorieTarget, 10) || smartRecommendation.dailyCalories,
@@ -212,9 +243,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       // Telemetry was synced from fitness app
       setManualTelemetry({
         sleepHours,
-        sleepQualityScore: sleepQuality ?? 80,
-        restingHeartRate: restingHeartRate ?? 55,
-        heartRateVariability: 60,
+        sleepQualityScore: sleepQuality ?? 0,
+        restingHeartRate: restingHeartRate ?? 0,
+        heartRateVariability: 0,
         steps,
         activeCalories,
         weightKg: finalWeight,
@@ -444,13 +475,54 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                       )}
                     </View>
                   ) : (
-                    <View style={styles.syncCardContent}>
-                      <Watch size={28} color={modeColors.accent} />
-                      <Text style={styles.syncCardTitle}>Local Wearable Bridges Ready</Text>
-                      <Text style={styles.syncCardDesc}>
-                        Tap "Sync Fitness App Now" to pull local health records. Weight, height, active calories, and recovery sleep will be automatically transferred into your profile and nutrition plans.
-                      </Text>
-                    </View>
+                    <>
+                      <View style={styles.syncCardContent}>
+                        <Watch size={28} color={modeColors.accent} />
+                        <Text style={styles.syncCardTitle}>Local Wearable Bridges</Text>
+                        <Text style={styles.syncCardDesc}>
+                          Tap "Sync Fitness App Now" to pull local health records. If no fitness app is connected, enter your Weight & Height below:
+                        </Text>
+                      </View>
+
+                      {syncError && (
+                        <View style={styles.syncErrorBox}>
+                          <ShieldAlert size={14} color={COLORS.danger} />
+                          <Text style={styles.syncErrorText}>{syncError}</Text>
+                        </View>
+                      )}
+
+                      <View style={[styles.rowInputs, { marginTop: SPACING.md }]}>
+                        <View style={styles.halfInput}>
+                          <View style={styles.labelRow}>
+                            <Weight size={13} color={modeColors.accent} />
+                            <Text style={styles.inputLabel}>BODY WEIGHT (KG)</Text>
+                          </View>
+                          <TextInput
+                            style={styles.textInput}
+                            keyboardType="decimal-pad"
+                            placeholder="e.g. 70"
+                            placeholderTextColor={COLORS.textMuted}
+                            value={weightKg}
+                            onChangeText={setWeightKg}
+                          />
+                        </View>
+
+                        <View style={styles.halfInput}>
+                          <View style={styles.labelRow}>
+                            <Ruler size={13} color={modeColors.accent} />
+                            <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                          </View>
+                          <TextInput
+                            style={styles.textInput}
+                            keyboardType="number-pad"
+                            placeholder="e.g. 175"
+                            placeholderTextColor={COLORS.textMuted}
+                            value={heightCm}
+                            onChangeText={setHeightCm}
+                          />
+                        </View>
+                      </View>
+                    </>
                   )}
                 </GlassCard>
               ) : (
@@ -475,7 +547,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                       <TextInput
                         style={styles.textInput}
                         keyboardType="decimal-pad"
-                        placeholder="74"
+                        placeholder="e.g. 70"
                         placeholderTextColor={COLORS.textMuted}
                         value={weightKg}
                         onChangeText={setWeightKg}
@@ -490,7 +562,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                       <TextInput
                         style={styles.textInput}
                         keyboardType="number-pad"
-                        placeholder="178"
+                        placeholder="e.g. 175"
                         placeholderTextColor={COLORS.textMuted}
                         value={heightCm}
                         onChangeText={setHeightCm}
@@ -624,7 +696,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <TextInput
                       style={styles.textInput}
                       keyboardType="decimal-pad"
-                      placeholder="74"
+                      placeholder="e.g. 70"
                       placeholderTextColor={COLORS.textMuted}
                       value={weightKg}
                       onChangeText={setWeightKg}
@@ -643,7 +715,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <TextInput
                       style={styles.textInput}
                       keyboardType="number-pad"
-                      placeholder="178"
+                      placeholder="e.g. 175"
                       placeholderTextColor={COLORS.textMuted}
                       value={heightCm}
                       onChangeText={setHeightCm}
@@ -915,11 +987,22 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
             {currentStep < 4 ? (
               <TouchableOpacity
                 onPress={() => setCurrentStep((prev) => (prev + 1) as any)}
-                style={[styles.nextBtn, { backgroundColor: modeColors.accent }]}
+                disabled={!canProceed}
+                style={[
+                  styles.nextBtn,
+                  { backgroundColor: modeColors.accent },
+                  !canProceed && styles.disabledBtn,
+                ]}
                 activeOpacity={0.8}
               >
-                <Text style={styles.nextBtnText}>Continue</Text>
-                <ArrowRight size={16} color={COLORS.textDark} />
+                <Text style={[styles.nextBtnText, !canProceed && styles.disabledBtnText]}>
+                  {currentStep === 1 && !isBodyMetricsValid
+                    ? 'Enter Weight & Height'
+                    : currentStep === 3 && selectedGoals.length === 0
+                    ? 'Select At Least 1 Goal'
+                    : 'Continue'}
+                </Text>
+                <ArrowRight size={16} color={!canProceed ? COLORS.textMuted : COLORS.textDark} />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -1534,5 +1617,28 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyBold,
     fontSize: 14,
     color: COLORS.textDark,
+  },
+  disabledBtn: {
+    opacity: 0.5,
+    backgroundColor: COLORS.cardSecondary,
+  },
+  disabledBtnText: {
+    color: COLORS.textMuted,
+  },
+  syncErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    padding: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    marginTop: SPACING.sm,
+  },
+  syncErrorText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.danger,
+    flex: 1,
   },
 });

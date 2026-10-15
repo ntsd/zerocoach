@@ -9,6 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { FoodItem, MealType, NutrientProfile } from '../../types/nutrition';
 import { searchAllFoods, fetchProductByBarcode } from '../../services/nutrition/openFoodFactsService';
@@ -166,7 +168,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalKeyboardAvoid}
+        >
+          <View style={styles.modalContainer}>
           {/* Top Bar */}
           <View style={styles.topBar}>
             <View style={styles.topBarLeft}>
@@ -610,6 +616,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
             </>
           )}
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -619,6 +626,11 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalKeyboardAvoid: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'flex-end',
   },
   modalContainer: {

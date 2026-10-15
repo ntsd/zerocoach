@@ -8,6 +8,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChatStore } from '@/store/useChatStore';
@@ -30,6 +31,7 @@ interface CoachChatScreenProps {
 
 export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
   const [inputText, setInputText] = useState('');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const {
@@ -62,6 +64,27 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
   };
 
   useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     // Scroll to bottom on message updates
     if (flatListRef.current) {
       setTimeout(() => {
@@ -75,6 +98,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
         {/* Top Header */}
         <View style={styles.header}>
@@ -132,16 +156,29 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
         {/* Active Streaming Token Indicator */}
         {isGenerating && <StreamingIndicator />}
 
-        {/* Quick Suggestion Chips */}
-        <QuickPromptChips
-          disabled={isGenerating}
-          onSelectPrompt={(prompt) => handleSend(prompt)}
-        />
+        {/* Quick Suggestion Chips (hidden when keyboard is open to maximize screen space for chat & input) */}
+        {!isKeyboardVisible && (
+          <QuickPromptChips
+            disabled={isGenerating}
+            onSelectPrompt={(prompt) => handleSend(prompt)}
+          />
+        )}
 
         {/* Input Bar */}
-        <View style={[styles.inputContainer, { borderColor: `${modeColors.accent}30` }]}>
+        <View
+          style={[
+            styles.inputContainer,
+            { borderColor: `${modeColors.accent}30` },
+            isKeyboardVisible && styles.inputContainerKeyboardActive,
+          ]}
+        >
           <TextInput
             style={styles.textInput}
+            onFocus={() => {
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 120);
+            }}
             placeholder={
               mode === 'strict'
                 ? "Ask coach for macros, sets, or exercise form..."
@@ -276,5 +313,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  inputContainerKeyboardActive: {
+    marginBottom: Platform.OS === 'ios' ? 12 : 8,
   },
 });

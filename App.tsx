@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -30,8 +31,22 @@ type TabKey = 'coach' | 'nutrition' | 'workout' | 'telemetry' | 'settings';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const { mode, hasCompletedOnboarding } = useCoachStore();
   const modeColors = getModeColors(mode);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const TABS = [
     {
@@ -88,50 +103,52 @@ export default function App() {
               {activeTab === 'settings' && <ModelManagerScreen />}
             </View>
 
-            {/* High-Performance Bottom Tab Bar */}
-            <SafeAreaView edges={['bottom']} style={styles.bottomBarContainer}>
-              <View
-                style={[
-                  styles.bottomBar,
-                  { borderColor: 'rgba(255, 255, 255, 0.08)' },
-                ]}
-              >
-                {TABS.map((tab) => {
-                  const isActive = activeTab === tab.key;
-                  const IconComponent = tab.icon;
+            {/* High-Performance Bottom Tab Bar (hidden when keyboard is open) */}
+            {!isKeyboardVisible && (
+              <SafeAreaView edges={['bottom']} style={styles.bottomBarContainer}>
+                <View
+                  style={[
+                    styles.bottomBar,
+                    { borderColor: 'rgba(255, 255, 255, 0.08)' },
+                  ]}
+                >
+                  {TABS.map((tab) => {
+                    const isActive = activeTab === tab.key;
+                    const IconComponent = tab.icon;
 
-                  return (
-                    <TouchableOpacity
-                      key={tab.key}
-                      onPress={() => setActiveTab(tab.key)}
-                      style={[
-                        styles.tabItem,
-                        isActive && styles.tabItemActive,
-                        isActive && {
-                          borderTopColor: modeColors.accent,
-                          backgroundColor: `${modeColors.accent}0D`,
-                        },
-                      ]}
-                      activeOpacity={0.7}
-                    >
-                      <IconComponent
-                        size={20}
-                        color={isActive ? modeColors.accent : COLORS.textMuted}
-                      />
-                      <Text
+                    return (
+                      <TouchableOpacity
+                        key={tab.key}
+                        onPress={() => setActiveTab(tab.key)}
                         style={[
-                          styles.tabLabel,
-                          isActive ? styles.tabLabelActive : styles.tabLabelInactive,
-                          isActive && { color: modeColors.accent },
+                          styles.tabItem,
+                          isActive && styles.tabItemActive,
+                          isActive && {
+                            borderTopColor: modeColors.accent,
+                            backgroundColor: `${modeColors.accent}0D`,
+                          },
                         ]}
+                        activeOpacity={0.7}
                       >
-                        {tab.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </SafeAreaView>
+                        <IconComponent
+                          size={20}
+                          color={isActive ? modeColors.accent : COLORS.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.tabLabel,
+                            isActive ? styles.tabLabelActive : styles.tabLabelInactive,
+                            isActive && { color: modeColors.accent },
+                          ]}
+                        >
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </SafeAreaView>
+            )}
           </>
         )}
       </View>

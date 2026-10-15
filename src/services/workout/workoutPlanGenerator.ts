@@ -1,4 +1,4 @@
-import { CoachingMode, TrainingGoal } from '@/types/coach';
+import { CoachingMode, TrainingGoal, Gender } from '@/types/coach';
 import { CalisthenicsStage } from '@/types/telemetry';
 import { GeneratedWorkoutPlan, ExerciseItem, WorkoutIntensityTier } from '@/types/workout';
 import { exerciseRepository } from './exerciseRepository';
@@ -13,6 +13,7 @@ export interface WorkoutPlanGenerationParams {
   activeStages: CalisthenicsStage[];
   activeCalories?: number;
   equipmentMode?: 'all' | 'bodyweight';
+  gender?: Gender;
 }
 
 /**
@@ -52,11 +53,11 @@ function createExerciseItemFromRepDB(
 
 /**
  * Generates an adaptive, evidence-based exercise plan dynamically tailored to:
- * 1. RepDB Open Exercise Dataset (643 exercises with METs, mechanics, and cues)
- * 2. Equipment Mode (Full Gym vs Bodyweight Only)
+ * 1. Equipment Environment (Full Gym vs Bodyweight/Home)
+ * 2. User Gender & Exercise Physiology (Volume tolerance, rep cadence, rest curves)
  * 3. Selected Training Goals (Strength, Calisthenics, Fat Loss, Cardio, Longevity)
  * 4. Wearable Telemetry & Recovery Readiness (Autoregulated Sets, Reps, RPE)
- * 5. Coaching Philosophy (Strict sports science vs Comfortable health)
+ * 5. RepDB Open Exercise Dataset (643 exercises with verified METs, mechanics, and cues)
  */
 export function generateAdaptiveWorkoutPlan(
   params: WorkoutPlanGenerationParams
@@ -68,10 +69,13 @@ export function generateAdaptiveWorkoutPlan(
     weightKg = 0,
     activeStages = [],
     equipmentMode = 'all',
+    gender = 'male',
   } = params;
 
   const isStrict = mode === 'strict';
   const isGym = equipmentMode === 'all';
+  const isFemale = gender === 'female';
+  const isMale = gender === 'male';
 
   // 1. Determine Autoregulated Intensity Tier from Readiness
   let tier: WorkoutIntensityTier = 'baseline';
@@ -87,7 +91,7 @@ export function generateAdaptiveWorkoutPlan(
     volumeMultiplier = 1.25;
     defaultRpe = isStrict ? 'RPE 8.5–9' : 'RPE 8';
     readinessMultiplierDesc =
-      `Optimal recovery (${readinessScore}/100). High neural drive. Target progressive overload and skill PRs.`;
+      `Optimal recovery (${readinessScore}/100). High neural drive. Target progressive overload and priority PRs.`;
   } else if (readinessScore >= 60) {
     tier = 'optimal';
     tierLabel = 'STANDARD PROGRESSION';
@@ -104,13 +108,36 @@ export function generateAdaptiveWorkoutPlan(
       `Depressed recovery (${readinessScore}/100). Volume reduced by 35% to protect joints and facilitate CNS repair.`;
   }
 
-  // 2. Resolve Active Calisthenics Target Milestone
-  const nextStage = activeStages.find((s) => !s.completed);
-  const targetSkillMilestone = nextStage
-    ? `${nextStage.skillName} Stage ${nextStage.stageNumber}: ${nextStage.stageTitle}`
-    : isGym
-      ? 'Barbell Strength Benchmark'
-      : 'Calisthenics Bodyweight Mastery';
+  // Physiological Rep Cadence & Rest Curves (Gender & Tier Adjusted)
+  const compoundReps = isFemale
+    ? tier === 'peak' ? '6–8 strict reps' : tier === 'deload' ? '8 reps (light)' : '8–10 controlled reps'
+    : isMale
+      ? tier === 'peak' ? '4–6 heavy reps' : tier === 'deload' ? '6 reps (light)' : '6–8 explosive reps'
+      : '8–10 smooth reps';
+
+  const accessoryReps = isFemale
+    ? tier === 'deload' ? '10 smooth reps' : '12–15 continuous tension reps'
+    : tier === 'deload' ? '8 smooth reps' : '8–12 controlled reps';
+
+  const compoundRestSec = isFemale ? (tier === 'peak' ? 90 : 60) : (tier === 'peak' ? 120 : 90);
+  const accessoryRestSec = isFemale ? 45 : 60;
+
+  // 2. Resolve Target Milestone:
+  // Calisthenics progression is ONLY targeted if the user specifically chose calisthenics_mastery
+  // OR is in Home/Bodyweight equipment mode.
+  const wantsCalisthenics = goals.includes('calisthenics_mastery') || !isGym;
+  const nextStage = wantsCalisthenics ? activeStages.find((s) => !s.completed) : undefined;
+
+  let targetSkillMilestone: string;
+  if (wantsCalisthenics && nextStage) {
+    targetSkillMilestone = `${nextStage.skillName} Stage ${nextStage.stageNumber}: ${nextStage.stageTitle}`;
+  } else if (isGym) {
+    targetSkillMilestone = tier === 'peak'
+      ? 'Barbell Bench Press: Heavy Overload Protocol (4–6 Reps)'
+      : 'Barbell Bench Press: Progressive Hypertrophy Benchmark';
+  } else {
+    targetSkillMilestone = 'Strict Calisthenics Bodyweight Standards';
+  }
 
   const exercises: ExerciseItem[] = [];
 
@@ -142,20 +169,21 @@ export function generateAdaptiveWorkoutPlan(
         prepEx,
         'warmup',
         2,
-        isGym ? '12 paused contractions' : '8 slow transitions',
+        isGym ? '12 paused glute contractions' : '8 slow fluid transitions',
         30,
-        'Moderate • Pelvic & Scapular Activation',
+        'Moderate • Pelvic & Core Activation',
         prepEx.tips_en?.[0]
       )
     );
   }
 
   // ==========================================
-  // BLOCK 2: TARGET SKILL / PRIORITY COMPOUND
+  // BLOCK 2: TARGET SKILL / PRIORITY COMPOUND LIFT
   // ==========================================
   const skillSets = Math.max(2, Math.round((tier === 'peak' ? 4 : tier === 'deload' ? 2 : 3) * volumeMultiplier));
-  if (nextStage) {
-    // Athlete is tracking calisthenics milestones
+
+  if (wantsCalisthenics && nextStage) {
+    // Bodyweight / Calisthenics Skill Priority
     exercises.push({
       id: `skill-${nextStage.id}`,
       name: `${nextStage.skillName}: ${nextStage.stageTitle}`,
@@ -178,7 +206,7 @@ export function generateAdaptiveWorkoutPlan(
       met: 6.0,
     });
   } else if (isGym) {
-    // Gym Mode Priority Lift (Barbell Bench Press)
+    // Full Gym Priority Compound Benchmark (Barbell Bench Press)
     const bench = exerciseRepository.getById('bench-press');
     if (bench) {
       exercises.push(
@@ -186,10 +214,12 @@ export function generateAdaptiveWorkoutPlan(
           bench,
           'skill',
           skillSets,
-          tier === 'peak' ? '4–6 heavy reps' : '6–8 solid reps',
-          120,
-          `${defaultRpe} • Primary Compound Lift`,
-          bench.tips_en?.[0]
+          compoundReps,
+          compoundRestSec,
+          `${defaultRpe} • Primary Horizontal Compound`,
+          isFemale
+            ? 'Retract scapulae firmly into the bench. Control the 3-second descent and drive evenly off the sternum.'
+            : bench.tips_en?.[0]
         )
       );
     }
@@ -207,23 +237,23 @@ export function generateAdaptiveWorkoutPlan(
 
   if (hasStrength) {
     if (isGym) {
-      // 1. Compound Pull: Bent-Over Barbell Row or Pull-up
-      const row = exerciseRepository.getById('barbell-row') || exerciseRepository.getById('pull-up');
+      // 1. Gym Compound Pull: Bent-Over Barbell Row
+      const row = exerciseRepository.getById('barbell-row');
       if (row) {
         exercises.push(
           createExerciseItemFromRepDB(
             row,
             'strength',
             strengthSets,
-            isStrict ? '8–10 reps (2-0-1-0 tempo)' : '8–10 controlled reps',
-            90,
-            `${defaultRpe} • Horizontal Pull`,
+            compoundReps,
+            compoundRestSec,
+            `${defaultRpe} • Horizontal Pull Compound`,
             row.tips_en?.[0]
           )
         );
       }
 
-      // 2. Compound Lower: Barbell Bulgarian Split Squat or Deadlift
+      // 2. Gym Compound Lower: Bulgarian Split Squat or Deadlift
       const lowerId = tier === 'peak' ? 'deadlift' : 'barbell-bulgarian-split-squat';
       const lower = exerciseRepository.getById(lowerId) || exerciseRepository.getById('deadlift');
       if (lower) {
@@ -232,15 +262,15 @@ export function generateAdaptiveWorkoutPlan(
             lower,
             'strength',
             Math.max(2, strengthSets - (tier === 'deload' ? 1 : 0)),
-            tier === 'peak' ? '5 reps / side' : '8–10 reps',
-            90,
-            `${defaultRpe} • Lower Chain Hypertrophy`,
+            isFemale ? '10–12 reps / leg' : compoundReps,
+            compoundRestSec,
+            `${defaultRpe} • Lower Chain Compound`,
             lower.tips_en?.[0]
           )
         );
       }
 
-      // 3. Accessory / Overhead: Arnold Press
+      // 3. Gym Deltoid / Arm Accessory: Arnold Press
       const arnold = exerciseRepository.getById('arnold-press');
       if (arnold) {
         exercises.push(
@@ -248,15 +278,15 @@ export function generateAdaptiveWorkoutPlan(
             arnold,
             'strength',
             Math.max(2, strengthSets - 1),
-            '10–12 smooth reps',
-            60,
+            accessoryReps,
+            accessoryRestSec,
             `${defaultRpe} • Deltoid Compound`,
             arnold.tips_en?.[0]
           )
         );
       }
     } else {
-      // Bodyweight / Calisthenics Strength Movements
+      // Home / Bodyweight Strength Movements:
       // 1. Push: Archer Push Ups or Close Grip Push Ups
       const pushId = tier === 'peak' ? 'archer-push-ups' : 'close-grip-push-ups';
       const push = exerciseRepository.getById(pushId) || exerciseRepository.getById('close-grip-push-ups');
@@ -266,15 +296,15 @@ export function generateAdaptiveWorkoutPlan(
             push,
             'strength',
             strengthSets,
-            isStrict ? '8–10 reps (3-0-1-0 tempo)' : '10–12 smooth reps',
-            75,
+            compoundReps,
+            compoundRestSec,
             `${defaultRpe} • Bodyweight Push Overload`,
             push.tips_en?.[0]
           )
         );
       }
 
-      // 2. Pull: Pull-Up
+      // 2. Pull: Pull-Up (or Negative Pull-Up if deload)
       const pull = exerciseRepository.getById('pull-up');
       if (pull) {
         exercises.push(
@@ -282,9 +312,9 @@ export function generateAdaptiveWorkoutPlan(
             pull,
             'strength',
             strengthSets,
-            '6–8 dead-hang reps',
-            90,
-            `${defaultRpe} • Vertical Pull`,
+            tier === 'deload' ? '4–6 controlled reps' : '6–8 dead-hang reps',
+            compoundRestSec,
+            `${defaultRpe} • Vertical Pull Compound`,
             pull.tips_en?.[0]
           )
         );
@@ -298,51 +328,82 @@ export function generateAdaptiveWorkoutPlan(
             squat,
             'strength',
             Math.max(2, strengthSets - 1),
-            '8 reps per side',
-            60,
+            isFemale ? '10 reps / side' : '8 reps / side',
+            accessoryRestSec,
             `${defaultRpe} • Frontal Plane Lower`,
             squat.tips_en?.[0]
+          )
+        );
+      }
+
+      // 4. Core: Plank
+      const plank = exerciseRepository.getById('plank');
+      if (plank) {
+        exercises.push(
+          createExerciseItemFromRepDB(
+            plank,
+            'strength',
+            2,
+            tier === 'peak' ? '60s hold' : '45s hold',
+            45,
+            'Isometric Core Bracing',
+            plank.tips_en?.[0]
           )
         );
       }
     }
   }
 
-  // Metabolic conditioning / fat loss
+  // Metabolic Conditioning / Fat Loss
   if (hasFatLoss) {
-    const burpee = exerciseRepository.getById('burpees');
-    if (burpee) {
-      exercises.push(
-        createExerciseItemFromRepDB(
-          burpee,
-          'metabolic',
-          tier === 'deload' ? 2 : 3,
-          '12–15 explosive reps',
-          45,
-          'High Density • Elevated Metabolic Output',
-          burpee.tips_en?.[0]
-        )
-      );
-    }
-
-    const cardioId = isGym ? 'box-jump' : 'plank';
-    const cardioEx = exerciseRepository.getById(cardioId);
-    if (cardioEx) {
-      exercises.push(
-        createExerciseItemFromRepDB(
-          cardioEx,
-          'metabolic',
-          3,
-          cardioId === 'plank' ? '45s isometric hold' : '10 snappy reps',
-          45,
-          'Core & Power Endurance',
-          cardioEx.tips_en?.[0]
-        )
-      );
+    if (isGym) {
+      const swing = exerciseRepository.getById('kettlebell-swing');
+      if (swing) {
+        exercises.push(
+          createExerciseItemFromRepDB(
+            swing,
+            'metabolic',
+            tier === 'deload' ? 2 : 3,
+            '15–20 explosive hip drives',
+            45,
+            'High Density • Posterior Chain Burn',
+            swing.tips_en?.[0]
+          )
+        );
+      }
+      const boxJump = exerciseRepository.getById('box-jump');
+      if (boxJump) {
+        exercises.push(
+          createExerciseItemFromRepDB(
+            boxJump,
+            'metabolic',
+            3,
+            '10 snappy reps (step down safely)',
+            45,
+            'Power & Metabolic Output',
+            boxJump.tips_en?.[0]
+          )
+        );
+      }
+    } else {
+      const burpee = exerciseRepository.getById('burpees');
+      if (burpee) {
+        exercises.push(
+          createExerciseItemFromRepDB(
+            burpee,
+            'metabolic',
+            tier === 'deload' ? 2 : 3,
+            '12–15 explosive reps',
+            45,
+            'High Density • Elevated Metabolic Output',
+            burpee.tips_en?.[0]
+          )
+        );
+      }
     }
   }
 
-  // Cardio / Aerobic base
+  // Cardio / Aerobic Base
   if (hasCardio) {
     const cardioTool = isGym ? 'air-bike' : 'burpees';
     const cardioRepDb = exerciseRepository.getById(cardioTool) || exerciseRepository.getById('jump-rope');
@@ -361,7 +422,7 @@ export function generateAdaptiveWorkoutPlan(
     }
   }
 
-  // Daily health / Longevity / Mobility
+  // Daily Health / Longevity
   if (hasHealth) {
     const birdDog = exerciseRepository.getById('bird-dog');
     if (birdDog) {
@@ -370,9 +431,9 @@ export function generateAdaptiveWorkoutPlan(
           birdDog,
           'strength',
           2,
-          '10 reps per side (2s pause)',
+          '10 reps per side (2s peak hold)',
           45,
-          'Restorative • Spine & Glute Stability',
+          'Restorative • Lumbar & Glute Alignment',
           birdDog.tips_en?.[0]
         )
       );
@@ -389,9 +450,9 @@ export function generateAdaptiveWorkoutPlan(
         childPose,
         'cooldown',
         2,
-        '45s deep stretch + diaphragmatic breathing',
+        '45s deep stretch + diaphragmatic box breathing',
         30,
-        'Parasympathetic Reset',
+        'Parasympathetic Down-Regulation',
         childPose.tips_en?.[0]
       )
     );
@@ -404,7 +465,7 @@ export function generateAdaptiveWorkoutPlan(
   const estimatedDurationMin = Math.round((totalRestSeconds + workSeconds) / 60);
 
   // MET-based calorie formula: Calories = MET * weightKg * (hours)
-  const athleteWeight = weightKg > 0 ? weightKg : 75; // default 75kg if not entered
+  const athleteWeight = weightKg > 0 ? weightKg : (isFemale ? 62 : 75);
   let calculatedCalories = 0;
   for (const ex of exercises) {
     const met = ex.met || 5.0;
@@ -434,8 +495,8 @@ export function generateAdaptiveWorkoutPlan(
   const title = goalTitles.length > 0
     ? goalTitles.join(' + ')
     : isGym
-      ? 'Gym Strength & Hypertrophy'
-      : 'Calisthenics Bodyweight Routine';
+      ? 'Full Gym Strength & Hypertrophy'
+      : 'Bodyweight Calisthenics Routine';
 
   return {
     id: `plan-${Date.now()}`,
@@ -450,7 +511,7 @@ export function generateAdaptiveWorkoutPlan(
     targetSkillMilestone,
     exercises,
     coachingNotes: isStrict
-      ? `Strict Execution Directives: Adhere precisely to the target rep cadences and RPE limits. Record completed milestones to unlock higher progression tiers.`
+      ? `Strict Execution Directives: Adhere precisely to the target rep cadences and RPE limits. Record completed sets to unlock higher progression tiers.`
       : `Health Directives: Honor your body's current readiness. Rest as needed, enjoy fluid movement, and build sustainable strength step by step.`,
     generatedDate: new Date().toLocaleDateString(undefined, {
       weekday: 'short',

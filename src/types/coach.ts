@@ -7,8 +7,12 @@ export type TrainingGoal =
   | 'cardio_endurance'
   | 'daily_health_longevity';
 
+export type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
+export type EquipmentPreference = 'gym' | 'home' | 'both';
+
 export interface UserProfile {
   name: string;
+  gender?: Gender;
   weightKg: number;
   heightCm: number;
   dailyCalorieTarget: number;
@@ -18,6 +22,7 @@ export interface UserProfile {
   primaryGoals: TrainingGoal[];
   primaryGoal?: string;
   currentCalisthenicsFocus?: string;
+  equipmentPreference?: EquipmentPreference;
 }
 
 export interface CoachState {

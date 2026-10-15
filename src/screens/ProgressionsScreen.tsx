@@ -27,9 +27,10 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'L-Sit' | 'Bar Muscle-Up'>('All');
-  const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>('all');
-  const { calisthenicsStages, metrics, toggleStageCompletion } = useTelemetryStore();
   const { mode, userProfile } = useCoachStore();
+  const defaultMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
+  const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
+  const { calisthenicsStages, metrics, toggleStageCompletion } = useTelemetryStore();
   const { sendMessage } = useChatStore();
   const modeColors = getModeColors(mode);
 
@@ -44,6 +45,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
       activeStages: calisthenicsStages,
       activeCalories: metrics.activeCalories,
       equipmentMode,
+      gender: userProfile.gender,
     });
   }, [userProfile, mode, metrics, calisthenicsStages, equipmentMode]);
 

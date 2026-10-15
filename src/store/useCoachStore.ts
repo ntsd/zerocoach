@@ -5,6 +5,8 @@ import { CoachState, CoachingMode, UserProfile } from '@/types/coach';
 
 const DEFAULT_PROFILE: UserProfile = {
   name: '',
+  gender: 'male',
+  equipmentPreference: 'both',
   weightKg: 0,
   heightCm: 0,
   dailyCalorieTarget: 0,

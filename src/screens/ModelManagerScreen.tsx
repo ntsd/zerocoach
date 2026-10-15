@@ -36,6 +36,7 @@ import {
   EyeOff,
   Settings,
   Database,
+  User,
 } from 'lucide-react-native';
 import {
   clearAllUserData,
@@ -66,7 +67,7 @@ export const ModelManagerScreen: React.FC = () => {
     testOpenAIConnection,
   } = useModelStore();
 
-  const { mode } = useCoachStore();
+  const { mode, userProfile, updateProfile } = useCoachStore();
   const modeColors = getModeColors(mode);
   const [otaStatus, setOtaStatus] = useState<string | null>(null);
   const [checkingOta, setCheckingOta] = useState(false);
@@ -549,6 +550,113 @@ export const ModelManagerScreen: React.FC = () => {
               <Text style={styles.otaStatusText}>{otaStatus}</Text>
             </View>
           )}
+        </GlassCard>
+
+        {/* Athlete Profile & Biological Training Parameters */}
+        <GlassCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <User size={16} color={modeColors.accent} />
+            <Text style={styles.cardTitle}>ATHLETE PROFILE & PARAMETERS</Text>
+          </View>
+          <Text style={styles.otaDesc}>
+            Biological profile and preferred environment calibrate rep targets, rest periods, and Mifflin-St Jeor metabolic equations.
+          </Text>
+
+          <View style={{ gap: SPACING.sm }}>
+            {/* Gender Selector */}
+            <View>
+              <Text style={styles.profileSectionLabel}>GENDER / BIOLOGICAL PROFILE</Text>
+              <View style={styles.pillRow}>
+                {(
+                  [
+                    { id: 'male', label: 'Male 👨' },
+                    { id: 'female', label: 'Female 👩' },
+                    { id: 'other', label: 'Other 🧑' },
+                  ] as const
+                ).map((g) => {
+                  const isSelected = (userProfile.gender || 'male') === g.id;
+                  return (
+                    <TouchableOpacity
+                      key={g.id}
+                      onPress={() => updateProfile({ gender: g.id })}
+                      style={[
+                        styles.profilePill,
+                        isSelected && {
+                          borderColor: modeColors.accent,
+                          backgroundColor: `${modeColors.accent}20`,
+                        },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.profilePillText,
+                          isSelected && { color: modeColors.accent, fontWeight: '700' },
+                        ]}
+                      >
+                        {g.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Equipment Environment Preference */}
+            <View>
+              <Text style={styles.profileSectionLabel}>DEFAULT TRAINING ENVIRONMENT</Text>
+              <View style={styles.pillRow}>
+                {(
+                  [
+                    { id: 'gym', label: '🏋️ Full Gym' },
+                    { id: 'home', label: '🏠 Home / BW' },
+                    { id: 'both', label: '🔄 Hybrid / Both' },
+                  ] as const
+                ).map((eq) => {
+                  const isSelected = (userProfile.equipmentPreference || 'gym') === eq.id;
+                  return (
+                    <TouchableOpacity
+                      key={eq.id}
+                      onPress={() => updateProfile({ equipmentPreference: eq.id })}
+                      style={[
+                        styles.profilePill,
+                        isSelected && {
+                          borderColor: modeColors.accent,
+                          backgroundColor: `${modeColors.accent}20`,
+                        },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.profilePillText,
+                          isSelected && { color: modeColors.accent, fontWeight: '700' },
+                        ]}
+                      >
+                        {eq.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Height & Weight Display */}
+            <View style={styles.profileStatsRow}>
+              <View style={styles.profileStatItem}>
+                <Text style={styles.profileStatLabel}>BODY WEIGHT</Text>
+                <Text style={styles.profileStatValue}>
+                  {userProfile.weightKg > 0 ? `${userProfile.weightKg} kg` : 'Not Set'}
+                </Text>
+              </View>
+              <View style={styles.profileStatItem}>
+                <Text style={styles.profileStatLabel}>HEIGHT</Text>
+                <Text style={styles.profileStatValue}>
+                  {userProfile.heightCm > 0 ? `${userProfile.heightCm} cm` : 'Not Set'}
+                </Text>
+              </View>
+            </View>
+          </View>
         </GlassCard>
 
         {/* Open Source Exercise Dataset & Attributions */}
@@ -1181,5 +1289,55 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textSecondary,
     textAlign: 'right',
+  },
+  profileSectionLabel: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  profilePill: {
+    flex: 1,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.sm,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profilePillText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  profileStatsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: 2,
+  },
+  profileStatItem: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  profileStatLabel: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 8,
+    color: COLORS.textMuted,
+  },
+  profileStatValue: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    marginTop: 2,
   },
 });

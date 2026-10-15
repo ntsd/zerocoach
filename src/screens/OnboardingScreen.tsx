@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
-import { CoachingMode, UserProfile, TrainingGoal } from '@/types/coach';
+import { CoachingMode, UserProfile, TrainingGoal, Gender, EquipmentPreference } from '@/types/coach';
 import { calculateReadinessScore, getReadinessCategory } from '@/services/telemetry/readinessCalculator';
 import { calculateSmartNutrition } from '@/services/nutrition/nutritionCalculator';
 import { healthAdapter } from '@/services/telemetry/healthConnectAdapter';
@@ -107,6 +107,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
   // Step 3: Profile & Goals (starts empty by default)
   const [name, setName] = useState('');
+  const [gender, setGender] = useState<Gender>('male');
+  const [equipmentPreference, setEquipmentPreference] = useState<EquipmentPreference>('gym');
   const [selectedGoals, setSelectedGoals] = useState<TrainingGoal[]>([]);
 
   // Step 4: Nutrition State
@@ -123,7 +125,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const isBodyMetricsValid =
     !isNaN(parsedWeight) && parsedWeight > 0 && !isNaN(parsedHeight) && parsedHeight > 0;
 
-  // Calculate smart nutrition reactively from Profile, Goals, and Telemetry Active Burn (if synced)
+  // Calculate smart nutrition reactively from Profile, Goals, Gender, and Telemetry Active Burn (if synced)
   const smartRecommendation = useMemo(() => {
     if (!isBodyMetricsValid) {
       return {
@@ -144,8 +146,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       mode: selectedMode,
       goals: selectedGoals,
       activeCaloriesBurned: activeCalories ?? 0,
+      gender,
     });
-  }, [parsedWeight, parsedHeight, isBodyMetricsValid, selectedMode, selectedGoals, activeCalories]);
+  }, [parsedWeight, parsedHeight, isBodyMetricsValid, selectedMode, selectedGoals, activeCalories, gender]);
 
   // Automatically update macro fields when recommendation changes, unless customized by user
   useEffect(() => {
@@ -230,6 +233,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
     const profile: UserProfile = {
       name: name.trim(),
+      gender,
+      equipmentPreference,
       weightKg: finalWeight,
       heightCm: finalHeight,
       dailyCalorieTarget: parseInt(calorieTarget, 10) || smartRecommendation.dailyCalories,
@@ -720,6 +725,86 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                       value={heightCm}
                       onChangeText={setHeightCm}
                     />
+                  </View>
+                </View>
+
+                {/* Gender / Biological Profile */}
+                <View style={{ marginTop: SPACING.md }}>
+                  <Text style={styles.inputLabel}>GENDER / BIOLOGICAL PROFILE</Text>
+                  <View style={styles.segmentedSelectorRow}>
+                    {(
+                      [
+                        { id: 'male', label: 'Male 👨', sub: 'Neural Drive Focus' },
+                        { id: 'female', label: 'Female 👩', sub: 'Volume Tolerance' },
+                        { id: 'other', label: 'Other 🧑', sub: 'Balanced Protocol' },
+                      ] as const
+                    ).map((item) => {
+                      const isSelected = gender === item.id;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          onPress={() => setGender(item.id)}
+                          style={[
+                            styles.segmentedSelectorOption,
+                            isSelected && {
+                              borderColor: modeColors.accent,
+                              backgroundColor: `${modeColors.accent}20`,
+                            },
+                          ]}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.segmentedSelectorText,
+                              isSelected && { color: modeColors.accent, fontWeight: '700' },
+                            ]}
+                          >
+                            {item.label}
+                          </Text>
+                          <Text style={styles.segmentedSelectorSub}>{item.sub}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Primary Workout Environment */}
+                <View style={{ marginTop: SPACING.md }}>
+                  <Text style={styles.inputLabel}>PRIMARY WORKOUT ENVIRONMENT</Text>
+                  <View style={styles.segmentedSelectorRow}>
+                    {(
+                      [
+                        { id: 'gym', label: '🏋️ Full Gym', sub: 'Barbells, DBs, Cables' },
+                        { id: 'home', label: '🏠 Home / BW', sub: 'Bodyweight & Calisthenics' },
+                        { id: 'both', label: '🔄 Hybrid / Both', sub: 'Flexible Training' },
+                      ] as const
+                    ).map((item) => {
+                      const isSelected = equipmentPreference === item.id;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          onPress={() => setEquipmentPreference(item.id)}
+                          style={[
+                            styles.segmentedSelectorOption,
+                            isSelected && {
+                              borderColor: modeColors.accent,
+                              backgroundColor: `${modeColors.accent}20`,
+                            },
+                          ]}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.segmentedSelectorText,
+                              isSelected && { color: modeColors.accent, fontWeight: '700' },
+                            ]}
+                          >
+                            {item.label}
+                          </Text>
+                          <Text style={styles.segmentedSelectorSub}>{item.sub}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
 
@@ -1640,5 +1725,34 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.danger,
     flex: 1,
+  },
+  segmentedSelectorRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+  },
+  segmentedSelectorOption: {
+    flex: 1,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  segmentedSelectorText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  segmentedSelectorSub: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    textAlign: 'center',
   },
 });

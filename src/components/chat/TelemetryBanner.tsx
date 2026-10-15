@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { useCoachStore } from '@/store/useCoachStore';
 import { COLORS, getModeColors } from '@/theme/colors';
@@ -55,7 +55,7 @@ export const TelemetryBanner: React.FC = () => {
               </>
             ) : (
               <Text style={styles.metricText}>
-                Tap Sync button to connect Google Fit / Health Connect
+                Tap Sync to connect Health Connect / Apple Health
               </Text>
             )}
           </View>
@@ -68,10 +68,14 @@ export const TelemetryBanner: React.FC = () => {
         style={styles.syncButton}
         activeOpacity={0.7}
       >
-        <RefreshCw
-          size={14}
-          color={syncing ? modeColors.accent : COLORS.textMuted}
-        />
+        {syncing ? (
+          <ActivityIndicator size="small" color={modeColors.accent} />
+        ) : (
+          <RefreshCw
+            size={14}
+            color={COLORS.textMuted}
+          />
+        )}
       </TouchableOpacity>
     </View>
   );

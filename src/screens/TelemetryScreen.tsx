@@ -22,6 +22,7 @@ import { TYPOGRAPHY } from '@/theme/typography';
 import { ReadinessGauge } from '@/components/telemetry/ReadinessGauge';
 import { MetricGrid } from '@/components/telemetry/MetricGrid';
 import { GlassCard } from '@/components/common/GlassCard';
+import { HealthSyncGuideModal } from '@/components/telemetry/HealthSyncGuideModal';
 import {
   Activity,
   RefreshCw,
@@ -40,6 +41,7 @@ export const TelemetryScreen: React.FC = () => {
   const { mode } = useCoachStore();
   const modeColors = getModeColors(mode);
 
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -106,83 +108,71 @@ export const TelemetryScreen: React.FC = () => {
         </View>
 
         {/* Wearable Providers Banner */}
-        <View style={styles.providersCard}>
-          <View style={styles.providerRow}>
-            <Watch size={14} color={COLORS.textSecondary} />
-            <Text style={styles.providerTitle}>
-              DATA SOURCE: {isSynced ? metrics.source.toUpperCase() : 'NONE CONNECTED'}
-            </Text>
-          </View>
-          <View style={styles.badgesRow}>
-            <View
-              style={[
-                styles.badge,
-                metrics.source === 'google_fit' && styles.badgeActive,
-                metrics.source === 'google_fit' && { borderColor: modeColors.accent },
-              ]}
-            >
-              <View
-                style={[
-                  styles.dotActive,
-                  {
-                    backgroundColor:
-                      metrics.source === 'google_fit'
-                        ? COLORS.success
-                        : COLORS.textMuted,
-                  },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.badgeText,
-                  metrics.source === 'google_fit' && { color: modeColors.accent, fontWeight: '800' },
-                ]}
-              >
-                GOOGLE FIT
+        <TouchableOpacity
+          onPress={() => setShowSyncModal(true)}
+          style={styles.providersCard}
+          activeOpacity={0.8}
+        >
+          <View style={styles.providerHeaderRow}>
+            <View style={styles.providerRow}>
+              <Watch size={14} color={modeColors.accent} />
+              <Text style={styles.providerTitle}>
+                NATIVE HUB:{' '}
+                {metrics.source === 'health_connect'
+                  ? 'ANDROID HEALTH CONNECT'
+                  : metrics.source === 'apple_health'
+                  ? 'APPLE HEALTHKIT'
+                  : metrics.source === 'simulation'
+                  ? 'SIMULATED DEVICE BRIDGE'
+                  : isSynced
+                  ? metrics.source.toUpperCase()
+                  : 'NONE CONNECTED'}
               </Text>
             </View>
-
-            <View
-              style={[
-                styles.badge,
-                metrics.source === 'garmin' && styles.badgeActive,
-              ]}
-            >
-              <View
-                style={[
-                  styles.dotActive,
-                  {
-                    backgroundColor:
-                      metrics.source === 'garmin'
-                        ? COLORS.success
-                        : COLORS.textMuted,
-                  },
-                ]}
-              />
-              <Text style={styles.badgeText}>GARMIN</Text>
-            </View>
-
-            <View
-              style={[
-                styles.badge,
-                metrics.source === 'xiaomi' && styles.badgeActive,
-              ]}
-            >
-              <View
-                style={[
-                  styles.dotActive,
-                  {
-                    backgroundColor:
-                      metrics.source === 'xiaomi'
-                        ? COLORS.success
-                        : COLORS.textMuted,
-                  },
-                ]}
-              />
-              <Text style={styles.badgeText}>XIAOMI</Text>
+            <View style={styles.guideBadge}>
+              <Text style={[styles.guideBadgeText, { color: modeColors.accent }]}>
+                CONNECT APPS ↗
+              </Text>
             </View>
           </View>
-        </View>
+          <Text style={styles.providerSub}>
+            Auto-syncs biometrics from your companion apps via local OS health hub:
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.badgesRow}
+          >
+            {['GARMIN', 'APPLE WATCH', 'SAMSUNG', 'WHOOP', 'OURA', 'PIXEL / FIT', 'XIAOMI', 'STRAVA'].map(
+              (brand) => (
+                <View
+                  key={brand}
+                  style={[
+                    styles.badge,
+                    isSynced && styles.badgeActive,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.dotActive,
+                      {
+                        backgroundColor: isSynced ? COLORS.success : COLORS.textMuted,
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.badgeText,
+                      isSynced && { color: COLORS.textPrimary, fontWeight: '700' },
+                    ]}
+                  >
+                    {brand}
+                  </Text>
+                </View>
+              )
+            )}
+          </ScrollView>
+        </TouchableOpacity>
 
         {/* Readiness Gauge */}
         <ReadinessGauge score={metrics.readinessScore} />
@@ -200,10 +190,16 @@ export const TelemetryScreen: React.FC = () => {
           </View>
           <Text style={styles.syncBridgeDesc}>
             {isSynced
-              ? `Connected via local on-device bridge. Last refreshed ${new Date(
+              ? `Connected via local on-device health hub (${
+                  metrics.source === 'health_connect'
+                    ? 'Android Health Connect'
+                    : metrics.source === 'apple_health'
+                    ? 'Apple HealthKit'
+                    : 'Device Bridge'
+                }). Last refreshed ${new Date(
                   metrics.lastSyncTimestamp
                 ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} with zero remote API latency.`
-              : 'ZeroCoach connects locally to Android Health Connect (Google Fit, Garmin, Xiaomi) with 0 cloud logins required. Syncing automatically updates your Sleep, Heart Rate, Step Count, and Active Calories.'}
+              : 'ZeroCoach connects locally to Android Health Connect or Apple HealthKit. Any companion app (Garmin Connect, Apple Watch, Samsung Health, Whoop, Oura, Xiaomi, Strava) syncing to your OS health hub is automatically read by ZeroCoach with 0 cloud logins required.'}
           </Text>
 
           {syncError && (
@@ -213,21 +209,32 @@ export const TelemetryScreen: React.FC = () => {
             </View>
           )}
 
-          <TouchableOpacity
-            onPress={() => syncTelemetry()}
-            disabled={syncing}
-            style={[styles.syncActionBtn, { backgroundColor: modeColors.accent }]}
-            activeOpacity={0.85}
-          >
-            {syncing ? (
-              <ActivityIndicator size="small" color={COLORS.textDark} />
-            ) : (
-              <Zap size={16} color={COLORS.textDark} />
-            )}
-            <Text style={styles.syncActionBtnText}>
-              {syncing ? 'Connecting Local Bridge...' : isSynced ? 'Re-sync Telemetry Now' : 'Sync Fitness App Now'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.syncActionsRow}>
+            <TouchableOpacity
+              onPress={() => syncTelemetry()}
+              disabled={syncing}
+              style={[styles.syncActionBtn, { backgroundColor: modeColors.accent }]}
+              activeOpacity={0.85}
+            >
+              {syncing ? (
+                <ActivityIndicator size="small" color={COLORS.textDark} />
+              ) : (
+                <Zap size={16} color={COLORS.textDark} />
+              )}
+              <Text style={styles.syncActionBtnText}>
+                {syncing ? 'Connecting Bridge...' : isSynced ? 'Re-sync Telemetry' : 'Sync Fitness App'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowSyncModal(true)}
+              style={styles.syncSetupBtn}
+              activeOpacity={0.85}
+            >
+              <Watch size={16} color={COLORS.textPrimary} />
+              <Text style={styles.syncSetupBtnText}>Apps Guide</Text>
+            </TouchableOpacity>
+          </View>
         </GlassCard>
 
         {/* Data Privacy & Storage Controls Card */}
@@ -332,6 +339,13 @@ export const TelemetryScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Fitness App Sync Guide & Companion Connections Modal */}
+      <HealthSyncGuideModal
+        visible={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        onTriggerSync={syncTelemetry}
+      />
     </SafeAreaView>
   );
 };
@@ -389,28 +403,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
     padding: SPACING.md,
-    gap: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  providerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   providerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
   },
   providerTitle: {
     ...TYPOGRAPHY.badge,
     fontSize: 10,
     color: COLORS.textMuted,
   },
+  guideBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  guideBadgeText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  providerSub: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
   badgesRow: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    gap: SPACING.xs + 2,
+    paddingVertical: 2,
   },
   badge: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
+    paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: RADIUS.sm,
     backgroundColor: COLORS.cardSecondary,
@@ -453,19 +490,41 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 17,
   },
+  syncActionsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
   syncActionBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 12,
     borderRadius: RADIUS.md,
-    marginTop: SPACING.xs,
   },
   syncActionBtnText: {
     ...TYPOGRAPHY.bodyBold,
     fontSize: 13,
     color: COLORS.textDark,
+  },
+  syncSetupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  syncSetupBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 12,
+    color: COLORS.textPrimary,
   },
   onboardingResetBox: {
     alignItems: 'center',

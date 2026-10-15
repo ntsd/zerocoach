@@ -8,8 +8,11 @@ import {
   TelemetryState,
 } from '@/types/telemetry';
 import { calculateReadinessScore } from '@/services/telemetry/readinessCalculator';
-import { healthAdapter } from '@/services/telemetry/healthConnectAdapter';
+import { fitnessBridge } from '@/services/telemetry/fitnessBridgeService';
 import { getPresetMetrics } from '@/services/telemetry/telemetryPresets';
+import { useCoachStore } from '@/store/useCoachStore';
+import { useNutritionStore } from '@/store/useNutritionStore';
+import { calculateSmartNutrition } from '@/services/nutrition/nutritionCalculator';
 
 const INITIAL_MANUAL_METRICS: TelemetryMetrics = {
   steps: 0,
@@ -304,8 +307,44 @@ export const useTelemetryStore = create<TelemetryState>()(
       syncTelemetry: async () => {
         set({ syncing: true, syncError: null });
         try {
-          const fresh = await healthAdapter.fetchLatestMetrics();
+          const fresh = await fitnessBridge.fetchLiveBiometrics();
           set({ metrics: fresh, syncing: false, syncError: null });
+
+          // Auto-update weight & recalculate smart nutrition targets if weight is synced
+          if (fresh.weightKg && fresh.weightKg > 0) {
+            const coachStore = useCoachStore.getState();
+            const currentProfile = coachStore.userProfile;
+            if (currentProfile && currentProfile.weightKg !== fresh.weightKg) {
+              coachStore.updateProfile({ weightKg: fresh.weightKg });
+
+              // Recalculate smart nutrition with new weight and active burn
+              const newNutrition = calculateSmartNutrition({
+                weightKg: fresh.weightKg,
+                heightCm: currentProfile.heightCm || 175,
+                mode: coachStore.mode,
+                goals: currentProfile.primaryGoals || [],
+                activeCaloriesBurned: fresh.activeCalories,
+                sex: currentProfile.sex,
+              });
+
+              if (newNutrition.dailyCalories > 0) {
+                coachStore.updateProfile({
+                  dailyCalorieTarget: newNutrition.dailyCalories,
+                  proteinGrams: newNutrition.proteinGrams,
+                  carbsGrams: newNutrition.carbsGrams,
+                  fatGrams: newNutrition.fatGrams,
+                });
+
+                // Sync targets to useNutritionStore
+                useNutritionStore.getState().updateDailyTargets({
+                  targetCalories: newNutrition.dailyCalories,
+                  targetProtein: newNutrition.proteinGrams,
+                  targetCarbs: newNutrition.carbsGrams,
+                  targetFat: newNutrition.fatGrams,
+                });
+              }
+            }
+          }
         } catch (e: any) {
           console.warn('[TelemetryStore] Sync failed, maintaining cache:', e);
           set({

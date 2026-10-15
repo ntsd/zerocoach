@@ -1,4 +1,11 @@
-export type TelemetrySource = 'google_fit' | 'garmin' | 'xiaomi' | 'simulation' | 'manual';
+export type TelemetrySource =
+  | 'health_connect'
+  | 'apple_health'
+  | 'google_fit'
+  | 'garmin'
+  | 'xiaomi'
+  | 'simulation'
+  | 'manual';
 
 export type TelemetryPresetId = 'optimal_recovery' | 'high_fatigue' | 'post_calisthenics' | 'balanced' | 'manual';
 

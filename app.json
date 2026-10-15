@@ -9,7 +9,11 @@
     "backgroundColor": "#0B0E14",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.zerocoach.app"
+      "bundleIdentifier": "com.zerocoach.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "ZeroCoach reads your steps, heart rate, sleep duration, and active energy burn to calculate athletic recovery readiness and optimize training volume.",
+        "NSHealthUpdateUsageDescription": "ZeroCoach saves athletic recovery metrics and telemetry to Apple Health."
+      }
     },
     "android": {
       "package": "com.zerocoach.app",
@@ -25,7 +29,22 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "llama.rn"
+      "llama.rn",
+      [
+        "react-native-health-connect",
+        {
+          "packageNames": [
+            "com.google.android.apps.healthdata"
+          ]
+        }
+      ],
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "ZeroCoach reads your steps, heart rate, sleep duration, and active energy burn to calculate athletic recovery readiness and optimize training volume.",
+          "healthUpdatePermission": "ZeroCoach saves athletic recovery metrics and telemetry to Apple Health."
+        }
+      ]
     ],
     "experiments": {
       "tsconfigPaths": true

@@ -24,7 +24,13 @@ ZeroCoach is an open-source, privacy-first mobile fitness and AI coaching applic
 - ⚡ **Dual Coaching Personas**:
   - **Strict Coach**: High-intensity, uncompromising athletic conditioning focused on progressive overload, kinetic chain alignment, and accountability.
   - **Comfort Coach**: Sustainable, empathetic habit-building focused on longevity, recovery pacing, and joint health.
-- ⌚ **Local Wearable Telemetry Sync**: Integrates with local bridges for Google Fit, Garmin, Xiaomi, and Health Connect, plus built-in physiological presets (Optimal, Fatigued, High-Load, Rest Day) for instant simulation.
+- ⌚ **Universal Multi-App Wearable & Health Sync (100% On-Device)**:
+  - **Android Health Connect (`react-native-health-connect`)**: Connects natively to the Android OS health database.
+  - **Apple HealthKit (`react-native-health`)**: Connects natively to iOS HealthKit.
+  - **Universal Fitness Companion Aggregation**: Automatically ingests biometrics from **Garmin Connect, Apple Watch, Samsung Health, Whoop 4.0, Oura Ring, Google Fit, Strava, and Xiaomi (Mi Fitness)** without requiring individual brand developer portal accounts or remote cloud aggregators.
+  - **Live Biometric Telemetry**: Daily Step counts, Active Energy Burned (kcal), Resting Heart Rate (BPM), Heart Rate Variability (HRV rMSSD/SDNN), and Sleep Architecture (total hours and deep sleep percentage).
+  - **Smart Scale & Body Weight Auto-Sync**: Automatically detects synced weight readings from smart scales/wearables, updates athlete profile weight, and recalculates daily Coach calorie and macro targets.
+  - **Graceful Web & Simulator Fallback**: Built-in simulated device bridge and interactive **Fitness App Sync Bridge** modal for zero-setup previews in Web, Simulator, and Expo Go.
 - 📱 **Mobile & iPhone Optimized**: Tuned for modern mobile viewports (including iPhone 16 Dynamic Island) with locked dark viewport shells, zero white canvas overscroll, and compact horizontal scrolling chip bars.
 
 ---
@@ -73,9 +79,12 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
 - Horizontal scrolling filter chips allowing instant filtering by specific lift or movement category.
 
 ### 4. ⚡ Telemetry (`TelemetryScreen`)
-- Dynamic 0–100 Readiness Gauge visualizing Central Nervous System (CNS) recovery and physiological readiness.
-- Biometric tracking cards: Sleep duration, Resting Heart Rate (RHR), and Wearable Active Burn.
-- Rapid Simulation Presets: Test coaching behavior across *Optimal CNS (92/100)*, *Fatigued (48/100)*, *High Metabolic (82/100)*, and *Rest & Recovery (35/100)*.
+- **Dynamic 0–100 Readiness Gauge**: Visualizes Central Nervous System (CNS) recovery and neuromuscular adaptation based on HRV, resting heart rate, sleep duration, and deep sleep architecture.
+- **Native OS Health Hub Bridge**: Connects locally to Android Health Connect or Apple HealthKit to read biometrics from all paired wearables (Garmin, Apple Watch, Samsung, Whoop, Oura, Pixel, Xiaomi, Strava) with zero remote API latency and zero cloud logins.
+- **Fitness App Sync Guide**: Interactive modal providing native health provider status, permissions management, supported companion app guides, and quick biometric sync.
+- **Smart Scale Weight Auto-Sync**: Automatically updates your athlete weight and recalibrates daily nutrition/macro targets whenever a new weigh-in is detected.
+- **Biometric Tracking Grid**: Live cards for Sleep Architecture (total + deep sleep), Cardiac Autonomic (RHR + HRV), Active Energy Burned, and Daily Movement steps.
+- **Privacy & Storage Controls**: Complete local management with one-tap selective wiping for AI conversations, biometrics, or complete application resets.
 
 ### 5. ⚙️ Settings & Engine (`ModelManagerScreen`)
 - **Inference Provider Configuration**:

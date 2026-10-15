@@ -117,8 +117,8 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: SPACING.xs + 2,
-    paddingHorizontal: SPACING.lg,
+    marginVertical: 4,
+    paddingHorizontal: SPACING.md,
   },
   userContainer: {
     alignItems: 'flex-end',
@@ -151,8 +151,8 @@ const styles = StyleSheet.create({
   },
   bubble: {
     borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     maxWidth: '92%',
   },
   userBubble: {
@@ -169,28 +169,28 @@ const styles = StyleSheet.create({
   paragraph: {
     ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13.5,
+    lineHeight: 19.5,
   },
   heading3: {
     ...TYPOGRAPHY.h3,
-    fontSize: 15,
-    marginVertical: 4,
+    fontSize: 14.5,
+    marginVertical: 3,
   },
   bulletRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginVertical: 2,
+    marginVertical: 1.5,
   },
   bulletDot: {
-    fontSize: 14,
+    fontSize: 13,
     marginRight: 6,
-    lineHeight: 20,
+    lineHeight: 19,
   },
   bulletText: {
     ...TYPOGRAPHY.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13.5,
+    lineHeight: 19.5,
     color: COLORS.textPrimary,
     flex: 1,
   },
@@ -199,6 +199,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   emptyLine: {
-    height: 6,
+    height: 4,
   },
 });

@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm + 2,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    marginHorizontal: SPACING.lg,
+    marginHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
   },
   leftRow: {

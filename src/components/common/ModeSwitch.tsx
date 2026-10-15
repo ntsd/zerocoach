@@ -23,7 +23,7 @@ export const ModeSwitch: React.FC = () => {
         ]}
       >
         <ShieldAlert
-          size={14}
+          size={12}
           color={isStrict ? COLORS.strict.accent : COLORS.textMuted}
         />
         <Text
@@ -47,7 +47,7 @@ export const ModeSwitch: React.FC = () => {
         ]}
       >
         <HeartHandshake
-          size={14}
+          size={12}
           color={!isStrict ? COLORS.comfortable.accent : COLORS.textMuted}
         />
         <Text
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: COLORS.cardSecondary,
     borderRadius: RADIUS.round,
-    padding: 3,
+    padding: 2,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
     alignItems: 'center',
@@ -77,9 +77,9 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: RADIUS.round,
   },
   activePillStrict: {

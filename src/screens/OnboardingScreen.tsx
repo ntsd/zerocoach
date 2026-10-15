@@ -1109,6 +1109,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+    overflow: 'hidden',
   },
   keyboardContainer: {
     flex: 1,

@@ -17,7 +17,8 @@ import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { SkillTreeCard } from '@/components/progressions/SkillTreeCard';
-import { Dumbbell, Trophy, Activity, Sparkles } from 'lucide-react-native';
+import { HorizontalChipBar, ChipItem } from '@/components/common/HorizontalChipBar';
+import { Dumbbell, Trophy, Activity, Sparkles, Flame, Zap, ShieldCheck } from 'lucide-react-native';
 
 interface ProgressionsScreenProps {
   onNavigateToChat: () => void;
@@ -50,22 +51,22 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   }, [userProfile, mode, metrics, calisthenicsStages, equipmentMode]);
 
   // Dynamic filter options based on current equipment environment
-  const filterOptions = useMemo(() => {
+  const filterOptions: ChipItem[] = useMemo(() => {
     if (equipmentMode === 'all') {
       return [
-        { id: 'All', label: 'All Gym Benchmarks' },
-        { id: 'Barbell Bench Press', label: 'Bench Press' },
-        { id: 'Barbell Back Squat', label: 'Back Squat' },
-        { id: 'Barbell Bent-Over Row', label: 'Barbell Row' },
-        { id: 'bodyweight_all', label: '🤸 Bodyweight Skills' },
+        { id: 'All', label: 'All Gym Benchmarks', icon: Dumbbell },
+        { id: 'Barbell Bench Press', label: 'Bench Press', icon: Dumbbell },
+        { id: 'Barbell Back Squat', label: 'Back Squat', icon: Zap },
+        { id: 'Barbell Bent-Over Row', label: 'Barbell Row', icon: ShieldCheck },
+        { id: 'bodyweight_all', label: 'Bodyweight Skills', icon: Flame },
       ];
     } else {
       return [
-        { id: 'All', label: 'All Bodyweight Skills' },
-        { id: 'Push-Up & Dip Mastery', label: 'Push-Up & Dips' },
-        { id: 'Pull-Up & Muscle-Up', label: 'Pull-Up & Muscle-Up' },
-        { id: 'Core & L-Sit', label: 'Core & L-Sit' },
-        { id: 'gym_all', label: '🏋️ Gym Benchmarks' },
+        { id: 'All', label: 'All Bodyweight Skills', icon: Flame },
+        { id: 'Push-Up & Dip Mastery', label: 'Push-Up & Dips', icon: Dumbbell },
+        { id: 'Pull-Up & Muscle-Up', label: 'Pull-Up & Muscle-Up', icon: Zap },
+        { id: 'Core & L-Sit', label: 'Core & L-Sit', icon: ShieldCheck },
+        { id: 'gym_all', label: 'Gym Benchmarks', icon: Dumbbell },
       ];
     }
   }, [equipmentMode]);
@@ -98,7 +99,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -219,32 +220,13 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         </View>
 
         {/* Progression Filter Pills */}
-        <View style={styles.filterRow}>
-          {filterOptions.map((filter) => {
-            const isSelected = selectedFilter === filter.id;
-            return (
-              <TouchableOpacity
-                key={filter.id}
-                onPress={() => setSelectedFilter(filter.id)}
-                style={[
-                  styles.filterPill,
-                  isSelected && styles.filterPillActive,
-                  isSelected && { borderColor: modeColors.accent },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.filterText,
-                    isSelected && { color: modeColors.accent, fontWeight: '700' },
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <HorizontalChipBar
+          items={filterOptions}
+          selectedId={selectedFilter}
+          onSelect={(item) => setSelectedFilter(item.id)}
+          style={styles.filterChipScroll}
+          contentContainerStyle={styles.filterChipContent}
+        />
 
         {/* List of Stages */}
         <View style={styles.stageList}>
@@ -266,6 +248,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+    overflow: 'hidden',
   },
   scrollContent: {
     padding: SPACING.lg,
@@ -374,26 +357,16 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
-  filterRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
+  filterChipScroll: {
+    marginHorizontal: -SPACING.lg,
     marginBottom: SPACING.md,
+    height: 32,
   },
-  filterPill: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.round,
-    backgroundColor: COLORS.cardSecondary,
-    borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
-  },
-  filterPillActive: {
-    backgroundColor: COLORS.surfaceElevated,
-  },
-  filterText: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textSecondary,
+  filterChipContent: {
+    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    gap: 6,
+    height: 32,
   },
   stageList: {
     gap: SPACING.xs,

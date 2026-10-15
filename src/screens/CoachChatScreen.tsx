@@ -71,19 +71,19 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
   }, [messages, streamingMessage]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Top Header */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.brandContainer}>
             <View style={styles.brandRow}>
               <Cpu size={18} color={modeColors.accent} />
               <Text style={styles.brandTitle}>ZEROCOACH</Text>
             </View>
-            <Text style={styles.brandSub}>
+            <Text style={styles.brandSub} numberOfLines={1} ellipsizeMode="tail">
               {provider === 'openai_compatible'
                 ? `${openAIConfig.modelName || 'LLM'} • OpenAI-Compatible`
                 : Platform.OS === 'web'
@@ -200,6 +200,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+    overflow: 'hidden',
   },
   keyboardContainer: {
     flex: 1,
@@ -208,11 +209,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderSubtle,
     marginBottom: SPACING.xs,
+  },
+  brandContainer: {
+    flex: 1,
+    marginRight: SPACING.xs,
   },
   brandRow: {
     flexDirection: 'row',
@@ -251,18 +256,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RADIUS.xl,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    marginHorizontal: SPACING.lg,
-    marginVertical: SPACING.sm,
+    paddingVertical: 3,
+    marginHorizontal: SPACING.md,
+    marginTop: 4,
+    marginBottom: SPACING.sm,
     gap: SPACING.sm,
   },
   textInput: {
     flex: 1,
     ...TYPOGRAPHY.body,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textPrimary,
     maxHeight: 90,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   actionButton: {
     width: 36,

@@ -135,9 +135,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background,
+    overflow: 'hidden',
   },
   screenContainer: {
     flex: 1,
+    overflow: 'hidden',
   },
   bottomBarContainer: {
     backgroundColor: COLORS.cardBackground,

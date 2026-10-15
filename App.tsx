@@ -21,10 +21,10 @@ import {
   MessageSquare,
   Activity,
   Dumbbell,
-  Cpu,
+  Settings,
 } from 'lucide-react-native';
 
-type TabKey = 'coach' | 'telemetry' | 'workout' | 'model';
+type TabKey = 'coach' | 'telemetry' | 'workout' | 'settings';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
@@ -48,9 +48,9 @@ export default function App() {
       icon: Dumbbell,
     },
     {
-      key: 'model' as const,
-      label: 'AI ENGINE',
-      icon: Cpu,
+      key: 'settings' as const,
+      label: 'SETTINGS',
+      icon: Settings,
     },
   ];
 
@@ -77,7 +77,7 @@ export default function App() {
                   onNavigateToChat={() => setActiveTab('coach')}
                 />
               )}
-              {activeTab === 'model' && <ModelManagerScreen />}
+              {activeTab === 'settings' && <ModelManagerScreen />}
             </View>
 
             {/* High-Performance Bottom Tab Bar */}

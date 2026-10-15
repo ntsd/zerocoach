@@ -38,12 +38,10 @@ export interface ModelState {
   currentModel: ModelMetadata;
   status: ModelStatus;
   downloadProgress: number; // 0 to 100
-  useMockFallback: boolean;
   provider: LLMProviderType;
   openAIConfig: OpenAICompatibleConfig;
   stats: ModelHardwareStats;
   errorMessage: string | null;
-  setUseMockFallback: (val: boolean) => void;
   setProvider: (provider: LLMProviderType) => void;
   updateOpenAIConfig: (config: Partial<OpenAICompatibleConfig>) => void;
   testOpenAIConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;

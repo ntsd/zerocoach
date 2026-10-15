@@ -52,6 +52,15 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
     await sendMessage(text);
   };
 
+  const handleKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+      if (Platform.OS === 'web') {
+        e.preventDefault?.();
+      }
+      handleSend();
+    }
+  };
+
   useEffect(() => {
     // Scroll to bottom on message updates
     if (flatListRef.current) {
@@ -141,6 +150,14 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
             placeholderTextColor={COLORS.textMuted}
             value={inputText}
             onChangeText={setInputText}
+            onKeyPress={handleKeyPress}
+            onSubmitEditing={() => {
+              if (Platform.OS !== 'web') {
+                handleSend();
+              }
+            }}
+            returnKeyType="send"
+            blurOnSubmit={false}
             multiline
             editable={!isGenerating}
           />

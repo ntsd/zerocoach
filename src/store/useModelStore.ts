@@ -34,7 +34,6 @@ export const useModelStore = create<ModelState>()(
       currentModel: GEMMA_2_MODEL,
       status: 'unloaded',
       downloadProgress: 0,
-      useMockFallback: false,
       provider: 'on_device',
       openAIConfig: DEFAULT_OPENAI_CONFIG,
       errorMessage: null,
@@ -43,11 +42,6 @@ export const useModelStore = create<ModelState>()(
         memoryUsageMb: 0,
         gpuLayersOffloaded: 0,
         tokensPerSec: 0,
-      },
-
-      setUseMockFallback: (val: boolean) => {
-        set({ useMockFallback: val });
-        llmService.setPreferNative(!val);
       },
 
       setProvider: (provider: LLMProviderType) => {

@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Switch,
   StyleSheet,
   ActivityIndicator,
   Modal,
@@ -35,6 +34,7 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  Settings,
 } from 'lucide-react-native';
 import {
   clearAllUserData,
@@ -54,14 +54,12 @@ export const ModelManagerScreen: React.FC = () => {
     currentModel,
     status,
     downloadProgress,
-    useMockFallback,
     provider,
     openAIConfig,
     stats,
     downloadModel,
     loadModel,
     unloadModel,
-    setUseMockFallback,
     setProvider,
     updateOpenAIConfig,
     testOpenAIConnection,
@@ -128,11 +126,11 @@ export const ModelManagerScreen: React.FC = () => {
         <View style={styles.header}>
           <View>
             <View style={styles.titleRow}>
-              <Cpu size={20} color={modeColors.accent} />
-              <Text style={styles.title}>LOCAL AI ENGINE</Text>
+              <Settings size={20} color={modeColors.accent} />
+              <Text style={styles.title}>SETTINGS & ENGINE</Text>
             </View>
             <Text style={styles.subtitle}>
-              llama.rn • Edge Acceleration • 0 Cloud Latency
+              Inference Provider • Local Privacy • Device Storage
             </Text>
           </View>
         </View>
@@ -518,24 +516,6 @@ export const ModelManagerScreen: React.FC = () => {
           </View>
         </GlassCard>
 
-        {/* Dev / Simulator Engine Toggle */}
-        <GlassCard style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleTextCol}>
-              <Text style={styles.toggleTitle}>RAPID DEV SIMULATION MODE</Text>
-              <Text style={styles.toggleDesc}>
-                When enabled, streams responses using on-device emulation without needing to download the 1.64GB GGUF model.
-              </Text>
-            </View>
-            <Switch
-              value={useMockFallback}
-              onValueChange={setUseMockFallback}
-              trackColor={{ false: COLORS.cardSecondary, true: modeColors.accent }}
-              thumbColor={COLORS.textPrimary}
-            />
-          </View>
-        </GlassCard>
-
         {/* OTA Updates Section */}
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
@@ -854,27 +834,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: COLORS.textPrimary,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  toggleTextCol: {
-    flex: 1,
-    paddingRight: SPACING.md,
-  },
-  toggleTitle: {
-    ...TYPOGRAPHY.bodyBold,
-    fontSize: 13,
-    color: COLORS.textPrimary,
-    marginBottom: 2,
-  },
-  toggleDesc: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    lineHeight: 16,
   },
   otaDesc: {
     ...TYPOGRAPHY.body,

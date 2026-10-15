@@ -1,0 +1,68 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useCoachStore } from '@/store/useCoachStore';
+import { COLORS, getModeColors } from '@/theme/colors';
+import { TYPOGRAPHY } from '@/theme/typography';
+import { RADIUS, SPACING } from '@/theme/spacing';
+import { Cpu } from 'lucide-react-native';
+
+interface StreamingIndicatorProps {
+  tokenCount?: number;
+}
+
+export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
+  const { mode } = useCoachStore();
+  const modeColors = getModeColors(mode);
+  const [pulse, setPulse] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPulse((p) => !p);
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <View
+        style={[
+          styles.glowDot,
+          {
+            backgroundColor: modeColors.accent,
+            opacity: pulse ? 1 : 0.35,
+            shadowColor: modeColors.accent,
+          },
+        ]}
+      />
+      <Cpu size={12} color={modeColors.accent} />
+      <Text style={[styles.text, { color: modeColors.accent }]}>
+        ON-DEVICE INFERENCE STREAMING (~38 tok/s)
+      </Text>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  glowDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  text: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+});

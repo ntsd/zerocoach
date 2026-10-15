@@ -1,0 +1,45 @@
+export type TelemetrySource = 'google_fit' | 'garmin' | 'xiaomi' | 'simulation' | 'manual';
+
+export type TelemetryPresetId = 'optimal_recovery' | 'high_fatigue' | 'post_calisthenics' | 'balanced' | 'manual';
+
+export interface TelemetryMetrics {
+  steps: number;
+  activeCalories: number;
+  restingHeartRate: number; // bpm
+  heartRateVariability: number; // ms (rMSSD)
+  sleepHours: number;
+  sleepQualityScore: number; // 0 - 100
+  deepSleepHours: number;
+  readinessScore: number; // 0 - 100 calculated
+  lastSyncTimestamp: number;
+  source: TelemetrySource;
+}
+
+export interface CalisthenicsStage {
+  id: string;
+  skillName: string;
+  stageNumber: number;
+  stageTitle: string;
+  standard: string;
+  completed: boolean;
+  notes?: string;
+}
+
+export interface TelemetryState {
+  metrics: TelemetryMetrics;
+  activePreset: TelemetryPresetId;
+  syncing: boolean;
+  calisthenicsStages: CalisthenicsStage[];
+  syncTelemetry: () => Promise<void>;
+  applyPreset: (presetId: TelemetryPresetId) => void;
+  setManualTelemetry: (inputs: {
+    sleepHours: number;
+    sleepQualityScore: number;
+    restingHeartRate: number;
+    heartRateVariability?: number;
+    steps: number;
+    activeCalories: number;
+  }) => void;
+  toggleStageCompletion: (stageId: string) => void;
+  updateMetric: (updates: Partial<TelemetryMetrics>) => void;
+}

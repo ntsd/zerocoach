@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "ZeroCoach",
+    "slug": "zerocoach",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0E14",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zerocoach.app"
+    },
+    "android": {
+      "package": "com.zerocoach.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0E14",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "llama.rn"
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    }
+  }
+}

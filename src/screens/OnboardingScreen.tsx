@@ -16,7 +16,7 @@ import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { CoachingMode, UserProfile, TrainingGoal, Sex, EquipmentPreference } from '@/types/coach';
 import { calculateReadinessScore, getReadinessCategory } from '@/services/telemetry/readinessCalculator';
 import { calculateSmartNutrition } from '@/services/nutrition/nutritionCalculator';
-import { healthAdapter } from '@/services/telemetry/healthConnectAdapter';
+import { fitnessBridge } from '@/services/telemetry/fitnessBridgeService';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -173,12 +173,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
   const readinessCategory = previewReadiness !== null ? getReadinessCategory(previewReadiness) : null;
 
-  // Sync with local fitness bridge (Google Fit / Health Connect / Garmin / Xiaomi)
+  // Sync with local fitness bridge
   const handleSyncFitnessApp = async () => {
     setIsSyncing(true);
     setSyncError(null);
     try {
-      const fresh = await healthAdapter.fetchLatestMetrics();
+      const fresh = await fitnessBridge.fetchLiveBiometrics();
       if (fresh.weightKg) setWeightKg(fresh.weightKg.toString());
       if (fresh.heightCm) setHeightCm(fresh.heightCm.toString());
       setSleepHours(fresh.sleepHours);
@@ -186,7 +186,15 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       setRestingHeartRate(fresh.restingHeartRate);
       setSteps(fresh.steps);
       setActiveCalories(fresh.activeCalories);
-      setSyncedSource(fresh.source === 'google_fit' ? 'Google Fit' : fresh.source.toUpperCase());
+      setSyncedSource(
+        fresh.source === 'health_connect'
+          ? 'Health Connect'
+          : fresh.source === 'apple_health'
+          ? 'Apple Health'
+          : fresh.source === 'simulation'
+          ? 'Device Bridge'
+          : fresh.source.toUpperCase()
+      );
       setHasFitnessApp(true);
     } catch (e: any) {
       setSyncError(
@@ -330,7 +338,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               <View style={styles.titleBox}>
                 <Text style={styles.mainTitle}>Connect Fitness Telemetry</Text>
                 <Text style={styles.subtitle}>
-                  Sync with your fitness app (Google Fit, Garmin, Xiaomi, Health Connect) to automatically pull your Weight, Height, Active Burn, and Sleep. Or continue without a wearable:
+                  Sync with your fitness app via local health hub to automatically pull your Weight, Height, Active Burn, and Sleep. Or continue without a wearable:
                 </Text>
               </View>
 
@@ -387,12 +395,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
               {hasFitnessApp ? (
                 <GlassCard style={styles.formCard}>
-                  {/* Supported Providers Badge Row */}
+                  {/* Supported Native Health Hubs */}
                   <View style={styles.providersRow}>
-                    <Text style={styles.providerBadge}>Google Fit</Text>
-                    <Text style={styles.providerBadge}>Garmin</Text>
-                    <Text style={styles.providerBadge}>Xiaomi</Text>
                     <Text style={styles.providerBadge}>Health Connect</Text>
+                    <Text style={styles.providerBadge}>Apple Health</Text>
                   </View>
 
                   {/* Sync Trigger CTA */}

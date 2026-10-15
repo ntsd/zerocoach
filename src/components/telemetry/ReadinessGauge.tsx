@@ -18,7 +18,7 @@ export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({ score }) => {
     : {
         category: 'none',
         label: 'NO WEARABLE SYNCED',
-        guidance: 'Sync with Google Fit, Garmin, or Xiaomi to calculate your daily recovery readiness score.',
+        guidance: 'Sync your fitness app via local health hub to calculate your daily recovery readiness score.',
         color: COLORS.textMuted,
       };
 

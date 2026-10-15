@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
@@ -28,6 +29,12 @@ import {
   ShieldCheck,
   AlertTriangle,
   RotateCcw,
+  Globe,
+  Server,
+  Key,
+  Sparkles,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import {
   clearAllUserData,
@@ -35,17 +42,29 @@ import {
   clearBiometricsAndProgressionsOnly,
 } from '@/services/storage/userDataService';
 
+const PRESETS = [
+  { label: 'Ollama (Local)', url: 'http://localhost:11434/v1', model: 'llama3.2' },
+  { label: 'LM Studio', url: 'http://localhost:1234/v1', model: 'gemma-2-2b-it' },
+  { label: 'Groq Cloud', url: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+  { label: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+];
+
 export const ModelManagerScreen: React.FC = () => {
   const {
     currentModel,
     status,
     downloadProgress,
     useMockFallback,
+    provider,
+    openAIConfig,
     stats,
     downloadModel,
     loadModel,
     unloadModel,
     setUseMockFallback,
+    setProvider,
+    updateOpenAIConfig,
+    testOpenAIConnection,
   } = useModelStore();
 
   const { mode } = useCoachStore();
@@ -55,6 +74,21 @@ export const ModelManagerScreen: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    latencyMs?: number;
+  } | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setTestResult(null);
+    const result = await testOpenAIConnection();
+    setTestResult(result);
+    setTestingConnection(false);
+  };
 
   const handleClearChat = async () => {
     await clearChatHistoryOnly();
@@ -102,6 +136,251 @@ export const ModelManagerScreen: React.FC = () => {
             </Text>
           </View>
         </View>
+
+        {/* Inference Provider Selector Card */}
+        <GlassCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Sparkles size={16} color={modeColors.accent} />
+            <Text style={styles.cardTitle}>INFERENCE ENGINE & PROVIDER</Text>
+          </View>
+          <Text style={styles.otaDesc}>
+            Select how ZeroCoach answers your workout and nutrition questions.
+          </Text>
+
+          {/* Provider Tabs */}
+          <View style={styles.providerTabs}>
+            <TouchableOpacity
+              onPress={() => setProvider('on_device')}
+              style={[
+                styles.providerTab,
+                provider === 'on_device' && {
+                  borderColor: modeColors.accent,
+                  backgroundColor: `${modeColors.accent}15`,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Cpu size={14} color={provider === 'on_device' ? modeColors.accent : COLORS.textMuted} />
+              <Text
+                style={[
+                  styles.providerTabText,
+                  provider === 'on_device' && { color: modeColors.accent, fontWeight: '700' },
+                ]}
+              >
+                On-Device
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setProvider('openai_compatible')}
+              style={[
+                styles.providerTab,
+                provider === 'openai_compatible' && {
+                  borderColor: modeColors.accent,
+                  backgroundColor: `${modeColors.accent}15`,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Globe size={14} color={provider === 'openai_compatible' ? modeColors.accent : COLORS.textMuted} />
+              <Text
+                style={[
+                  styles.providerTabText,
+                  provider === 'openai_compatible' && { color: modeColors.accent, fontWeight: '700' },
+                ]}
+              >
+                OpenAI-Compatible
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setProvider('simulator')}
+              style={[
+                styles.providerTab,
+                provider === 'simulator' && {
+                  borderColor: modeColors.accent,
+                  backgroundColor: `${modeColors.accent}15`,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Terminal size={14} color={provider === 'simulator' ? modeColors.accent : COLORS.textMuted} />
+              <Text
+                style={[
+                  styles.providerTabText,
+                  provider === 'simulator' && { color: modeColors.accent, fontWeight: '700' },
+                ]}
+              >
+                Simulator
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Active Provider Description & Configuration */}
+          {provider === 'on_device' && (
+            <View style={styles.providerNoteBox}>
+              <Cpu size={14} color={modeColors.accent} />
+              <Text style={styles.providerNoteText}>
+                Primary mode for mobile. Runs quantized GGUF weights locally via llama.rn with Metal / OpenCL GPU acceleration and 0 cloud data transfer.
+              </Text>
+            </View>
+          )}
+
+          {provider === 'simulator' && (
+            <View style={styles.providerNoteBox}>
+              <Terminal size={14} color={COLORS.warning} />
+              <Text style={styles.providerNoteText}>
+                Dev Simulator Mode: Emulates Gemma 2 token streaming (~35 tok/s) without downloading weights or connecting to an external endpoint.
+              </Text>
+            </View>
+          )}
+
+          {provider === 'openai_compatible' && (
+            <View style={styles.openAISettingsContainer}>
+              <Text style={styles.fieldSectionLabel}>QUICK PRESETS</Text>
+              <View style={styles.presetsRow}>
+                {PRESETS.map((preset) => (
+                  <TouchableOpacity
+                    key={preset.label}
+                    onPress={() => {
+                      updateOpenAIConfig({
+                        baseUrl: preset.url,
+                        modelName: preset.model,
+                      });
+                      setTestResult(null);
+                    }}
+                    style={[
+                      styles.presetChip,
+                      openAIConfig.baseUrl === preset.url && {
+                        borderColor: modeColors.accent,
+                        backgroundColor: `${modeColors.accent}20`,
+                      },
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        openAIConfig.baseUrl === preset.url && {
+                          color: modeColors.accent,
+                          fontWeight: '700',
+                        },
+                      ]}
+                    >
+                      {preset.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.fieldSectionLabel}>BASE API URL</Text>
+              <View style={styles.inputRow}>
+                <Server size={14} color={COLORS.textMuted} />
+                <TextInput
+                  value={openAIConfig.baseUrl}
+                  onChangeText={(val) => {
+                    updateOpenAIConfig({ baseUrl: val });
+                    setTestResult(null);
+                  }}
+                  placeholder="e.g. http://localhost:11434/v1"
+                  placeholderTextColor={COLORS.textMuted}
+                  style={styles.textInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <Text style={styles.fieldSectionLabel}>MODEL NAME</Text>
+              <View style={styles.inputRow}>
+                <Cpu size={14} color={COLORS.textMuted} />
+                <TextInput
+                  value={openAIConfig.modelName}
+                  onChangeText={(val) => {
+                    updateOpenAIConfig({ modelName: val });
+                    setTestResult(null);
+                  }}
+                  placeholder="e.g. llama3.2, gemma2, gpt-4o-mini"
+                  placeholderTextColor={COLORS.textMuted}
+                  style={styles.textInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <Text style={styles.fieldSectionLabel}>API KEY (OPTIONAL FOR OLLAMA / LM STUDIO)</Text>
+              <View style={styles.inputRow}>
+                <Key size={14} color={COLORS.textMuted} />
+                <TextInput
+                  value={openAIConfig.apiKey}
+                  onChangeText={(val) => {
+                    updateOpenAIConfig({ apiKey: val });
+                    setTestResult(null);
+                  }}
+                  placeholder="Leave empty for Ollama or enter Bearer token"
+                  placeholderTextColor={COLORS.textMuted}
+                  style={styles.textInput}
+                  secureTextEntry={!showApiKey}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowApiKey(!showApiKey)}
+                  style={styles.eyeBtn}
+                  activeOpacity={0.7}
+                >
+                  {showApiKey ? (
+                    <EyeOff size={14} color={COLORS.textMuted} />
+                  ) : (
+                    <Eye size={14} color={COLORS.textMuted} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Test Connection Button */}
+              <TouchableOpacity
+                onPress={handleTestConnection}
+                disabled={testingConnection}
+                style={[
+                  styles.testConnBtn,
+                  { borderColor: modeColors.accent },
+                ]}
+                activeOpacity={0.8}
+              >
+                {testingConnection ? (
+                  <ActivityIndicator size="small" color={modeColors.accent} />
+                ) : (
+                  <RefreshCw size={14} color={modeColors.accent} />
+                )}
+                <Text style={[styles.testConnBtnText, { color: modeColors.accent }]}>
+                  {testingConnection ? 'Testing Connection...' : 'Test Connection'}
+                </Text>
+              </TouchableOpacity>
+
+              {testResult && (
+                <View
+                  style={[
+                    styles.testResultBox,
+                    testResult.success ? styles.testResultSuccess : styles.testResultError,
+                  ]}
+                >
+                  {testResult.success ? (
+                    <CheckCircle2 size={14} color={COLORS.success} />
+                  ) : (
+                    <AlertTriangle size={14} color={COLORS.danger} />
+                  )}
+                  <Text
+                    style={[
+                      styles.testResultText,
+                      { color: testResult.success ? COLORS.success : COLORS.danger },
+                    ]}
+                  >
+                    {testResult.message}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </GlassCard>
 
         {/* Model Spec Card */}
         <GlassCard style={styles.card}>
@@ -756,5 +1035,135 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyBold,
     fontSize: 13,
     color: '#ffffff',
+  },
+  providerTabs: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.md,
+  },
+  providerTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  providerTabText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textMuted,
+  },
+  providerNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    padding: SPACING.sm,
+  },
+  providerNoteText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    lineHeight: 16,
+    flex: 1,
+  },
+  openAISettingsContainer: {
+    marginTop: SPACING.xs,
+    gap: SPACING.xs,
+  },
+  fieldSectionLabel: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+    marginTop: SPACING.xs,
+    marginBottom: 2,
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: SPACING.xs,
+  },
+  presetChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.round,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  presetChipText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    height: 42,
+    gap: 8,
+  },
+  textInput: {
+    flex: 1,
+    ...TYPOGRAPHY.body,
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  testConnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    paddingVertical: 10,
+    borderRadius: RADIUS.sm,
+    marginTop: SPACING.sm,
+  },
+  testConnBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  testResultBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    marginTop: SPACING.xs,
+  },
+  testResultSuccess: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  testResultError: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  testResultText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    lineHeight: 15,
+    flex: 1,
   },
 });

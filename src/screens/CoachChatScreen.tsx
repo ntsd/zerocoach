@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChatStore } from '@/store/useChatStore';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useModelStore } from '@/store/useModelStore';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -41,6 +42,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
   } = useChatStore();
 
   const { mode } = useCoachStore();
+  const { provider, openAIConfig } = useModelStore();
   const modeColors = getModeColors(mode);
 
   const handleSend = async (textToSend?: string) => {
@@ -72,7 +74,13 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
               <Cpu size={18} color={modeColors.accent} />
               <Text style={styles.brandTitle}>ZEROCOACH</Text>
             </View>
-            <Text style={styles.brandSub}>100% On-Device AI • Private</Text>
+            <Text style={styles.brandSub}>
+              {provider === 'openai_compatible'
+                ? `${openAIConfig.modelName || 'LLM'} • OpenAI-Compatible`
+                : provider === 'simulator'
+                ? 'Dev Simulator • Local'
+                : '100% On-Device AI • Private'}
+            </Text>
           </View>
 
           <View style={styles.headerRight}>

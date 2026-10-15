@@ -2,7 +2,12 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File, Paths } from 'expo-file-system';
-import { ModelMetadata, ModelState, ModelStatus } from '@/types/model';
+import {
+  LLMProviderType,
+  ModelMetadata,
+  ModelState,
+  OpenAICompatibleConfig,
+} from '@/types/model';
 import { llmService } from '@/services/llm/llmService';
 
 const GEMMA_2_MODEL: ModelMetadata = {
@@ -17,6 +22,12 @@ const GEMMA_2_MODEL: ModelMetadata = {
   contextLength: 2048,
 };
 
+const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
+  baseUrl: 'http://localhost:11434/v1',
+  apiKey: '',
+  modelName: 'llama3.2',
+};
+
 export const useModelStore = create<ModelState>()(
   persist(
     (set, get) => ({
@@ -24,6 +35,8 @@ export const useModelStore = create<ModelState>()(
       status: 'unloaded',
       downloadProgress: 0,
       useMockFallback: false,
+      provider: 'on_device',
+      openAIConfig: DEFAULT_OPENAI_CONFIG,
       errorMessage: null,
       stats: {
         acceleration: 'none',
@@ -35,6 +48,25 @@ export const useModelStore = create<ModelState>()(
       setUseMockFallback: (val: boolean) => {
         set({ useMockFallback: val });
         llmService.setPreferNative(!val);
+      },
+
+      setProvider: (provider: LLMProviderType) => {
+        set({ provider });
+        llmService.setProvider(provider);
+      },
+
+      updateOpenAIConfig: (updates: Partial<OpenAICompatibleConfig>) => {
+        set((state) => {
+          const next = { ...state.openAIConfig, ...updates };
+          llmService.updateOpenAIConfig(next);
+          return { openAIConfig: next };
+        });
+      },
+
+      testOpenAIConnection: async () => {
+        const config = get().openAIConfig;
+        llmService.updateOpenAIConfig(config);
+        return llmService.testOpenAIConnection();
       },
 
       downloadModel: async () => {
@@ -86,6 +118,12 @@ export const useModelStore = create<ModelState>()(
     {
       name: 'zerocoach-model-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          llmService.setProvider(state.provider);
+          llmService.updateOpenAIConfig(state.openAIConfig);
+        }
+      },
     }
   )
 );

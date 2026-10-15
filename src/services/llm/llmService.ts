@@ -1,25 +1,66 @@
 import { CompletionRequest, CompletionResult, LLMEngine, TokenCallback } from './types';
 import { SimulatorEngine } from './simulatorEngine';
 import { LlamaRNEngine } from './llamaRNEngine';
+import { OpenAICompatibleEngine, OpenAICompatibleEngineConfig } from './openAICompatibleEngine';
+import { LLMProviderType } from '@/types/model';
 
 export class LLMService {
   private simulator: SimulatorEngine;
   private nativeEngine: LlamaRNEngine;
-  private preferNative: boolean = false;
+  private openAIEngine: OpenAICompatibleEngine;
+  private provider: LLMProviderType = 'on_device';
 
   constructor() {
     this.simulator = new SimulatorEngine();
     this.nativeEngine = new LlamaRNEngine();
+    this.openAIEngine = new OpenAICompatibleEngine();
+  }
+
+  public setProvider(provider: LLMProviderType): void {
+    this.provider = provider;
+  }
+
+  public getProvider(): LLMProviderType {
+    return this.provider;
+  }
+
+  public updateOpenAIConfig(config: Partial<OpenAICompatibleEngineConfig>): void {
+    this.openAIEngine.updateConfig(config);
+  }
+
+  public getOpenAIConfig(): OpenAICompatibleEngineConfig {
+    return this.openAIEngine.getConfig();
+  }
+
+  public async testOpenAIConnection(): Promise<{
+    success: boolean;
+    message: string;
+    latencyMs?: number;
+  }> {
+    return this.openAIEngine.testConnection();
   }
 
   public setPreferNative(value: boolean) {
-    this.preferNative = value;
+    if (value) {
+      this.provider = 'on_device';
+    } else {
+      this.provider = 'simulator';
+    }
   }
 
   public getActiveEngine(): LLMEngine {
-    if (this.preferNative && this.nativeEngine.isReady()) {
-      return this.nativeEngine;
+    if (this.provider === 'openai_compatible') {
+      return this.openAIEngine;
     }
+
+    if (this.provider === 'on_device') {
+      if (this.nativeEngine.isReady()) {
+        return this.nativeEngine;
+      }
+      // On web or when native weights are unmounted, fallback to simulator
+      return this.simulator;
+    }
+
     return this.simulator;
   }
 
@@ -27,7 +68,7 @@ export class LLMService {
     if (modelPath) {
       const nativeOk = await this.nativeEngine.initialize(modelPath);
       if (nativeOk) {
-        this.preferNative = true;
+        this.provider = 'on_device';
         return true;
       }
     }
@@ -45,11 +86,13 @@ export class LLMService {
   public stopCompletion(): void {
     this.nativeEngine.stopCompletion();
     this.simulator.stopCompletion();
+    this.openAIEngine.stopCompletion();
   }
 
   public async unload(): Promise<void> {
     await this.nativeEngine.unload();
     await this.simulator.unload();
+    await this.openAIEngine.unload();
   }
 }
 

@@ -17,13 +17,27 @@ const GOAL_PROGRAMMING_DIRECTIVES: Record<TrainingGoal, string> = {
     'DAILY HEALTH & LONGEVITY: Prescribe joint mobility routines, functional posture, stress reduction, and adapt training volume to Sleep Quality & HRV.',
 };
 
+export interface NutritionPromptSummary {
+  totalCalories: number;
+  targetCalories: number;
+  totalProtein: number;
+  targetProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  totalFiber: number;
+  remainingCalories: number;
+  remainingProtein: number;
+  loggedMealsCount: number;
+}
+
 export function buildSystemPrompt(params: {
   mode: CoachingMode;
   userProfile: UserProfile;
   telemetry: TelemetryMetrics;
   activeStages: CalisthenicsStage[];
+  nutritionSummary?: NutritionPromptSummary;
 }): string {
-  const { mode, userProfile, telemetry, activeStages } = params;
+  const { mode, userProfile, telemetry, activeStages, nutritionSummary } = params;
 
   const basePrompt =
     mode === 'strict' ? STRICT_COACH_BASE_PROMPT : COMFORTABLE_COACH_BASE_PROMPT;
@@ -68,6 +82,15 @@ export function buildSystemPrompt(params: {
   * Prescribed Exercises:
 ${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.name} (${e.targetSets} sets × ${e.targetReps}, rest ${e.restPeriodSeconds}s, ${e.intensityNote}) | Cue: ${e.coachingCue}`).join('\n')}`;
 
+  const nutritionBlock = nutritionSummary
+    ? `- DAILY NUTRITION LOG & MACRO STATUS:
+  * Calories: ${nutritionSummary.totalCalories} / ${nutritionSummary.targetCalories} kcal (${nutritionSummary.remainingCalories} kcal remaining)
+  * Protein: ${nutritionSummary.totalProtein}g / ${nutritionSummary.targetProtein}g (${nutritionSummary.remainingProtein}g remaining)
+  * Carbs: ${nutritionSummary.totalCarbs}g | Fat: ${nutritionSummary.totalFat}g | Fiber: ${nutritionSummary.totalFiber}g
+  * Logged Food Items Today: ${nutritionSummary.loggedMealsCount}`
+    : `- DAILY NUTRITION:
+  * Baseline Plan: ${userProfile.dailyCalorieTarget} kcal | ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat`;
+
   const contextBlock = `
 === CURRENT LIVE USER & TELEMETRY CONTEXT ===
 - ACTIVE COACHING MODE: ${mode.toUpperCase()}
@@ -86,6 +109,8 @@ ${goalDirectives.map((d) => `  * ${d}`).join('\n') || '  * Maintain balanced gen
 ${telemetryBlock}
 
 ${workoutPlanBlock}
+
+${nutritionBlock}
 
 - ATHLETE PROGRESSION & BENCHMARKS TRACKER:
   * Completed Milestones: ${completedStages.map((s) => `${s.skillName} Stg ${s.stageNumber}: ${s.stageTitle}`).join(', ') || 'None yet'}

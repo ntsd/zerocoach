@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatMessage, ChatState } from '@/types/chat';
 import { useCoachStore } from './useCoachStore';
 import { useTelemetryStore } from './useTelemetryStore';
+import { useNutritionStore } from './useNutritionStore';
 import { buildSystemPrompt } from '@/services/prompts/systemPromptBuilder';
 import { llmService } from '@/services/llm/llmService';
 
@@ -32,6 +33,9 @@ export const useChatStore = create<ChatState>()(
 
         const coachState = useCoachStore.getState();
         const telemetryState = useTelemetryStore.getState();
+        const nutritionState = useNutritionStore.getState();
+        const currentNutritionLog = nutritionState.getDailyLog();
+        const currentNutritionSummary = nutritionState.getSummaryForDate();
 
         const userMsg: ChatMessage = {
           id: `msg-user-${Date.now()}`,
@@ -56,6 +60,18 @@ export const useChatStore = create<ChatState>()(
           userProfile: coachState.userProfile,
           telemetry: telemetryState.metrics,
           activeStages: telemetryState.calisthenicsStages,
+          nutritionSummary: {
+            totalCalories: currentNutritionSummary.totalCalories,
+            targetCalories: currentNutritionLog.targetCalories,
+            totalProtein: currentNutritionSummary.totalProtein,
+            targetProtein: currentNutritionLog.targetProtein,
+            totalCarbs: currentNutritionSummary.totalCarbs,
+            totalFat: currentNutritionSummary.totalFat,
+            totalFiber: currentNutritionSummary.totalFiber,
+            remainingCalories: currentNutritionSummary.remainingCalories,
+            remainingProtein: currentNutritionSummary.remainingProtein,
+            loggedMealsCount: currentNutritionLog.foods.length,
+          },
         });
 
         // Limit context to last 8 messages to protect mobile memory budget

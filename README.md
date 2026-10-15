@@ -13,7 +13,14 @@ ZeroCoach is an open-source, privacy-first mobile fitness and AI coaching applic
 - 🎯 **Milestone Progressions & Benchmark Mastery**:
   - **Gym Benchmarks**: Barbell Bench Press, Barbell Back Squat, and Barbell Bent-Over Row milestone trees with relative bodyweight standards.
   - **Bodyweight & Skill Mastery**: Push-Up & Dip progression, Pull-Up to Bar Muscle-Up progression, and Core & L-Sit progressions.
-- 🥗 **Smart Nutrition & Physiological Metas**: Calculates precision BMR (Mifflin-St Jeor), Total Daily Energy Expenditure (TDEE), and macro splits based on biological sex, body weight, height, wearable calorie burn, and primary training goals.
+- 🥗 **Smart Nutrition & Micronutrient Bio-Tracking**:
+  - Precision macronutrient monitoring: Calories, Carbs, Protein, Fat, and Dietary Fiber with dynamic athlete targets.
+  - Complete micronutrient bio-scorecard tracking key vitamins (A, C, D, B12, E) and minerals/electrolytes (Iron, Calcium, Magnesium, Potassium, Sodium, Zinc) against RDA baselines.
+  - Dual open data source engine:
+    - **Open Food Facts API**: Instant barcode scan and packaged grocery lookup.
+    - **Bundled USDA Whole Foods Database**: 100% offline, lab-assayed staple raw foods for complete micronutrient profiles.
+  - **AI Meal Decomposer**: Natural-language composite meal parsing and photo plate simulator for home-cooked meals.
+  - **Coach Prompt Injection**: Live nutrition totals and remaining macros are automatically fed into the AI Coach's system prompt for intelligent nutrition advice.
 - ⚡ **Dual Coaching Personas**:
   - **Strict Coach**: High-intensity, uncompromising athletic conditioning focused on progressive overload, kinetic chain alignment, and accountability.
   - **Comfort Coach**: Sustainable, empathetic habit-building focused on longevity, recovery pacing, and joint health.
@@ -33,6 +40,7 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
 | **Local LLM Providers** | OpenAI-compatible SSE streaming client supporting Ollama, LM Studio, and vLLM |
 | **Web Inference Engine** | Automatic deterministic simulation engine when running in browser environments |
 | **Exercise Database** | Open Exercise Repository adapted from [RepDB](https://repdb.co) (643 exercises) |
+| **Nutrition Databases** | [Open Food Facts](https://world.openfoodfacts.org/) API + Bundled USDA FoodData Central whole foods dataset |
 | **State Management** | [Zustand](https://github.com/pmndrs/zustand) with AsyncStorage local persistence |
 | **Styling & Design** | Sleek Cyber-Athletic Dark Mode (`#080B10`), HSL accents, and glassmorphic micro-components |
 | **Icons** | [Lucide React Native](https://lucide.dev/) |
@@ -43,15 +51,20 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
 
 ### 1. 💬 Coach (`CoachChatScreen`)
 - Real-time conversational AI coaching with live tokens-per-second streaming metrics.
-- Synchronized with active wearable telemetry (HRV, resting heart rate, sleep duration, calorie burn).
+- Synchronized with active wearable telemetry (HRV, resting heart rate, sleep duration, calorie burn) and **today's logged nutrition totals & remaining macros**.
 - Horizontal micro-prompt chips (`HorizontalChipBar`) adapting dynamically to your equipment mode and goals:
   - *Gym Mode*: Adjust macros, Bench cues, Compound overload plans, Readiness review.
   - *Home Mode*: Adjust macros, Bodyweight form cues, Skill progression checks, Readiness review.
 
-### 2. ⚡ Telemetry (`TelemetryScreen`)
-- Dynamic 0–100 Readiness Gauge visualizing Central Nervous System (CNS) recovery and physiological readiness.
-- Biometric tracking cards: Sleep duration, Resting Heart Rate (RHR), and Wearable Active Burn.
-- Rapid Simulation Presets: Test coaching behavior across *Optimal CNS (92/100)*, *Fatigued (48/100)*, *High Metabolic (82/100)*, and *Rest & Recovery (35/100)*.
+### 2. 🥗 Nutrition (`NutritionScreen`)
+- **Macro Progress Header**: Real-time calorie gauge, remaining energy budget, and progress bars for Protein, Carbs, Fat, and Dietary Fiber.
+- **Micronutrient Bio-Profile Scorecard**: Expandable RDA tracker for Vitamins (A, C, D, B12) and Minerals (Iron, Calcium, Magnesium, Potassium, Sodium limit, Zinc).
+- **Meal Sections**: Structured daily tracking across Breakfast, Lunch, Dinner, and Snacks.
+- **Log Food Modal**:
+  - *Database Search*: Search whole foods (USDA) and packaged products (Open Food Facts).
+  - *Barcode Scanner*: Scan barcodes or enter codes with instant OFF product lookup.
+  - *Snap / AI Decomposer*: Snap a photo or describe composite meals (e.g. "2 eggs, avocado, sourdough") to decompose ingredients with scaled lab nutrients.
+  - *Portion Review Sheet*: Adjust grams/servings with real-time nutrient recalculation before logging.
 
 ### 3. 🏋️ Workout & Progressions (`ProgressionsScreen`)
 - Equipment segmented selector: **Full Gym (All Equipment)** vs. **Bodyweight / Home**.
@@ -59,7 +72,12 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
 - Interactive milestone mastery progress trees with one-tap *"Ask Coach"* shortcuts for biomechanical guidance.
 - Horizontal scrolling filter chips allowing instant filtering by specific lift or movement category.
 
-### 4. ⚙️ Settings & Engine (`ModelManagerScreen`)
+### 4. ⚡ Telemetry (`TelemetryScreen`)
+- Dynamic 0–100 Readiness Gauge visualizing Central Nervous System (CNS) recovery and physiological readiness.
+- Biometric tracking cards: Sleep duration, Resting Heart Rate (RHR), and Wearable Active Burn.
+- Rapid Simulation Presets: Test coaching behavior across *Optimal CNS (92/100)*, *Fatigued (48/100)*, *High Metabolic (82/100)*, and *Rest & Recovery (35/100)*.
+
+### 5. ⚙️ Settings & Engine (`ModelManagerScreen`)
 - **Inference Provider Configuration**:
   - `On-Device`: Direct quantized GGUF execution via `llama.rn` on iOS/Android, with automatic browser fallback for web previews.
   - `OpenAI-Compatible`: Connect to local desktop or LAN endpoints (e.g., `http://192.168.1.100:11434/v1` for Ollama).

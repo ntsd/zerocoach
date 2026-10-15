@@ -17,14 +17,16 @@ import { CoachChatScreen } from '@/screens/CoachChatScreen';
 import { TelemetryScreen } from '@/screens/TelemetryScreen';
 import { ProgressionsScreen } from '@/screens/ProgressionsScreen';
 import { ModelManagerScreen } from '@/screens/ModelManagerScreen';
+import { NutritionScreen } from '@/screens/NutritionScreen';
 import {
   MessageSquare,
   Activity,
   Dumbbell,
   Settings,
+  Utensils,
 } from 'lucide-react-native';
 
-type TabKey = 'coach' | 'telemetry' | 'workout' | 'settings';
+type TabKey = 'coach' | 'nutrition' | 'workout' | 'telemetry' | 'settings';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
@@ -38,14 +40,19 @@ export default function App() {
       icon: MessageSquare,
     },
     {
-      key: 'telemetry' as const,
-      label: 'TELEMETRY',
-      icon: Activity,
+      key: 'nutrition' as const,
+      label: 'NUTRITION',
+      icon: Utensils,
     },
     {
       key: 'workout' as const,
       label: 'WORKOUT',
       icon: Dumbbell,
+    },
+    {
+      key: 'telemetry' as const,
+      label: 'TELEMETRY',
+      icon: Activity,
     },
     {
       key: 'settings' as const,
@@ -71,12 +78,13 @@ export default function App() {
                   onNavigateToWorkout={() => setActiveTab('workout')}
                 />
               )}
-              {activeTab === 'telemetry' && <TelemetryScreen />}
+              {activeTab === 'nutrition' && <NutritionScreen />}
               {activeTab === 'workout' && (
                 <ProgressionsScreen
                   onNavigateToChat={() => setActiveTab('coach')}
                 />
               )}
+              {activeTab === 'telemetry' && <TelemetryScreen />}
               {activeTab === 'settings' && <ModelManagerScreen />}
             </View>
 

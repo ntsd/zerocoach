@@ -48,5 +48,6 @@ export interface ModelState {
   downloadModel: () => Promise<void>;
   loadModel: () => Promise<void>;
   unloadModel: () => Promise<void>;
+  autoInitOnDeviceModel: () => Promise<void>;
 }
 

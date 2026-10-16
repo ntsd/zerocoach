@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { CompletionRequest, CompletionResult, LLMEngine, TokenCallback } from './types';
 
 /**
@@ -20,12 +21,22 @@ export class LlamaRNEngine implements LLMEngine {
       const { initLlama } = require('llama.rn');
 
       console.log(`[LlamaRNEngine] Initializing GGUF model from: ${modelPath}`);
-      this.llamaContext = await initLlama({
-        model: modelPath,
-        n_ctx: 2048,
-        n_gpu_layers: 1, // Offload to Metal (iOS) or OpenCL (Android)
-        n_threads: 4,
-      });
+      try {
+        this.llamaContext = await initLlama({
+          model: modelPath,
+          n_ctx: 2048,
+          n_gpu_layers: Platform.OS === 'ios' ? 99 : 1,
+          n_threads: 4,
+        });
+      } catch (gpuErr) {
+        console.warn('[LlamaRNEngine] GPU init failed, retrying on CPU:', gpuErr);
+        this.llamaContext = await initLlama({
+          model: modelPath,
+          n_ctx: 2048,
+          n_gpu_layers: 0,
+          n_threads: 4,
+        });
+      }
 
       this.isModelReady = true;
       console.log('[LlamaRNEngine] llama.rn context initialized successfully.');
@@ -77,17 +88,16 @@ export class LlamaRNEngine implements LLMEngine {
     let accumulatedText = '';
     let tokenCount = 0;
 
-    // Format chat prompt using Gemma 2 / ChatML prompt template
-    const fullPrompt = `${request.systemPrompt}\n\nUser: ${
-      request.messages[request.messages.length - 1]?.content || ''
-    }\n\nAssistant:`;
+    // Format chat prompt using official Gemma 2 instruction template
+    const userMessage = request.messages[request.messages.length - 1]?.content || '';
+    const fullPrompt = `<start_of_turn>user\n${request.systemPrompt ? `${request.systemPrompt}\n\n` : ''}${userMessage}<end_of_turn>\n<start_of_turn>model\n`;
 
     const result = await this.llamaContext.completion(
       {
         prompt: fullPrompt,
         n_predict: request.maxTokens || 512,
         temperature: request.temperature || 0.7,
-        stop: ['User:', 'Assistant:', '</s>', '<end_of_turn>'],
+        stop: ['<start_of_turn>', '<end_of_turn>', '<eos>', '</s>', 'User:', 'Assistant:'],
       },
       (data: { token: string }) => {
         if (!this.abortRequested && data.token) {

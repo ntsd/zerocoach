@@ -10,6 +10,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useModelStore } from '@/store/useModelStore';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -34,6 +35,11 @@ export default function App() {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const { mode, hasCompletedOnboarding } = useCoachStore();
   const modeColors = getModeColors(mode);
+
+  useEffect(() => {
+    // Automatically download and load Gemma 2 into RAM on native devices
+    useModelStore.getState().autoInitOnDeviceModel();
+  }, []);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';

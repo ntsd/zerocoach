@@ -41,6 +41,10 @@ export class LLMService {
     return this.openAIEngine.testConnection();
   }
 
+  public isNativeReady(): boolean {
+    return this.nativeEngine.isReady();
+  }
+
   public getActiveEngine(): LLMEngine {
     if (this.provider === 'openai_compatible') {
       return this.openAIEngine;

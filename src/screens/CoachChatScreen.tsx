@@ -44,7 +44,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
   } = useChatStore();
 
   const { mode } = useCoachStore();
-  const { provider, openAIConfig } = useModelStore();
+  const { provider, openAIConfig, status, downloadProgress } = useModelStore();
   const modeColors = getModeColors(mode);
 
   const handleSend = async (textToSend?: string) => {
@@ -111,7 +111,13 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
               {provider === 'openai_compatible'
                 ? `${openAIConfig.modelName || 'LLM'} • OpenAI-Compatible`
                 : Platform.OS === 'web'
-                ? 'On-Device AI (Web Engine) • Private'
+                ? 'On-Device AI (Web Simulator) • Private'
+                : status === 'loaded'
+                ? 'Gemma 2 (2B On-Device RAM) • 100% Private'
+                : status === 'loading'
+                ? 'Loading Gemma 2 into RAM...'
+                : status === 'downloading'
+                ? `Downloading Gemma 2 (${downloadProgress}%)...`
                 : '100% On-Device AI • Private'}
             </Text>
           </View>
@@ -130,6 +136,37 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
 
         {/* Live Telemetry Banner */}
         <TelemetryBanner />
+
+        {/* Automatic Model Download & RAM Context Allocation Banner */}
+        {provider === 'on_device' && Platform.OS !== 'web' && status === 'downloading' && (
+          <View style={styles.downloadBanner}>
+            <View style={styles.downloadBannerHeader}>
+              <Text style={styles.downloadBannerTitle}>
+                Downloading Gemma 2 weights ({downloadProgress}%)
+              </Text>
+              <Text style={styles.downloadBannerSub}>Auto-loading into RAM upon completion</Text>
+            </View>
+            <View style={styles.progressBarTrack}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width: `${Math.max(5, downloadProgress)}%`,
+                    backgroundColor: modeColors.accent,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        )}
+
+        {provider === 'on_device' && Platform.OS !== 'web' && status === 'loading' && (
+          <View style={styles.loadingBanner}>
+            <Text style={[styles.loadingBannerText, { color: modeColors.accent }]}>
+              ⚡ Allocating Gemma 2 context into device RAM via llama.rn...
+            </Text>
+          </View>
+        )}
 
         {/* Message Stream */}
         <FlatList
@@ -316,5 +353,57 @@ const styles = StyleSheet.create({
   },
   inputContainerKeyboardActive: {
     marginBottom: Platform.OS === 'ios' ? 12 : 8,
+  },
+  downloadBanner: {
+    marginHorizontal: SPACING.md,
+    marginTop: 4,
+    marginBottom: 6,
+    padding: SPACING.sm,
+    backgroundColor: COLORS.cardSecondary,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.strict.accent}40`,
+  },
+  downloadBannerHeader: {
+    marginBottom: 6,
+  },
+  downloadBannerTitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  downloadBannerSub: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  progressBarTrack: {
+    height: 4,
+    backgroundColor: `${COLORS.textMuted}30`,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  loadingBanner: {
+    marginHorizontal: SPACING.md,
+    marginTop: 4,
+    marginBottom: 6,
+    paddingVertical: 6,
+    paddingHorizontal: SPACING.sm,
+    backgroundColor: COLORS.cardSecondary,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+  },
+  loadingBannerText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

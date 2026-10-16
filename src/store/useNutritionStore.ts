@@ -68,7 +68,6 @@ export interface NutritionState {
   ) => void;
   getSummaryForDate: (date?: string) => NutritionDailySummary;
   clearDayLog: (date?: string) => void;
-  seedDemoDayIfEmpty: () => void;
 }
 
 const DEFAULT_TARGETS = {
@@ -91,7 +90,11 @@ export const useNutritionStore = create<NutritionState>()(
         const targetDate = date || get().selectedDate || getTodayString();
         const existing = get().logsByDate[targetDate];
         if (existing) {
-          return existing;
+          const nonDemoFoods = existing.foods.filter((f) => !f.id.startsWith('demo_'));
+          return {
+            ...existing,
+            foods: nonDemoFoods,
+          };
         }
         return {
           date: targetDate,
@@ -266,173 +269,20 @@ export const useNutritionStore = create<NutritionState>()(
           },
         }));
       },
-
-      seedDemoDayIfEmpty: () => {
-        const today = getTodayString();
-        const existing = get().logsByDate[today];
-        if (existing && existing.foods.length > 0) {
-          return; // Already populated
-        }
-
-        // Demo sample foods with complete micronutrients
-        const demoFoods: LoggedFood[] = [
-          {
-            id: 'demo_breakfast_1',
-            foodId: 'usda_eggs_whole',
-            name: 'Whole Eggs, Scrambled',
-            mealType: 'breakfast',
-            timestamp: Date.now() - 5 * 3600 * 1000,
-            servings: 3,
-            consumedGrams: 150,
-            source: 'usda_bundled',
-            nutrients: {
-              calories: 215,
-              proteinGrams: 18.9,
-              carbsGrams: 1.1,
-              fatGrams: 14.3,
-              fiberGrams: 0,
-              vitaminA_mcg: 240,
-              vitaminC_mg: 0,
-              vitaminD_mcg: 3.0,
-              vitaminB12_mcg: 1.34,
-              vitaminE_mg: 1.6,
-              iron_mg: 2.6,
-              calcium_mg: 84,
-              magnesium_mg: 18,
-              potassium_mg: 207,
-              sodium_mg: 213,
-              zinc_mg: 1.9,
-            },
-          },
-          {
-            id: 'demo_breakfast_2',
-            foodId: 'usda_sourdough_bread',
-            name: 'Artisan Sourdough Bread',
-            mealType: 'breakfast',
-            timestamp: Date.now() - 5 * 3600 * 1000,
-            servings: 2,
-            consumedGrams: 90,
-            source: 'usda_bundled',
-            nutrients: {
-              calories: 216,
-              proteinGrams: 7.2,
-              carbsGrams: 43.2,
-              fatGrams: 1.1,
-              fiberGrams: 2.3,
-              vitaminA_mcg: 0,
-              vitaminC_mg: 0,
-              vitaminD_mcg: 0,
-              vitaminB12_mcg: 0,
-              vitaminE_mg: 0.3,
-              iron_mg: 2.5,
-              calcium_mg: 22,
-              magnesium_mg: 22,
-              potassium_mg: 108,
-              sodium_mg: 450,
-              zinc_mg: 0.9,
-            },
-          },
-          {
-            id: 'demo_lunch_1',
-            foodId: 'usda_chicken_breast',
-            name: 'Chicken Breast, Grilled Boneless',
-            mealType: 'lunch',
-            timestamp: Date.now() - 2 * 3600 * 1000,
-            servings: 1.8,
-            consumedGrams: 180,
-            source: 'usda_bundled',
-            nutrients: {
-              calories: 297,
-              proteinGrams: 55.8,
-              carbsGrams: 0,
-              fatGrams: 6.5,
-              fiberGrams: 0,
-              vitaminA_mcg: 23,
-              vitaminC_mg: 0,
-              vitaminD_mcg: 0.2,
-              vitaminB12_mcg: 0.61,
-              vitaminE_mg: 0.5,
-              iron_mg: 1.8,
-              calcium_mg: 27,
-              magnesium_mg: 52,
-              potassium_mg: 461,
-              sodium_mg: 133,
-              zinc_mg: 1.8,
-            },
-          },
-          {
-            id: 'demo_lunch_2',
-            foodId: 'usda_jasmine_rice',
-            name: 'White Jasmine Rice, Cooked',
-            mealType: 'lunch',
-            timestamp: Date.now() - 2 * 3600 * 1000,
-            servings: 1.5,
-            consumedGrams: 150,
-            source: 'usda_bundled',
-            nutrients: {
-              calories: 195,
-              proteinGrams: 4.1,
-              carbsGrams: 42.3,
-              fatGrams: 0.5,
-              fiberGrams: 0.6,
-              vitaminA_mcg: 0,
-              vitaminC_mg: 0,
-              vitaminD_mcg: 0,
-              vitaminB12_mcg: 0,
-              vitaminE_mg: 0.1,
-              iron_mg: 1.8,
-              calcium_mg: 15,
-              magnesium_mg: 18,
-              potassium_mg: 53,
-              sodium_mg: 2,
-              zinc_mg: 0.8,
-            },
-          },
-          {
-            id: 'demo_lunch_3',
-            foodId: 'usda_steamed_broccoli',
-            name: 'Broccoli, Steamed Florets',
-            mealType: 'lunch',
-            timestamp: Date.now() - 2 * 3600 * 1000,
-            servings: 1.2,
-            consumedGrams: 120,
-            source: 'usda_bundled',
-            nutrients: {
-              calories: 42,
-              proteinGrams: 3.4,
-              carbsGrams: 8.4,
-              fatGrams: 0.5,
-              fiberGrams: 3.1,
-              vitaminA_mcg: 37,
-              vitaminC_mg: 78.0,
-              vitaminD_mcg: 0,
-              vitaminB12_mcg: 0,
-              vitaminE_mg: 1.0,
-              iron_mg: 0.8,
-              calcium_mg: 48,
-              magnesium_mg: 25,
-              potassium_mg: 380,
-              sodium_mg: 49,
-              zinc_mg: 0.5,
-            },
-          },
-        ];
-
-        set((state) => ({
-          logsByDate: {
-            ...state.logsByDate,
-            [today]: {
-              date: today,
-              ...DEFAULT_TARGETS,
-              foods: demoFoods,
-            },
-          },
-        }));
-      },
     }),
     {
       name: 'zerocoach-nutrition-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state?.logsByDate) {
+          for (const date in state.logsByDate) {
+            state.logsByDate[date].foods = state.logsByDate[date].foods.filter(
+              (f) => !f.id.startsWith('demo_')
+            );
+          }
+        }
+      },
     }
   )
 );
+

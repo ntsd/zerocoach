@@ -25,16 +25,19 @@ export const NutritionScreen: React.FC = () => {
     logFood,
     removeLoggedFood,
     clearDayLog,
-    seedDemoDayIfEmpty,
   } = useNutritionStore();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [activeModalMealType, setActiveModalMealType] = useState<MealType>('breakfast');
 
-  // Seed demo day on first mount if empty
+  // Purge any legacy demo foods that were previously seeded
   useEffect(() => {
-    seedDemoDayIfEmpty();
-  }, [seedDemoDayIfEmpty]);
+    const currentLog = getDailyLog(selectedDate);
+    const demoItems = currentLog.foods.filter((f) => f.id.startsWith('demo_'));
+    demoItems.forEach((item) => {
+      removeLoggedFood(item.id, selectedDate);
+    });
+  }, [selectedDate, getDailyLog, removeLoggedFood]);
 
   const dailyLog = getDailyLog(selectedDate);
   const summary = getSummaryForDate(selectedDate);

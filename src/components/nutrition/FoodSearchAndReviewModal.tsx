@@ -24,6 +24,8 @@ import {
   decomposeMealText,
   MealDecompositionResult,
 } from '../../services/nutrition/mealDecomposer';
+import { analyzeMealPhoto } from '../../services/nutrition/photoMealAnalyzer';
+import { useModelStore } from '../../store/useModelStore';
 import { calculateNutrientsForGrams } from '../../store/useNutritionStore';
 import { COLORS } from '../../theme/colors';
 import {
@@ -43,6 +45,7 @@ import {
   Image as ImageIcon,
   RotateCcw,
   Globe,
+  AlertCircle,
 } from 'lucide-react-native';
 
 interface FoodSearchAndReviewModalProps {
@@ -61,6 +64,15 @@ const DEMO_BARCODES = [
   { label: 'Quaker Rolled Oats', code: '0030000010402' },
 ];
 
+const QUICK_MEAL_PRESETS = [
+  { label: '🍳 Eggs & Avocado Toast', query: '3 eggs, 1 avocado, 2 slices sourdough bread' },
+  { label: '🍗 Chicken, Rice & Greens', query: '180g chicken breast, 150g jasmine rice, 100g broccoli' },
+  { label: '🥩 Steak & Sweet Potato', query: '200g sirloin steak, 200g sweet potato, 80g broccoli' },
+  { label: '🥣 Oats, Whey & Banana', query: '60g rolled oats, 1 scoop whey protein, 1 banana' },
+  { label: '🍣 Salmon Protein Bowl', query: '180g salmon, 150g white rice, 80g asparagus, 10g olive oil' },
+  { label: '🥗 Greek Salad & Chicken', query: '150g chicken breast, 150g mixed salad greens, 15g olive oil' },
+];
+
 export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> = ({
   visible,
   initialMealType,
@@ -72,6 +84,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   // Snap / AI & Photo Capture State
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false);
+  const [photoAnalysisError, setPhotoAnalysisError] = useState<string | null>(null);
 
   // Barcode Camera Scanner State
   const [permission, requestPermission] = useCameraPermissions();
@@ -162,6 +176,38 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     }
   };
 
+  const processCapturedPhoto = async (
+    uri: string,
+    base64?: string | null,
+    notes?: string
+  ) => {
+    setIsAnalyzingPhoto(true);
+    setPhotoAnalysisError(null);
+    try {
+      const openAIConfig = useModelStore.getState().openAIConfig;
+      const analysis = await analyzeMealPhoto(
+        uri,
+        base64,
+        openAIConfig,
+        selectedMealType,
+        notes
+      );
+      if (analysis.canIdentify && analysis.decomposition) {
+        setPhotoAnalysisError(null);
+        setNlpInput(analysis.ingredientsText || '');
+        setDecompositionResult(analysis.decomposition);
+        selectFoodForReview(analysis.decomposition.asFoodItem, analysis.decomposition.totalGrams);
+      } else {
+        setPhotoAnalysisError("Can't identify food from the image");
+      }
+    } catch (err) {
+      console.warn('[FoodSearchModal] Failed to process meal photo:', err);
+      setPhotoAnalysisError("Can't identify food from the image");
+    } finally {
+      setIsAnalyzingPhoto(false);
+    }
+  };
+
   const handleTakePhoto = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -175,14 +221,13 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.85,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        const uri = result.assets[0].uri;
-        setCapturedImageUri(uri);
-        if (!nlpInput.trim()) {
-          setNlpInput('1 plate of homemade meal with mixed protein and greens');
-        }
+        const asset = result.assets[0];
+        setCapturedImageUri(asset.uri);
+        await processCapturedPhoto(asset.uri, asset.base64);
       }
     } catch (err) {
       console.warn('Error launching camera:', err);
@@ -196,22 +241,33 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.85,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        const uri = result.assets[0].uri;
-        setCapturedImageUri(uri);
-        if (!nlpInput.trim()) {
-          setNlpInput('1 plate of homemade meal with mixed protein and greens');
-        }
+        const asset = result.assets[0];
+        setCapturedImageUri(asset.uri);
+        await processCapturedPhoto(asset.uri, asset.base64);
       }
     } catch (err) {
       console.warn('Error picking image from library:', err);
     }
   };
 
+  const handleSelectQuickMeal = (query: string) => {
+    setPhotoAnalysisError(null);
+    setNlpInput(query);
+    const result = decomposeMealText(query);
+    if (capturedImageUri) {
+      result.asFoodItem.imageUrl = capturedImageUri;
+    }
+    setDecompositionResult(result);
+    selectFoodForReview(result.asFoodItem, result.totalGrams);
+  };
+
   const handleDecomposeText = () => {
     if (!nlpInput.trim()) return;
+    setPhotoAnalysisError(null);
     const result = decomposeMealText(nlpInput);
     if (capturedImageUri) {
       result.asFoodItem.imageUrl = capturedImageUri;
@@ -233,6 +289,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     setReviewFood(null);
     setDecompositionResult(null);
     setCapturedImageUri(null);
+    setPhotoAnalysisError(null);
     onClose();
   };
 
@@ -267,6 +324,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 if (reviewFood) {
                   setReviewFood(null);
                 } else {
+                  setPhotoAnalysisError(null);
                   onClose();
                 }
               }}
@@ -532,7 +590,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
               {activeTab === 'snap' && (
                 <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
                   <Text style={styles.sectionSubtitle}>
-                    Capture a meal with your camera or describe your dish to decompose ingredients and track lab micronutrients:
+                    Snap a meal plate, restaurant menu, or food label with your camera, or describe your dish:
                   </Text>
 
                   {/* Camera Snap Action Buttons */}
@@ -543,7 +601,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       activeOpacity={0.7}
                     >
                       <Camera size={18} color="#080B10" />
-                      <Text style={styles.cameraPrimaryBtnText}>Take Meal Photo</Text>
+                      <Text style={styles.cameraPrimaryBtnText}>Take Photo / Menu</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -560,6 +618,17 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   {capturedImageUri && (
                     <View style={styles.capturedPhotoCard}>
                       <Image source={{ uri: capturedImageUri }} style={styles.capturedImage} />
+
+                      {isAnalyzingPhoto && (
+                        <View style={styles.photoAnalyzingOverlay}>
+                          <ActivityIndicator size="large" color="#00F0FF" />
+                          <Text style={styles.photoAnalyzingTitle}>ZeroCoach Vision AI</Text>
+                          <Text style={styles.photoAnalyzingSub}>
+                            Analyzing meal or reading menu text...
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={styles.capturedPhotoHeader}>
                         <View style={styles.photoBadge}>
                           <Sparkles size={12} color="#00F0FF" />
@@ -577,12 +646,42 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     </View>
                   )}
 
+                  {/* Unidentified Food Alert Banner */}
+                  {photoAnalysisError && (
+                    <View style={styles.photoErrorBanner}>
+                      <AlertCircle size={18} color="#FF6B35" />
+                      <View style={styles.photoErrorTextCol}>
+                        <Text style={styles.photoErrorTitle}>Can't identify food or menu text</Text>
+                        <Text style={styles.photoErrorSub}>
+                          Please describe your dish or paste the menu item text below to calculate macros.
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Quick Meal Matching Chips */}
+                  <View style={styles.quickMealSection}>
+                    <Text style={styles.quickMealTitle}>QUICK MATCH OR TAP TO IDENTIFY:</Text>
+                    <View style={styles.quickMealChipsRow}>
+                      {QUICK_MEAL_PRESETS.map((preset) => (
+                        <TouchableOpacity
+                          key={preset.label}
+                          style={styles.quickMealChip}
+                          onPress={() => handleSelectQuickMeal(preset.query)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.quickMealChipText}>{preset.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
                   {/* Description & Decomposition Input */}
                   <View style={styles.nlpBox}>
-                    <Text style={styles.nlpLabel}>Describe or confirm ingredients:</Text>
+                    <Text style={styles.nlpLabel}>Describe dish or paste menu text:</Text>
                     <TextInput
                       style={styles.nlpInput}
-                      placeholder="e.g., 2 eggs, 1 avocado, and 2 slices sourdough bread"
+                      placeholder="e.g., 2 eggs, avocado sourdough toast, or Salmon Quinoa Bowl from menu"
                       placeholderTextColor={COLORS.textMuted}
                       value={nlpInput}
                       onChangeText={setNlpInput}
@@ -592,9 +691,16 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       style={styles.decomposeBtn}
                       onPress={handleDecomposeText}
                       activeOpacity={0.7}
+                      disabled={isAnalyzingPhoto}
                     >
-                      <Sparkles size={16} color="#080B10" />
-                      <Text style={styles.decomposeBtnText}>Decompose & Estimate Macros</Text>
+                      {isAnalyzingPhoto ? (
+                        <ActivityIndicator size="small" color="#080B10" />
+                      ) : (
+                        <Sparkles size={16} color="#080B10" />
+                      )}
+                      <Text style={styles.decomposeBtnText}>
+                        {isAnalyzingPhoto ? 'Analyzing...' : 'Decompose & Estimate Macros'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </ScrollView>
@@ -1505,6 +1611,82 @@ const styles = StyleSheet.create({
   },
   retakeBtnText: {
     color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  photoAnalyzingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(8, 11, 16, 0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+    zIndex: 10,
+  },
+  photoAnalyzingTitle: {
+    color: '#00F0FF',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginTop: 4,
+  },
+  photoAnalyzingSub: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  photoErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255, 107, 53, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.35)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  photoErrorTextCol: {
+    flex: 1,
+  },
+  photoErrorTitle: {
+    color: '#FF6B35',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  photoErrorSub: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  quickMealSection: {
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  quickMealTitle: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  quickMealChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  quickMealChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  quickMealChipText: {
+    color: COLORS.textPrimary,
     fontSize: 11,
     fontWeight: '600',
   },

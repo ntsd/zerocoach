@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,11 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { FoodItem, MealType, NutrientProfile } from '../../types/nutrition';
-import { searchAllFoods, fetchProductByBarcode } from '../../services/nutrition/openFoodFactsService';
+import {
+  searchAllFoods,
+  fetchProductByBarcode,
+  FoodSourceFilter,
+} from '../../services/nutrition/openFoodFactsService';
 import {
   decomposeMealText,
   MealDecompositionResult,
@@ -38,6 +42,7 @@ import {
   Zap,
   Image as ImageIcon,
   RotateCcw,
+  Globe,
 } from 'lucide-react-native';
 
 interface FoodSearchAndReviewModalProps {
@@ -76,8 +81,10 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<FoodSourceFilter>('all');
   const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Barcode state
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -97,24 +104,41 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     setSelectedMealType(initialMealType);
   }, [initialMealType, visible]);
 
+  const performSearch = useCallback(
+    async (query: string, filter: FoodSourceFilter = sourceFilter) => {
+      setIsSearching(true);
+      try {
+        const results = await searchAllFoods(query, filter);
+        setSearchResults(results);
+      } catch (err) {
+        console.warn('Search failed:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [sourceFilter]
+  );
+
   // Initial search load
   useEffect(() => {
     if (visible && activeTab === 'search' && !searchQuery.trim()) {
-      handleSearch('');
+      performSearch('', sourceFilter);
     }
-  }, [visible, activeTab]);
+  }, [visible, activeTab, performSearch, sourceFilter]);
 
-  const handleSearch = async (query: string) => {
+  const handleSearchChange = (query: string) => {
     setSearchQuery(query);
-    setIsSearching(true);
-    try {
-      const results = await searchAllFoods(query);
-      setSearchResults(results);
-    } catch (err) {
-      console.warn('Search failed:', err);
-    } finally {
-      setIsSearching(false);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(query, sourceFilter);
+    }, 280);
+  };
+
+  const handleFilterSelect = (filter: FoodSourceFilter) => {
+    setSourceFilter(filter);
+    performSearch(searchQuery, filter);
   };
 
   const handleBarcodeLookup = async (code: string) => {
@@ -583,59 +607,157 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     <Search size={16} color={COLORS.textSecondary} />
                     <TextInput
                       style={styles.searchInput}
-                      placeholder="Search chicken, oats, eggs, protein bar..."
+                      placeholder={
+                        sourceFilter === 'open_food_facts'
+                          ? 'Search Open Food Facts (e.g., Oreo, Fairlife, Doritos)...'
+                          : sourceFilter === 'usda_bundled'
+                          ? 'Search USDA whole foods (e.g., salmon, oats, steak)...'
+                          : 'Search foods (USDA Whole + Open Food Facts)...'
+                      }
                       placeholderTextColor={COLORS.textMuted}
                       value={searchQuery}
-                      onChangeText={handleSearch}
+                      onChangeText={handleSearchChange}
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
                     {isSearching && <ActivityIndicator size="small" color="#00F0FF" />}
                   </View>
 
-                  <ScrollView style={styles.resultsList} showsVerticalScrollIndicator={false}>
-                    {searchResults.map((item) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={styles.resultItem}
-                        onPress={() => selectFoodForReview(item)}
-                        activeOpacity={0.7}
+                  {/* Source Filter Selector Chips */}
+                  <View style={styles.sourceFilterRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.sourceFilterChip,
+                        sourceFilter === 'all' && styles.sourceFilterChipActive,
+                      ]}
+                      onPress={() => handleFilterSelect('all')}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.sourceFilterText,
+                          sourceFilter === 'all' && styles.sourceFilterTextActive,
+                        ]}
                       >
-                        <View style={styles.resultMain}>
-                          <Text style={styles.resultName} numberOfLines={1}>
-                            {item.name}
-                          </Text>
-                          {item.brand && <Text style={styles.resultBrand}>{item.brand}</Text>}
-                          <Text style={styles.resultNutrients}>
-                            {item.nutrientsPer100g.calories} kcal • {item.nutrientsPer100g.proteinGrams}g P •{' '}
-                            {item.nutrientsPer100g.carbsGrams}g C • {item.nutrientsPer100g.fatGrams}g F (per 100g)
-                          </Text>
-                        </View>
+                        All Sources
+                      </Text>
+                    </TouchableOpacity>
 
-                        <View style={styles.resultRight}>
-                          <View
-                            style={[
-                              styles.miniSourceBadge,
-                              item.source === 'usda_bundled'
-                                ? { backgroundColor: 'rgba(16, 185, 129, 0.15)' }
-                                : { backgroundColor: 'rgba(56, 189, 248, 0.15)' },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.miniSourceText,
-                                item.source === 'usda_bundled'
-                                  ? { color: '#10B981' }
-                                  : { color: '#38BDF8' },
-                              ]}
-                            >
-                              {item.source === 'usda_bundled' ? 'USDA Whole' : 'Open Food Facts'}
+                    <TouchableOpacity
+                      style={[
+                        styles.sourceFilterChip,
+                        sourceFilter === 'open_food_facts' && styles.sourceFilterChipActive,
+                      ]}
+                      onPress={() => handleFilterSelect('open_food_facts')}
+                      activeOpacity={0.7}
+                    >
+                      <Globe
+                        size={11}
+                        color={sourceFilter === 'open_food_facts' ? '#080B10' : '#38BDF8'}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text
+                        style={[
+                          styles.sourceFilterText,
+                          sourceFilter === 'open_food_facts' && styles.sourceFilterTextActive,
+                        ]}
+                      >
+                        Open Food Facts
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.sourceFilterChip,
+                        sourceFilter === 'usda_bundled' && styles.sourceFilterChipActive,
+                      ]}
+                      onPress={() => handleFilterSelect('usda_bundled')}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.sourceFilterText,
+                          sourceFilter === 'usda_bundled' && styles.sourceFilterTextActive,
+                        ]}
+                      >
+                        USDA Whole
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView style={styles.resultsList} showsVerticalScrollIndicator={false}>
+                    {searchResults.length === 0 && !isSearching ? (
+                      <View style={styles.emptySearchResults}>
+                        <Search size={30} color={COLORS.textMuted} />
+                        <Text style={styles.emptySearchTitle}>
+                          {searchQuery.trim() ? 'No foods found' : 'Type to search foods'}
+                        </Text>
+                        <Text style={styles.emptySearchSub}>
+                          {searchQuery.trim()
+                            ? 'Try switching to Open Food Facts or checking the spelling.'
+                            : 'Search millions of packaged products via Open Food Facts or lab-verified whole foods from USDA.'}
+                        </Text>
+                      </View>
+                    ) : (
+                      searchResults.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={styles.resultItem}
+                          onPress={() => selectFoodForReview(item)}
+                          activeOpacity={0.7}
+                        >
+                          {item.imageUrl ? (
+                            <Image
+                              source={{ uri: item.imageUrl }}
+                              style={styles.resultThumb}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <View style={styles.resultPlaceholderThumb}>
+                              <Utensils size={14} color={COLORS.textMuted} />
+                            </View>
+                          )}
+
+                          <View style={styles.resultMain}>
+                            <Text style={styles.resultName} numberOfLines={1}>
+                              {item.name}
+                            </Text>
+                            {item.brand ? (
+                              <Text style={styles.resultBrand} numberOfLines={1}>
+                                {item.brand}
+                              </Text>
+                            ) : null}
+                            <Text style={styles.resultNutrients}>
+                              {item.nutrientsPer100g.calories} kcal • {item.nutrientsPer100g.proteinGrams}g P •{' '}
+                              {item.nutrientsPer100g.carbsGrams}g C • {item.nutrientsPer100g.fatGrams}g F (per 100g)
                             </Text>
                           </View>
-                          <ChevronRight size={16} color={COLORS.textMuted} />
-                        </View>
-                      </TouchableOpacity>
-                    ))}
+
+                          <View style={styles.resultRight}>
+                            <View
+                              style={[
+                                styles.miniSourceBadge,
+                                item.source === 'usda_bundled'
+                                  ? { backgroundColor: 'rgba(16, 185, 129, 0.15)' }
+                                  : { backgroundColor: 'rgba(56, 189, 248, 0.15)' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.miniSourceText,
+                                  item.source === 'usda_bundled'
+                                    ? { color: '#10B981' }
+                                    : { color: '#38BDF8' },
+                                ]}
+                              >
+                                {item.source === 'usda_bundled' ? 'USDA Whole' : 'Open Food Facts'}
+                              </Text>
+                            </View>
+                            <ChevronRight size={16} color={COLORS.textMuted} />
+                          </View>
+                        </TouchableOpacity>
+                      ))
+                    )}
                   </ScrollView>
                 </View>
               )}
@@ -874,7 +996,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
@@ -883,24 +1005,86 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontSize: 14,
   },
+  sourceFilterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 12,
+  },
+  sourceFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  sourceFilterChipActive: {
+    backgroundColor: '#00F0FF',
+    borderColor: '#00F0FF',
+  },
+  sourceFilterText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  sourceFilterTextActive: {
+    color: '#080B10',
+    fontWeight: '700',
+  },
   resultsList: {
     flex: 1,
+  },
+  emptySearchResults: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  emptySearchTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  emptySearchSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
   },
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.04)',
+    gap: 10,
+  },
+  resultThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  resultPlaceholderThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resultMain: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 4,
   },
   resultName: {
     color: COLORS.textPrimary,
@@ -908,14 +1092,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   resultBrand: {
-    color: COLORS.textMuted,
+    color: '#38BDF8',
     fontSize: 11,
+    fontWeight: '500',
     marginTop: 1,
   },
   resultNutrients: {
     color: COLORS.textSecondary,
     fontSize: 11,
-    marginTop: 3,
+    marginTop: 2,
   },
   resultRight: {
     flexDirection: 'row',

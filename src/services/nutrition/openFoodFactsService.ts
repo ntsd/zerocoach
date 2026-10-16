@@ -110,7 +110,11 @@ function mapOffProductToFoodItem(product: any): FoodItem | null {
     return null;
   }
   const name = product.product_name || product.product_name_en || 'Unknown Product';
-  const brand = product.brands || product.brands_tags?.[0];
+  const brand = Array.isArray(product.brands)
+    ? product.brands.join(', ')
+    : typeof product.brands === 'string' && product.brands.trim()
+    ? product.brands
+    : product.brands_tags?.[0];
   const nutrients = parseOffNutriments(product.nutriments);
 
   // If calorie is 0 and protein/carb/fat are all 0, it's likely bad/empty data
@@ -125,7 +129,12 @@ function mapOffProductToFoodItem(product: any): FoodItem | null {
 
   // Determine category
   let category: FoodCategory = 'packaged_goods';
-  const categoriesLower = (product.categories || '').toLowerCase();
+  const categoriesLower = (
+    Array.isArray(product.categories)
+      ? product.categories.join(' ')
+      : product.categories || ''
+  ).toLowerCase();
+
   if (categoriesLower.includes('beverage') || categoriesLower.includes('drink')) {
     category = 'beverages';
   } else if (categoriesLower.includes('meat') || categoriesLower.includes('poultry')) {
@@ -177,7 +186,7 @@ export async function fetchProductByBarcode(barcode: string): Promise<FoodItem |
       `https://world.openfoodfacts.org/api/v2/product/${cleanCode}.json?fields=code,product_name,product_name_en,brands,brands_tags,nutriments,serving_size,categories,image_front_small_url`,
       {
         headers: {
-          'User-Agent': 'ZeroCoach-App - Web - Version 1.0',
+          'User-Agent': 'ZeroCoach-App - Android - Version 1.0 (https://zerocoach.app)',
         },
         signal: controller.signal,
       }
@@ -196,8 +205,8 @@ export async function fetchProductByBarcode(barcode: string): Promise<FoodItem |
   return null;
 }
 
-// Query Open Food Facts search API
-export async function searchOpenFoodFacts(query: string, page = 1, pageSize = 15): Promise<FoodItem[]> {
+// Query Open Food Facts search API (Elasticsearch Search-a-licious)
+export async function searchOpenFoodFacts(query: string, page = 1, pageSize = 20): Promise<FoodItem[]> {
   const cleanQuery = query.trim();
   if (!cleanQuery) return [];
 
@@ -205,13 +214,14 @@ export async function searchOpenFoodFacts(query: string, page = 1, pageSize = 15
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+    const url = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(
       cleanQuery
-    )}&search_simple=1&action=process&json=1&page=${page}&page_size=${pageSize}&fields=code,product_name,product_name_en,brands,brands_tags,nutriments,serving_size,categories,image_front_small_url`;
+    )}&page=${page}&page_size=${pageSize}&fields=code,product_name,product_name_en,brands,brands_tags,nutriments,serving_size,categories,image_front_small_url`;
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'ZeroCoach-App - Web - Version 1.0',
+        'User-Agent': 'ZeroCoach-App - Android - Version 1.0 (https://zerocoach.app)',
+        'Accept': 'application/json',
       },
       signal: controller.signal,
     });
@@ -220,7 +230,7 @@ export async function searchOpenFoodFacts(query: string, page = 1, pageSize = 15
     if (!response.ok) return [];
 
     const data = await response.json();
-    const products: any[] = data.products || [];
+    const products: any[] = data.hits || data.products || [];
 
     const items: FoodItem[] = [];
     for (const prod of products) {
@@ -236,20 +246,37 @@ export async function searchOpenFoodFacts(query: string, page = 1, pageSize = 15
   }
 }
 
-// Unified Search: Combines USDA whole foods (instant offline) + Open Food Facts
-export async function searchAllFoods(query: string): Promise<FoodItem[]> {
-  const localMatches = searchUsdaFoods(query);
+export type FoodSourceFilter = 'all' | 'open_food_facts' | 'usda_bundled';
 
-  if (!query.trim()) {
+// Unified Search: Combines USDA whole foods (instant offline) + Open Food Facts
+export async function searchAllFoods(
+  query: string,
+  filter: FoodSourceFilter = 'all'
+): Promise<FoodItem[]> {
+  const clean = query.trim();
+
+  if (filter === 'usda_bundled') {
+    return searchUsdaFoods(clean);
+  }
+
+  if (filter === 'open_food_facts') {
+    if (!clean) return [];
+    return searchOpenFoodFacts(clean, 1, 20);
+  }
+
+  // filter === 'all'
+  const localMatches = searchUsdaFoods(clean);
+  if (!clean) {
     return localMatches;
   }
 
   // Also query Open Food Facts in parallel
   try {
-    const offResults = await searchOpenFoodFacts(query, 1, 15);
-    // Combine results: USDA whole foods first (since they have 100% lab verified micros), then OFF branded goods
+    const offResults = await searchOpenFoodFacts(clean, 1, 20);
+    // Combine results: USDA whole foods first (since they have complete verified micros), then OFF branded goods
     return [...localMatches, ...offResults];
   } catch {
     return localMatches;
   }
 }
+

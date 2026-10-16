@@ -33,6 +33,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
   const [inputText, setInputText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const textInputRef = useRef<TextInput>(null);
 
   const {
     messages,
@@ -48,10 +49,30 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
   const modeColors = getModeColors(mode);
 
   const handleSend = async (textToSend?: string) => {
-    const text = textToSend || inputText;
-    if (!text.trim() || isGenerating) return;
+    const raw = textToSend !== undefined ? textToSend : inputText;
+    const text = raw.trim();
+    if (!text || isGenerating) return;
+
+    // Immediately clear native input buffer and react state
+    textInputRef.current?.clear();
     setInputText('');
+
     await sendMessage(text);
+  };
+
+  const handleTextChange = (text: string) => {
+    // If user hit Enter on mobile software keyboard (which inserts \n)
+    if (text.includes('\n')) {
+      const clean = text.replace(/\r?\n/g, '').trim();
+      if (clean) {
+        handleSend(clean);
+      } else {
+        textInputRef.current?.clear();
+        setInputText('');
+      }
+      return;
+    }
+    setInputText(text);
   };
 
   const handleKeyPress = (e: any) => {
@@ -97,7 +118,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
         {/* Top Header */}
@@ -210,6 +231,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
           ]}
         >
           <TextInput
+            ref={textInputRef}
             style={styles.textInput}
             onFocus={() => {
               setTimeout(() => {
@@ -223,12 +245,10 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
             }
             placeholderTextColor={COLORS.textMuted}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleTextChange}
             onKeyPress={handleKeyPress}
             onSubmitEditing={() => {
-              if (Platform.OS !== 'web') {
-                handleSend();
-              }
+              handleSend();
             }}
             returnKeyType="send"
             blurOnSubmit={false}

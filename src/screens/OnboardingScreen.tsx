@@ -322,7 +322,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         {/* Header Indicator */}
         <View style={styles.header}>

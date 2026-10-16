@@ -12,6 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { FoodItem, MealType, NutrientProfile } from '../../types/nutrition';
 import { searchAllFoods, fetchProductByBarcode } from '../../services/nutrition/openFoodFactsService';
 import {
@@ -34,6 +36,9 @@ import {
   ChevronRight,
   ShieldCheck,
   Flame,
+  Zap,
+  Image as ImageIcon,
+  RotateCcw,
 } from 'lucide-react-native';
 
 interface FoodSearchAndReviewModalProps {
@@ -43,7 +48,7 @@ interface FoodSearchAndReviewModalProps {
   onLogFood: (food: FoodItem, mealType: MealType, servings: number, consumedGrams: number) => void;
 }
 
-type ModalTab = 'search' | 'barcode' | 'snap';
+type ModalTab = 'snap' | 'search' | 'barcode';
 
 const DEMO_BARCODES = [
   { label: 'Fairlife Core Power', code: '0856312002772' },
@@ -58,8 +63,17 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   onClose,
   onLogFood,
 }) => {
-  const [activeTab, setActiveTab] = useState<ModalTab>('search');
+  const [activeTab, setActiveTab] = useState<ModalTab>('snap');
   const [selectedMealType, setSelectedMealType] = useState<MealType>(initialMealType);
+
+  // Snap / AI & Photo Capture State
+  const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
+
+  // Barcode Camera Scanner State
+  const [permission, requestPermission] = useCameraPermissions();
+  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
+  const [lastScanTime, setLastScanTime] = useState<number>(0);
+  const [torchEnabled, setTorchEnabled] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,9 +139,60 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     }
   };
 
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Camera permission is required to capture photos of meals.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        setCapturedImageUri(uri);
+        if (!nlpInput.trim()) {
+          setNlpInput('1 plate of homemade meal with mixed protein and greens');
+        }
+      }
+    } catch (err) {
+      console.warn('Error launching camera:', err);
+    }
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        setCapturedImageUri(uri);
+        if (!nlpInput.trim()) {
+          setNlpInput('1 plate of homemade meal with mixed protein and greens');
+        }
+      }
+    } catch (err) {
+      console.warn('Error picking image from library:', err);
+    }
+  };
+
   const handleDecomposeText = () => {
     if (!nlpInput.trim()) return;
     const result = decomposeMealText(nlpInput);
+    if (capturedImageUri) {
+      result.asFoodItem.imageUrl = capturedImageUri;
+    }
     setDecompositionResult(result);
     selectFoodForReview(result.asFoodItem, result.totalGrams);
   };
@@ -153,6 +218,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     // Reset and close
     setReviewFood(null);
     setDecompositionResult(null);
+    setCapturedImageUri(null);
     onClose();
   };
 
@@ -406,8 +472,21 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
           </View>
           ) : (
             <>
-              {/* Tab Selector */}
+              {/* Tab Selector: Snap / AI is FIRST! */}
               <View style={styles.tabRow}>
+                <TouchableOpacity
+                  style={[styles.tabButton, activeTab === 'snap' && styles.tabButtonActive]}
+                  onPress={() => setActiveTab('snap')}
+                  activeOpacity={0.7}
+                >
+                  <Camera size={15} color={activeTab === 'snap' ? '#00F0FF' : COLORS.textMuted} />
+                  <Text
+                    style={[styles.tabText, activeTab === 'snap' && styles.tabTextActive]}
+                  >
+                    AI Snap
+                  </Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.tabButton, activeTab === 'search' && styles.tabButtonActive]}
                   onPress={() => setActiveTab('search')}
@@ -433,22 +512,103 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     Barcode
                   </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.tabButton, activeTab === 'snap' && styles.tabButtonActive]}
-                  onPress={() => setActiveTab('snap')}
-                  activeOpacity={0.7}
-                >
-                  <Camera size={15} color={activeTab === 'snap' ? '#00F0FF' : COLORS.textMuted} />
-                  <Text
-                    style={[styles.tabText, activeTab === 'snap' && styles.tabTextActive]}
-                  >
-                    Snap / AI
-                  </Text>
-                </TouchableOpacity>
               </View>
 
-              {/* Tab 1: Search */}
+              {/* Tab 1: Snap / AI (First Tab) */}
+              {activeTab === 'snap' && (
+                <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+                  <Text style={styles.sectionSubtitle}>
+                    Capture a meal with your camera or describe your dish to decompose ingredients and track lab micronutrients:
+                  </Text>
+
+                  {/* Camera Snap Action Buttons */}
+                  <View style={styles.photoActionsRow}>
+                    <TouchableOpacity
+                      style={styles.cameraPrimaryBtn}
+                      onPress={handleTakePhoto}
+                      activeOpacity={0.7}
+                    >
+                      <Camera size={18} color="#080B10" />
+                      <Text style={styles.cameraPrimaryBtnText}>Take Meal Photo</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.gallerySecondaryBtn}
+                      onPress={handlePickImage}
+                      activeOpacity={0.7}
+                    >
+                      <ImageIcon size={18} color="#00F0FF" />
+                      <Text style={styles.gallerySecondaryBtnText}>Upload Photo</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Captured Photo Preview Card */}
+                  {capturedImageUri && (
+                    <View style={styles.capturedPhotoCard}>
+                      <Image source={{ uri: capturedImageUri }} style={styles.capturedImage} />
+                      <View style={styles.capturedPhotoHeader}>
+                        <View style={styles.photoBadge}>
+                          <Sparkles size={12} color="#00F0FF" />
+                          <Text style={styles.photoBadgeText}>PHOTO ATTACHED</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.retakeBtn}
+                          onPress={handleTakePhoto}
+                          activeOpacity={0.7}
+                        >
+                          <RotateCcw size={12} color={COLORS.textMuted} />
+                          <Text style={styles.retakeBtnText}>Retake</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Description & Decomposition Input */}
+                  <View style={styles.nlpBox}>
+                    <Text style={styles.nlpLabel}>Describe or confirm ingredients:</Text>
+                    <TextInput
+                      style={styles.nlpInput}
+                      placeholder="e.g., 2 eggs, 1 avocado, and 2 slices sourdough bread"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={nlpInput}
+                      onChangeText={setNlpInput}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={styles.decomposeBtn}
+                      onPress={handleDecomposeText}
+                      activeOpacity={0.7}
+                    >
+                      <Sparkles size={16} color="#080B10" />
+                      <Text style={styles.decomposeBtnText}>Decompose & Estimate Macros</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>
+                    Or Select Instant Chef Plate Preset:
+                  </Text>
+                  <View style={styles.photoPresetsGrid}>
+                    {PHOTO_MEAL_PRESETS.map((preset) => (
+                      <TouchableOpacity
+                        key={preset.title}
+                        style={styles.photoPresetCard}
+                        onPress={() => handleSelectPreset(preset)}
+                        activeOpacity={0.7}
+                      >
+                        <Image source={{ uri: preset.imageUrl }} style={styles.presetImage} />
+                        <View style={styles.presetOverlay}>
+                          <Text style={styles.presetTitle}>{preset.title}</Text>
+                          <Text style={styles.presetCaption} numberOfLines={2}>
+                            {preset.caption}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              )}
+
+              {/* Tab 2: Search */}
               {activeTab === 'search' && (
                 <View style={styles.tabContent}>
                   <View style={styles.searchBar}>
@@ -512,13 +672,102 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 </View>
               )}
 
-              {/* Tab 2: Barcode */}
+              {/* Tab 3: Barcode (with Live Camera Scanner) */}
               {activeTab === 'barcode' && (
-                <View style={styles.tabContent}>
+                <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
                   <Text style={styles.sectionSubtitle}>
-                    Scan or enter a product barcode from packaged foods to match against Open Food Facts:
+                    Scan packaged food barcode with camera or enter code manually:
                   </Text>
 
+                  {/* Live Camera Barcode Scanner View */}
+                  {!permission ? (
+                    <View style={styles.cameraLoadingBox}>
+                      <ActivityIndicator size="small" color="#00F0FF" />
+                      <Text style={styles.cameraLoadingText}>Initializing Camera...</Text>
+                    </View>
+                  ) : !permission.granted ? (
+                    <View style={styles.permissionBox}>
+                      <Camera size={32} color="#00F0FF" />
+                      <Text style={styles.permissionTitle}>Camera Access Required</Text>
+                      <Text style={styles.permissionSub}>
+                        Grant camera permission to scan barcodes directly off food packages in real time.
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.permissionButton}
+                        onPress={requestPermission}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.permissionButtonText}>Enable Camera</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.scannerWrapper}>
+                      <CameraView
+                        style={styles.scannerCamera}
+                        enableTorch={torchEnabled}
+                        barcodeScannerSettings={{
+                          barcodeTypes: [
+                            'ean13',
+                            'ean8',
+                            'upc_a',
+                            'upc_e',
+                            'code128',
+                            'code39',
+                            'qr',
+                          ],
+                        }}
+                        onBarcodeScanned={(result) => {
+                          if (result.data) {
+                            const clean = result.data.trim();
+                            const now = Date.now();
+                            if (clean !== lastScannedCode || now - lastScanTime > 3000) {
+                              setLastScannedCode(clean);
+                              setLastScanTime(now);
+                              handleBarcodeLookup(clean);
+                            }
+                          }
+                        }}
+                      >
+                        {/* Viewfinder Overlay with Reticle & Controls */}
+                        <View style={styles.scannerOverlay}>
+                          <View style={styles.scannerHeaderRow}>
+                            <View style={styles.liveIndicator}>
+                              <View style={styles.liveDot} />
+                              <Text style={styles.liveText}>LIVE SCANNER</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={[styles.torchButton, torchEnabled && styles.torchButtonActive]}
+                              onPress={() => setTorchEnabled((prev) => !prev)}
+                              activeOpacity={0.7}
+                            >
+                              <Zap size={15} color={torchEnabled ? '#080B10' : '#F8FAFC'} />
+                            </TouchableOpacity>
+                          </View>
+
+                          <View style={styles.reticleBox}>
+                            <View style={[styles.reticleCorner, styles.cornerTL]} />
+                            <View style={[styles.reticleCorner, styles.cornerTR]} />
+                            <View style={[styles.reticleCorner, styles.cornerBL]} />
+                            <View style={[styles.reticleCorner, styles.cornerBR]} />
+                            <View style={styles.laserLine} />
+                          </View>
+
+                          <Text style={styles.scannerInstruction}>
+                            Align barcode inside frame
+                          </Text>
+                        </View>
+
+                        {isLookingUpBarcode && (
+                          <View style={styles.scanningLookupOverlay}>
+                            <ActivityIndicator size="large" color="#00F0FF" />
+                            <Text style={styles.scanningLookupText}>Looking up product in Open Food Facts...</Text>
+                          </View>
+                        )}
+                      </CameraView>
+                    </View>
+                  )}
+
+                  {/* Manual Barcode Input Fallback */}
                   <View style={styles.barcodeInputRow}>
                     <TextInput
                       style={styles.barcodeInput}
@@ -558,56 +807,6 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       >
                         <Text style={styles.demoBarcodeLabel}>{item.label}</Text>
                         <Text style={styles.demoBarcodeCode}>{item.code}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Tab 3: Snap / AI */}
-              {activeTab === 'snap' && (
-                <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-                  <Text style={styles.sectionSubtitle}>
-                    Describe a home-cooked composite dish or pick a photo preset to decompose into ingredients and lab micronutrients:
-                  </Text>
-
-                  <View style={styles.nlpBox}>
-                    <TextInput
-                      style={styles.nlpInput}
-                      placeholder="e.g., 2 eggs, 1 avocado, and 2 slices sourdough bread"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={nlpInput}
-                      onChangeText={setNlpInput}
-                      multiline
-                    />
-                    <TouchableOpacity
-                      style={styles.decomposeBtn}
-                      onPress={handleDecomposeText}
-                      activeOpacity={0.7}
-                    >
-                      <Sparkles size={16} color="#080B10" />
-                      <Text style={styles.decomposeBtnText}>Decompose Meal</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>
-                    Or Select Photo Plate Simulation:
-                  </Text>
-                  <View style={styles.photoPresetsGrid}>
-                    {PHOTO_MEAL_PRESETS.map((preset) => (
-                      <TouchableOpacity
-                        key={preset.title}
-                        style={styles.photoPresetCard}
-                        onPress={() => handleSelectPreset(preset)}
-                        activeOpacity={0.7}
-                      >
-                        <Image source={{ uri: preset.imageUrl }} style={styles.presetImage} />
-                        <View style={styles.presetOverlay}>
-                          <Text style={styles.presetTitle}>{preset.title}</Text>
-                          <Text style={styles.presetCaption} numberOfLines={2}>
-                            {preset.caption}
-                          </Text>
-                        </View>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1099,6 +1298,290 @@ const styles = StyleSheet.create({
     color: '#080B10',
     fontSize: 14,
     fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  // Photo & Camera Action Styles
+  photoActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  cameraPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#00F0FF',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  cameraPrimaryBtnText: {
+    color: '#080B10',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  gallerySecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  gallerySecondaryBtnText: {
+    color: '#00F0FF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  capturedPhotoCard: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+    marginBottom: 12,
+  },
+  capturedImage: {
+    width: '100%',
+    height: 180,
+    resizeMode: 'cover',
+  },
+  capturedPhotoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#0F141C',
+  },
+  photoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  photoBadgeText: {
+    color: '#00F0FF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  retakeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  retakeBtnText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  nlpLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  // Barcode Camera Scanner Styles
+  cameraLoadingBox: {
+    height: 180,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  cameraLoadingText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  permissionBox: {
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 240, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.15)',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  permissionTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  permissionSub: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 10,
+  },
+  permissionButton: {
+    marginTop: 6,
+    backgroundColor: '#00F0FF',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  permissionButtonText: {
+    color: '#080B10',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  scannerWrapper: {
+    height: 220,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.3)',
+    marginBottom: 14,
+    position: 'relative',
+  },
+  scannerCamera: {
+    width: '100%',
+    height: '100%',
+  },
+  scannerOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  scannerHeaderRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(8, 11, 16, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  liveText: {
+    color: '#10B981',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  torchButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(8, 11, 16, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  torchButtonActive: {
+    backgroundColor: '#00F0FF',
+    borderColor: '#00F0FF',
+  },
+  reticleBox: {
+    width: 220,
+    height: 120,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reticleCorner: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderColor: '#00F0FF',
+  },
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 6,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 6,
+  },
+  cornerBL: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 6,
+  },
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 6,
+  },
+  laserLine: {
+    width: '90%',
+    height: 2,
+    backgroundColor: 'rgba(0, 240, 255, 0.75)',
+    shadowColor: '#00F0FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 5,
+  },
+  scannerInstruction: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 11,
+    fontWeight: '600',
+    backgroundColor: 'rgba(8, 11, 16, 0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  scanningLookupOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(8, 11, 16, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  scanningLookupText: {
+    color: '#00F0FF',
+    fontSize: 12,
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
 });

@@ -18,7 +18,6 @@ import { FoodItem, MealType, NutrientProfile } from '../../types/nutrition';
 import { searchAllFoods, fetchProductByBarcode } from '../../services/nutrition/openFoodFactsService';
 import {
   decomposeMealText,
-  PHOTO_MEAL_PRESETS,
   MealDecompositionResult,
 } from '../../services/nutrition/mealDecomposer';
 import { calculateNutrientsForGrams } from '../../store/useNutritionStore';
@@ -193,15 +192,6 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     if (capturedImageUri) {
       result.asFoodItem.imageUrl = capturedImageUri;
     }
-    setDecompositionResult(result);
-    selectFoodForReview(result.asFoodItem, result.totalGrams);
-  };
-
-  const handleSelectPreset = (preset: (typeof PHOTO_MEAL_PRESETS)[0]) => {
-    const result = decomposeMealText(preset.query);
-    result.dishTitle = preset.title;
-    result.asFoodItem.name = preset.title;
-    result.asFoodItem.imageUrl = preset.imageUrl;
     setDecompositionResult(result);
     selectFoodForReview(result.asFoodItem, result.totalGrams);
   };
@@ -583,28 +573,6 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <Text style={styles.decomposeBtnText}>Decompose & Estimate Macros</Text>
                     </TouchableOpacity>
                   </View>
-
-                  <Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>
-                    Or Select Instant Chef Plate Preset:
-                  </Text>
-                  <View style={styles.photoPresetsGrid}>
-                    {PHOTO_MEAL_PRESETS.map((preset) => (
-                      <TouchableOpacity
-                        key={preset.title}
-                        style={styles.photoPresetCard}
-                        onPress={() => handleSelectPreset(preset)}
-                        activeOpacity={0.7}
-                      >
-                        <Image source={{ uri: preset.imageUrl }} style={styles.presetImage} />
-                        <View style={styles.presetOverlay}>
-                          <Text style={styles.presetTitle}>{preset.title}</Text>
-                          <Text style={styles.presetCaption} numberOfLines={2}>
-                            {preset.caption}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
                 </ScrollView>
               )}
 
@@ -703,7 +671,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   ) : (
                     <View style={styles.scannerWrapper}>
                       <CameraView
-                        style={styles.scannerCamera}
+                        style={StyleSheet.absoluteFill}
                         enableTorch={torchEnabled}
                         barcodeScannerSettings={{
                           barcodeTypes: [
@@ -727,43 +695,43 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                             }
                           }
                         }}
-                      >
-                        {/* Viewfinder Overlay with Reticle & Controls */}
-                        <View style={styles.scannerOverlay}>
-                          <View style={styles.scannerHeaderRow}>
-                            <View style={styles.liveIndicator}>
-                              <View style={styles.liveDot} />
-                              <Text style={styles.liveText}>LIVE SCANNER</Text>
-                            </View>
-                            <TouchableOpacity
-                              style={[styles.torchButton, torchEnabled && styles.torchButtonActive]}
-                              onPress={() => setTorchEnabled((prev) => !prev)}
-                              activeOpacity={0.7}
-                            >
-                              <Zap size={15} color={torchEnabled ? '#080B10' : '#F8FAFC'} />
-                            </TouchableOpacity>
-                          </View>
+                      />
 
-                          <View style={styles.reticleBox}>
-                            <View style={[styles.reticleCorner, styles.cornerTL]} />
-                            <View style={[styles.reticleCorner, styles.cornerTR]} />
-                            <View style={[styles.reticleCorner, styles.cornerBL]} />
-                            <View style={[styles.reticleCorner, styles.cornerBR]} />
-                            <View style={styles.laserLine} />
+                      {/* Viewfinder Overlay with Reticle & Controls */}
+                      <View style={styles.scannerOverlay}>
+                        <View style={styles.scannerHeaderRow}>
+                          <View style={styles.liveIndicator}>
+                            <View style={styles.liveDot} />
+                            <Text style={styles.liveText}>LIVE SCANNER</Text>
                           </View>
-
-                          <Text style={styles.scannerInstruction}>
-                            Align barcode inside frame
-                          </Text>
+                          <TouchableOpacity
+                            style={[styles.torchButton, torchEnabled && styles.torchButtonActive]}
+                            onPress={() => setTorchEnabled((prev) => !prev)}
+                            activeOpacity={0.7}
+                          >
+                            <Zap size={15} color={torchEnabled ? '#080B10' : '#F8FAFC'} />
+                          </TouchableOpacity>
                         </View>
 
-                        {isLookingUpBarcode && (
-                          <View style={styles.scanningLookupOverlay}>
-                            <ActivityIndicator size="large" color="#00F0FF" />
-                            <Text style={styles.scanningLookupText}>Looking up product in Open Food Facts...</Text>
-                          </View>
-                        )}
-                      </CameraView>
+                        <View style={styles.reticleBox}>
+                          <View style={[styles.reticleCorner, styles.cornerTL]} />
+                          <View style={[styles.reticleCorner, styles.cornerTR]} />
+                          <View style={[styles.reticleCorner, styles.cornerBL]} />
+                          <View style={[styles.reticleCorner, styles.cornerBR]} />
+                          <View style={styles.laserLine} />
+                        </View>
+
+                        <Text style={styles.scannerInstruction}>
+                          Align barcode inside frame
+                        </Text>
+                      </View>
+
+                      {isLookingUpBarcode && (
+                        <View style={styles.scanningLookupOverlay}>
+                          <ActivityIndicator size="large" color="#00F0FF" />
+                          <Text style={styles.scanningLookupText}>Looking up product in Open Food Facts...</Text>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -1048,40 +1016,6 @@ const styles = StyleSheet.create({
     color: '#080B10',
     fontSize: 13,
     fontWeight: '700',
-  },
-  photoPresetsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  photoPresetCard: {
-    width: '48%',
-    height: 110,
-    borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  presetImage: {
-    width: '100%',
-    height: '100%',
-  },
-  presetOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 6,
-    backgroundColor: 'rgba(8, 11, 16, 0.85)',
-  },
-  presetTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  presetCaption: {
-    color: COLORS.textMuted,
-    fontSize: 9,
-    marginTop: 1,
   },
   // Review sheet styles
   reviewContent: {

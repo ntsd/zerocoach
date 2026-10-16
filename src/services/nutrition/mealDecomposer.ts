@@ -260,31 +260,3 @@ export function decomposeMealText(inputText: string): MealDecompositionResult {
     asFoodItem,
   };
 }
-
-// Preset Photo Meal Scenarios for instant camera simulation or demo
-export const PHOTO_MEAL_PRESETS = [
-  {
-    title: 'Grilled Salmon Bowl',
-    caption: 'Grilled Atlantic Salmon with Jasmine Rice & Steamed Broccoli',
-    query: '180g salmon, 150g white rice, 100g broccoli, 10g olive oil',
-    imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    title: 'Power Protein Breakfast',
-    caption: '3 Scrambled Eggs with Avocado & Whole Grain Sourdough Toast',
-    query: '3 eggs, 1 avocado, 2 slices sourdough bread',
-    imageUrl: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    title: 'Lean Steak & Sweet Potato',
-    caption: 'Sirloin Steak with Baked Sweet Potato & Green Beans',
-    query: '200g beef steak, 200g sweet potato, 80g broccoli',
-    imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80',
-  },
-  {
-    title: 'Post-Workout Oats & Whey',
-    caption: 'Rolled Oats with Whey Protein, Banana & Peanut Butter',
-    query: '60g rolled oats, 1 scoop whey protein, 1 banana, 20g peanut butter',
-    imageUrl: 'https://images.unsplash.com/photo-1517673400267-0251440c45dc?auto=format&fit=crop&w=400&q=80',
-  },
-];

@@ -598,7 +598,7 @@ export const ModelManagerScreen: React.FC = () => {
                     { id: 'both', label: '🔄 Hybrid / Both' },
                   ] as const
                 ).map((eq) => {
-                  const isSelected = (userProfile.equipmentPreference || 'gym') === eq.id;
+                  const isSelected = (userProfile.equipmentPreference || 'both') === eq.id;
                   return (
                     <TouchableOpacity
                       key={eq.id}

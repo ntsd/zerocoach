@@ -111,7 +111,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   // Step 3: Profile & Goals (starts empty by default)
   const [name, setName] = useState('');
   const [sex, setSex] = useState<Sex>('male');
-  const [equipmentPreference, setEquipmentPreference] = useState<EquipmentPreference>('gym');
+  const [equipmentPreference, setEquipmentPreference] = useState<EquipmentPreference>('both');
   const [selectedGoals, setSelectedGoals] = useState<TrainingGoal[]>([]);
 
   // Step 4: Nutrition State

@@ -94,6 +94,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   // Physical Metrics (Body weight & height must be entered by user or synced)
   const [weightKg, setWeightKg] = useState('');
   const [heightCm, setHeightCm] = useState('');
+  const [isWeightSynced, setIsWeightSynced] = useState(false);
+  const [isHeightSynced, setIsHeightSynced] = useState(false);
+  const [companionNote, setCompanionNote] = useState<string | null>(null);
 
   // Wearable Telemetry (NEVER manually counted - only populated when fitness app is synced)
   const [sleepHours, setSleepHours] = useState<number | null>(null);
@@ -179,8 +182,28 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     setSyncError(null);
     try {
       const fresh = await fitnessBridge.fetchLiveBiometrics();
-      if (fresh.weightKg) setWeightKg(fresh.weightKg.toString());
-      if (fresh.heightCm) setHeightCm(fresh.heightCm.toString());
+      if (fresh.weightKg && fresh.weightKg > 0) {
+        setWeightKg(fresh.weightKg.toString());
+        setIsWeightSynced(true);
+      } else {
+        setIsWeightSynced(false);
+      }
+
+      if (fresh.heightCm && fresh.heightCm > 0) {
+        setHeightCm(fresh.heightCm.toString());
+        setIsHeightSynced(true);
+      } else {
+        setIsHeightSynced(false);
+      }
+
+      if (!fresh.weightKg || !fresh.heightCm) {
+        setCompanionNote(
+          'Steps & biometrics synced from Health Connect! Note: Mi Fitness / Xiaomi Wear does not write Weight & Height to Health Connect. Please enter your weight and height below.'
+        );
+      } else {
+        setCompanionNote(null);
+      }
+
       setSleepHours(fresh.sleepHours);
       setSleepQuality(fresh.sleepQualityScore);
       setRestingHeartRate(fresh.restingHeartRate);
@@ -433,39 +456,78 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                       {/* 4-Stat Synced Grid */}
                       <View style={styles.statsGrid}>
                         <View style={styles.statTile}>
-                          <Weight size={14} color={modeColors.accent} />
-                          <Text style={styles.statLabel}>BODY WEIGHT</Text>
-                          <Text style={styles.statValue}>{weightKg} kg</Text>
-                        </View>
-
-                        <View style={styles.statTile}>
-                          <Ruler size={14} color={modeColors.accent} />
-                          <Text style={styles.statLabel}>HEIGHT</Text>
-                          <Text style={styles.statValue}>{heightCm} cm</Text>
+                          <Footprints size={14} color={COLORS.strict.accent} />
+                          <Text style={styles.statLabel}>DAILY STEPS</Text>
+                          <Text style={styles.statValue}>{Number(steps ?? 0).toLocaleString()}</Text>
                         </View>
 
                         <View style={styles.statTile}>
                           <Flame size={14} color={COLORS.warning} />
                           <Text style={styles.statLabel}>ACTIVE BURN</Text>
-                          <Text style={styles.statValue}>{activeCalories} kcal</Text>
+                          <Text style={styles.statValue}>{activeCalories ?? 0} kcal</Text>
                         </View>
 
                         <View style={styles.statTile}>
-                          <Footprints size={14} color={COLORS.strict.accent} />
-                          <Text style={styles.statLabel}>DAILY STEPS</Text>
-                          <Text style={styles.statValue}>{Number(steps ?? 0).toLocaleString()}</Text>
+                          <Heart size={14} color={COLORS.danger} />
+                          <Text style={styles.statLabel}>RESTING HR</Text>
+                          <Text style={styles.statValue}>{restingHeartRate ?? 60} bpm</Text>
+                        </View>
+
+                        <View style={styles.statTile}>
+                          <Moon size={14} color={COLORS.purpleAccent} />
+                          <Text style={styles.statLabel}>SLEEP</Text>
+                          <Text style={styles.statValue}>{sleepHours ?? 0}h</Text>
                         </View>
                       </View>
 
-                      {/* Resting HR and Sleep Row */}
-                      <View style={styles.metricsSummaryRow}>
-                        <View style={styles.metricPill}>
-                          <Heart size={12} color={COLORS.danger} />
-                          <Text style={styles.metricPillText}>RHR: {restingHeartRate} bpm</Text>
+                      {/* Companion Note banner if weight/height not provided by companion app */}
+                      {companionNote && (
+                        <View style={styles.companionNoteBox}>
+                          <Info size={14} color={modeColors.accent} />
+                          <Text style={styles.companionNoteText}>{companionNote}</Text>
                         </View>
-                        <View style={styles.metricPill}>
-                          <Moon size={12} color={COLORS.purpleAccent} />
-                          <Text style={styles.metricPillText}>Sleep: {sleepHours}h ({sleepQuality}/100)</Text>
+                      )}
+
+                      {/* Body Anthropometrics Inputs (Always Editable!) */}
+                      <View style={[styles.rowInputs, { marginTop: SPACING.xs, marginBottom: SPACING.sm }]}>
+                        <View style={styles.halfInput}>
+                          <View style={styles.labelRow}>
+                            <Weight size={13} color={modeColors.accent} />
+                            <Text style={styles.inputLabel}>BODY WEIGHT (KG)</Text>
+                            {isWeightSynced && (
+                              <View style={styles.syncedMiniTag}>
+                                <Text style={styles.syncedMiniText}>SYNCED</Text>
+                              </View>
+                            )}
+                          </View>
+                          <TextInput
+                            style={styles.textInput}
+                            keyboardType="decimal-pad"
+                            placeholder="e.g. 70"
+                            placeholderTextColor={COLORS.textMuted}
+                            value={weightKg}
+                            onChangeText={setWeightKg}
+                          />
+                        </View>
+
+                        <View style={styles.halfInput}>
+                          <View style={styles.labelRow}>
+                            <Ruler size={13} color={modeColors.accent} />
+                            <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                            {isHeightSynced && (
+                              <View style={styles.syncedMiniTag}>
+                                <Text style={styles.syncedMiniText}>SYNCED</Text>
+                              </View>
+                            )}
+                          </View>
+                          <TextInput
+                            style={styles.textInput}
+                            keyboardType="number-pad"
+                            placeholder="e.g. 175"
+                            placeholderTextColor={COLORS.textMuted}
+                            value={heightCm}
+                            onChangeText={setHeightCm}
+                          />
                         </View>
                       </View>
 
@@ -1327,6 +1389,25 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: COLORS.success,
     fontWeight: '800',
+  },
+  companionNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+    padding: SPACING.sm,
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  companionNoteText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    flex: 1,
+    lineHeight: 16,
   },
   modeCard: {
     padding: SPACING.lg,

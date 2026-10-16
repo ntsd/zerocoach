@@ -5,7 +5,8 @@ import { COLORS } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
-import { Moon, Heart, Flame, Footprints, Watch } from 'lucide-react-native';
+import { Moon, Heart, Flame, Footprints, Watch, Scale } from 'lucide-react-native';
+import { useCoachStore } from '@/store/useCoachStore';
 
 interface MetricGridProps {
   metrics: TelemetryMetrics;
@@ -13,6 +14,29 @@ interface MetricGridProps {
 
 export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
   const isSynced = metrics.lastSyncTimestamp > 0 && metrics.source !== 'manual';
+  const userProfile = useCoachStore((s) => s.userProfile);
+
+  const displayWeight =
+    metrics.weightKg && metrics.weightKg > 0
+      ? metrics.weightKg
+      : userProfile?.weightKg && userProfile.weightKg > 0
+      ? userProfile.weightKg
+      : null;
+
+  const displayHeight =
+    metrics.heightCm && metrics.heightCm > 0
+      ? metrics.heightCm
+      : userProfile?.heightCm && userProfile.heightCm > 0
+      ? userProfile.heightCm
+      : null;
+
+  const isFromHealthConnect = Boolean(
+    (metrics.weightKg && metrics.weightKg > 0) ||
+    (metrics.heightCm && metrics.heightCm > 0)
+  );
+  const isFromProfile = Boolean(
+    !isFromHealthConnect && ((userProfile?.weightKg ?? 0) > 0 || (userProfile?.heightCm ?? 0) > 0)
+  );
 
   return (
     <View style={styles.grid}>
@@ -70,6 +94,38 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
           </Text>
         </View>
       </GlassCard>
+
+      {/* 5. Anthropometrics / Weight & Height Card */}
+      <GlassCard style={[styles.card, styles.fullWidthCard]}>
+        <View style={styles.cardHeader}>
+          <Scale size={16} color={COLORS.strict.accent} />
+          <Text style={styles.cardTitle}>BODY ANTHROPOMETRICS</Text>
+        </View>
+        <View style={styles.bodyMetricsRow}>
+          <View style={styles.metricItem}>
+            <Text style={styles.metricSubLabel}>BODY WEIGHT</Text>
+            <Text style={styles.mainValue}>
+              {displayWeight ? `${displayWeight} kg` : '-- kg'}
+            </Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricItem}>
+            <Text style={styles.metricSubLabel}>HEIGHT</Text>
+            <Text style={styles.mainValue}>
+              {displayHeight ? `${displayHeight} cm` : '-- cm'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.subStats}>
+          <Text style={styles.subText}>
+            {isFromHealthConnect
+              ? 'Synced from Health Connect'
+              : isFromProfile
+              ? 'From Athlete Profile (Companion app did not sync weight)'
+              : 'Sync from Health Connect or set in Profile'}
+          </Text>
+        </View>
+      </GlassCard>
     </View>
   );
 };
@@ -85,6 +141,30 @@ const styles = StyleSheet.create({
     flexBasis: '47%',
     flexGrow: 1,
     padding: SPACING.md,
+  },
+  fullWidthCard: {
+    flexBasis: '100%',
+  },
+  bodyMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginVertical: 4,
+  },
+  metricItem: {
+    alignItems: 'center',
+  },
+  metricSubLabel: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  metricDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: COLORS.borderSubtle,
   },
   cardHeader: {
     flexDirection: 'row',

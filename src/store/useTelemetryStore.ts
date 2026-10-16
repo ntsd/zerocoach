@@ -310,39 +310,51 @@ export const useTelemetryStore = create<TelemetryState>()(
           const fresh = await fitnessBridge.fetchLiveBiometrics();
           set({ metrics: fresh, syncing: false, syncError: null });
 
-          // Auto-update weight & recalculate smart nutrition targets if weight is synced
-          if (fresh.weightKg && fresh.weightKg > 0) {
-            const coachStore = useCoachStore.getState();
-            const currentProfile = coachStore.userProfile;
-            if (currentProfile && currentProfile.weightKg !== fresh.weightKg) {
-              coachStore.updateProfile({ weightKg: fresh.weightKg });
+          // Auto-update weight & height and recalculate smart nutrition targets
+          const coachStore = useCoachStore.getState();
+          const currentProfile = coachStore.userProfile;
+          const profileUpdates: any = {};
 
-              // Recalculate smart nutrition with new weight and active burn
-              const newNutrition = calculateSmartNutrition({
-                weightKg: fresh.weightKg,
-                heightCm: currentProfile.heightCm || 175,
-                mode: coachStore.mode,
-                goals: currentProfile.primaryGoals || [],
-                activeCaloriesBurned: fresh.activeCalories,
-                sex: currentProfile.sex,
+          if (fresh.weightKg && fresh.weightKg > 0 && currentProfile?.weightKg !== fresh.weightKg) {
+            profileUpdates.weightKg = fresh.weightKg;
+          }
+          if (fresh.heightCm && fresh.heightCm > 0 && currentProfile?.heightCm !== fresh.heightCm) {
+            profileUpdates.heightCm = fresh.heightCm;
+          }
+
+          if (Object.keys(profileUpdates).length > 0) {
+            coachStore.updateProfile(profileUpdates);
+          }
+
+          const effectiveWeight = fresh.weightKg && fresh.weightKg > 0 ? fresh.weightKg : (currentProfile?.weightKg || 75);
+          const effectiveHeight = fresh.heightCm && fresh.heightCm > 0 ? fresh.heightCm : (currentProfile?.heightCm || 175);
+
+          if (effectiveWeight > 0 && effectiveHeight > 0) {
+            // Recalculate smart nutrition with fresh weight/height and active burn
+            const newNutrition = calculateSmartNutrition({
+              weightKg: effectiveWeight,
+              heightCm: effectiveHeight,
+              mode: coachStore.mode,
+              goals: currentProfile?.primaryGoals || [],
+              activeCaloriesBurned: fresh.activeCalories,
+              sex: currentProfile?.sex,
+            });
+
+            if (newNutrition.dailyCalories > 0) {
+              coachStore.updateProfile({
+                dailyCalorieTarget: newNutrition.dailyCalories,
+                proteinGrams: newNutrition.proteinGrams,
+                carbsGrams: newNutrition.carbsGrams,
+                fatGrams: newNutrition.fatGrams,
               });
 
-              if (newNutrition.dailyCalories > 0) {
-                coachStore.updateProfile({
-                  dailyCalorieTarget: newNutrition.dailyCalories,
-                  proteinGrams: newNutrition.proteinGrams,
-                  carbsGrams: newNutrition.carbsGrams,
-                  fatGrams: newNutrition.fatGrams,
-                });
-
-                // Sync targets to useNutritionStore
-                useNutritionStore.getState().updateDailyTargets({
-                  targetCalories: newNutrition.dailyCalories,
-                  targetProtein: newNutrition.proteinGrams,
-                  targetCarbs: newNutrition.carbsGrams,
-                  targetFat: newNutrition.fatGrams,
-                });
-              }
+              // Sync targets to useNutritionStore
+              useNutritionStore.getState().updateDailyTargets({
+                targetCalories: newNutrition.dailyCalories,
+                targetProtein: newNutrition.proteinGrams,
+                targetCarbs: newNutrition.carbsGrams,
+                targetFat: newNutrition.fatGrams,
+              });
             }
           }
         } catch (e: any) {

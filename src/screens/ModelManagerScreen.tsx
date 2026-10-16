@@ -82,6 +82,20 @@ export const ModelManagerScreen: React.FC = () => {
     latencyMs?: number;
   } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [editingMetrics, setEditingMetrics] = useState(false);
+  const [weightInput, setWeightInput] = useState(userProfile.weightKg > 0 ? userProfile.weightKg.toString() : '');
+  const [heightInput, setHeightInput] = useState(userProfile.heightCm > 0 ? userProfile.heightCm.toString() : '');
+
+  const handleSaveMetrics = () => {
+    const w = parseFloat(weightInput);
+    const h = parseFloat(heightInput);
+    if (!isNaN(w) && w > 0 && !isNaN(h) && h > 0) {
+      updateProfile({ weightKg: w, heightCm: h });
+      setEditingMetrics(false);
+      setActionNotice('Updated athlete weight & height.');
+      setTimeout(() => setActionNotice(null), 3000);
+    }
+  };
 
   const handleTestConnection = async () => {
     setTestingConnection(true);
@@ -612,20 +626,70 @@ export const ModelManagerScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Height & Weight Display */}
-            <View style={styles.profileStatsRow}>
-              <View style={styles.profileStatItem}>
-                <Text style={styles.profileStatLabel}>BODY WEIGHT</Text>
-                <Text style={styles.profileStatValue}>
-                  {userProfile.weightKg > 0 ? `${userProfile.weightKg} kg` : 'Not Set'}
-                </Text>
+            {/* Height & Weight Display / Edit */}
+            <View style={{ marginTop: SPACING.xs }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={styles.profileSectionLabel}>BODY ANTHROPOMETRICS</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (editingMetrics) {
+                      handleSaveMetrics();
+                    } else {
+                      setWeightInput(userProfile.weightKg > 0 ? userProfile.weightKg.toString() : '');
+                      setHeightInput(userProfile.heightCm > 0 ? userProfile.heightCm.toString() : '');
+                      setEditingMetrics(true);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  style={{ paddingVertical: 2, paddingHorizontal: 6 }}
+                >
+                  <Text style={{ ...TYPOGRAPHY.captionBold, fontSize: 11, color: modeColors.accent }}>
+                    {editingMetrics ? 'SAVE' : 'EDIT'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.profileStatItem}>
-                <Text style={styles.profileStatLabel}>HEIGHT</Text>
-                <Text style={styles.profileStatValue}>
-                  {userProfile.heightCm > 0 ? `${userProfile.heightCm} cm` : 'Not Set'}
-                </Text>
-              </View>
+
+              {editingMetrics ? (
+                <View style={styles.profileStatsRow}>
+                  <View style={styles.profileStatItem}>
+                    <Text style={styles.profileStatLabel}>WEIGHT (KG)</Text>
+                    <TextInput
+                      style={[styles.textInput, { fontSize: 13, marginTop: 4 }]}
+                      keyboardType="decimal-pad"
+                      placeholder="e.g. 70"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={weightInput}
+                      onChangeText={setWeightInput}
+                    />
+                  </View>
+                  <View style={styles.profileStatItem}>
+                    <Text style={styles.profileStatLabel}>HEIGHT (CM)</Text>
+                    <TextInput
+                      style={[styles.textInput, { fontSize: 13, marginTop: 4 }]}
+                      keyboardType="number-pad"
+                      placeholder="e.g. 175"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={heightInput}
+                      onChangeText={setHeightInput}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.profileStatsRow}>
+                  <View style={styles.profileStatItem}>
+                    <Text style={styles.profileStatLabel}>BODY WEIGHT</Text>
+                    <Text style={styles.profileStatValue}>
+                      {userProfile.weightKg > 0 ? `${userProfile.weightKg} kg` : 'Not Set'}
+                    </Text>
+                  </View>
+                  <View style={styles.profileStatItem}>
+                    <Text style={styles.profileStatLabel}>HEIGHT</Text>
+                    <Text style={styles.profileStatValue}>
+                      {userProfile.heightCm > 0 ? `${userProfile.heightCm} cm` : 'Not Set'}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         </GlassCard>

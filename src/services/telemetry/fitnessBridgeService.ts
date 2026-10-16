@@ -64,10 +64,19 @@ export class FitnessBridgeService {
         const status = await HealthConnectModule.getSdkStatus();
         // 1 = SDK_UNAVAILABLE, 2 = SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED, 3 = SDK_AVAILABLE
         if (status === 3 || status === HealthConnectModule.SdkAvailabilityStatus?.SDK_AVAILABLE) {
+          let hasPermissions = false;
+          try {
+            const granted = await HealthConnectModule.getGrantedPermissions();
+            hasPermissions = Array.isArray(granted) && granted.length > 0;
+          } catch {}
+
           return {
             available: true,
             provider: 'health_connect',
-            message: 'Android Health Connect ready (aggregates Garmin, Samsung, Google Fit, Whoop, Oura).',
+            requiresPermissions: !hasPermissions,
+            message: hasPermissions
+              ? 'Android Health Connect ready (aggregates Garmin, Samsung, Google Fit, Whoop, Oura).'
+              : 'Android Health Connect available. Permissions required to read biometrics.',
           };
         } else if (
           status === 2 ||
@@ -240,80 +249,242 @@ export class FitnessBridgeService {
     let heightCm: number | undefined;
 
     try {
+      await HealthConnectModule.initialize();
+      let granted = await HealthConnectModule.getGrantedPermissions();
+
+      // If user hasn't granted permissions yet, auto-trigger the native Health Connect permission request dialog
+      if (!Array.isArray(granted) || granted.length === 0) {
+        console.log('[FitnessBridge] No Health Connect permissions granted yet. Prompting user for access...');
+        await this.requestPermissions();
+        granted = await HealthConnectModule.getGrantedPermissions();
+      }
+
+      const grantedRecordTypes = new Set(
+        Array.isArray(granted)
+          ? granted
+              .filter((p: any) => p.accessType === 'read')
+              .map((p: any) => p.recordType)
+          : []
+      );
+
+      // If user declined all permissions, return fallback simulated telemetry without crashing
+      if (grantedRecordTypes.size === 0) {
+        console.warn('[FitnessBridge] Health Connect permissions not granted by user.');
+        return this.simulateDeviceSync();
+      }
+
       // 1. Steps
-      const stepRecords = await HealthConnectModule.readRecords('Steps', {
-        timeRangeFilter: { operator: 'between', startTime: startOfToday, endTime: endOfToday },
-      });
-      if (stepRecords?.records?.length > 0) {
-        steps = stepRecords.records.reduce((sum: number, r: any) => sum + (r.count || 0), 0);
+      if (grantedRecordTypes.has('Steps')) {
+        try {
+          const stepRecords = await HealthConnectModule.readRecords('Steps', {
+            timeRangeFilter: { operator: 'between', startTime: startOfToday, endTime: endOfToday },
+          });
+          if (stepRecords?.records?.length > 0) {
+            steps = stepRecords.records.reduce((sum: number, r: any) => sum + (r.count || 0), 0);
+          }
+        } catch (e) {
+          console.warn('[FitnessBridge] Failed to read Steps:', e);
+        }
       }
 
       // 2. Active Calories
-      const calRecords = await HealthConnectModule.readRecords('ActiveCaloriesBurned', {
-        timeRangeFilter: { operator: 'between', startTime: startOfToday, endTime: endOfToday },
-      });
-      if (calRecords?.records?.length > 0) {
-        activeCalories = Math.round(
-          calRecords.records.reduce((sum: number, r: any) => sum + (r.energy?.inKilocalories || 0), 0)
-        );
+      if (grantedRecordTypes.has('ActiveCaloriesBurned')) {
+        try {
+          const calRecords = await HealthConnectModule.readRecords('ActiveCaloriesBurned', {
+            timeRangeFilter: { operator: 'between', startTime: startOfToday, endTime: endOfToday },
+          });
+          if (calRecords?.records?.length > 0) {
+            activeCalories = Math.round(
+              calRecords.records.reduce((sum: number, r: any) => sum + (r.energy?.inKilocalories || 0), 0)
+            );
+          }
+        } catch (e) {
+          console.warn('[FitnessBridge] Failed to read ActiveCaloriesBurned:', e);
+        }
       }
 
       // 3. Resting Heart Rate
-      const rhrRecords = await HealthConnectModule.readRecords('RestingHeartRate', {
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-          endTime: endOfToday,
-        },
-      });
-      if (rhrRecords?.records?.length > 0) {
-        const latest = rhrRecords.records[rhrRecords.records.length - 1];
-        restingHeartRate = Math.round(latest.beatsPerMinute || 60);
+      if (grantedRecordTypes.has('RestingHeartRate')) {
+        try {
+          const rhrRecords = await HealthConnectModule.readRecords('RestingHeartRate', {
+            timeRangeFilter: {
+              operator: 'between',
+              startTime: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+              endTime: endOfToday,
+            },
+          });
+          if (rhrRecords?.records?.length > 0) {
+            const latest = rhrRecords.records[rhrRecords.records.length - 1];
+            restingHeartRate = Math.round(latest.beatsPerMinute || 60);
+          }
+        } catch (e) {
+          console.warn('[FitnessBridge] Failed to read RestingHeartRate:', e);
+        }
       }
 
       // 4. HRV (rMSSD)
-      const hrvRecords = await HealthConnectModule.readRecords('HeartRateVariabilityRmssd', {
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-          endTime: endOfToday,
-        },
-      });
-      if (hrvRecords?.records?.length > 0) {
-        const latest = hrvRecords.records[hrvRecords.records.length - 1];
-        heartRateVariability = Math.round(latest.heartRateVariabilityMillis || 55);
+      if (grantedRecordTypes.has('HeartRateVariabilityRmssd')) {
+        try {
+          const hrvRecords = await HealthConnectModule.readRecords('HeartRateVariabilityRmssd', {
+            timeRangeFilter: {
+              operator: 'between',
+              startTime: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+              endTime: endOfToday,
+            },
+          });
+          if (hrvRecords?.records?.length > 0) {
+            const latest = hrvRecords.records[hrvRecords.records.length - 1];
+            heartRateVariability = Math.round(latest.heartRateVariabilityMillis || 55);
+          }
+        } catch (e) {
+          console.warn('[FitnessBridge] Failed to read HeartRateVariabilityRmssd:', e);
+        }
       }
 
       // 5. Sleep Session (from last night)
-      const sleepRecords = await HealthConnectModule.readRecords('SleepSession', {
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-          endTime: endOfToday,
-        },
-      });
-      if (sleepRecords?.records?.length > 0) {
-        const latestSleep = sleepRecords.records[sleepRecords.records.length - 1];
-        const sleepDurationMs =
-          new Date(latestSleep.endTime).getTime() - new Date(latestSleep.startTime).getTime();
-        sleepHours = Math.round((sleepDurationMs / (1000 * 3600)) * 10) / 10;
-        deepSleepHours = Math.round(sleepHours * 0.22 * 10) / 10;
+      if (grantedRecordTypes.has('SleepSession')) {
+        try {
+          const sleepRecords = await HealthConnectModule.readRecords('SleepSession', {
+            timeRangeFilter: {
+              operator: 'between',
+              startTime: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
+              endTime: endOfToday,
+            },
+          });
+          if (sleepRecords?.records?.length > 0) {
+            const latestSleep = sleepRecords.records[sleepRecords.records.length - 1];
+            const sleepDurationMs =
+              new Date(latestSleep.endTime).getTime() - new Date(latestSleep.startTime).getTime();
+            sleepHours = Math.round((sleepDurationMs / (1000 * 3600)) * 10) / 10;
+            deepSleepHours = Math.round(sleepHours * 0.22 * 10) / 10;
+          }
+        } catch (e) {
+          console.warn('[FitnessBridge] Failed to read SleepSession:', e);
+        }
       }
 
-      // 6. Weight & Height
-      const weightRecords = await HealthConnectModule.readRecords('Weight', {
-        timeRangeFilter: {
-          operator: 'between',
-          startTime: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
-          endTime: endOfToday,
-        },
-      });
-      if (weightRecords?.records?.length > 0) {
-        const latestWeight = weightRecords.records[weightRecords.records.length - 1];
-        weightKg = Math.round((latestWeight.weight?.inKilograms || 0) * 10) / 10;
+      // 6. Weight (Query recent 30-day window first to respect Android 14/15/16 limits, then fallback to historical)
+      if (grantedRecordTypes.has('Weight')) {
+        try {
+          const thirtyDaysAgo = new Date(Date.now() - 29 * 24 * 3600 * 1000).toISOString();
+          let weightRecords: any = null;
+          try {
+            weightRecords = await HealthConnectModule.readRecords('Weight', {
+              timeRangeFilter: {
+                operator: 'between',
+                startTime: thirtyDaysAgo,
+                endTime: endOfToday,
+              },
+            });
+          } catch (e30) {
+            console.warn('[FitnessBridge] 30-day weight query failed:', e30);
+          }
+
+          // If no records in past 30 days, attempt full history query
+          if (!weightRecords?.records?.length) {
+            try {
+              weightRecords = await HealthConnectModule.readRecords('Weight', {
+                timeRangeFilter: {
+                  operator: 'between',
+                  startTime: '1970-01-01T00:00:00.000Z',
+                  endTime: endOfToday,
+                },
+              });
+            } catch (ehist) {
+              console.log('[FitnessBridge] Historical weight query skipped/denied by OS:', ehist);
+            }
+          }
+
+          if (weightRecords?.records?.length > 0) {
+            console.log(`[FitnessBridge] Found ${weightRecords.records.length} weight record(s) in Health Connect`);
+            const sorted = [...weightRecords.records].sort(
+              (a: any, b: any) =>
+                new Date(b.time || b.startTime || 0).getTime() -
+                new Date(a.time || a.startTime || 0).getTime()
+            );
+            const latestWeight: any = sorted[0];
+            const rawWeight =
+              latestWeight?.weight?.inKilograms ??
+              (latestWeight?.weight?.inPounds ? latestWeight.weight.inPounds * 0.453592 : null) ??
+              latestWeight?.mass?.inKilograms ??
+              (typeof latestWeight?.weight === 'number' ? latestWeight.weight : null) ??
+              (typeof latestWeight?.value === 'number' ? latestWeight.value : null);
+            if (typeof rawWeight === 'number' && rawWeight > 0) {
+              weightKg = Math.round(rawWeight * 10) / 10;
+              console.log(`[FitnessBridge] Synced weight: ${weightKg} kg`);
+            }
+          } else {
+            console.log('[FitnessBridge] No weight records found in Health Connect (companion app may not write weight).');
+          }
+        } catch (e) {
+          console.warn('[FitnessBridge] Failed to read Weight:', e);
+        }
+      }
+
+      // 7. Height (Query recent 30-day window first, then fallback to historical)
+      if (grantedRecordTypes.has('Height')) {
+        try {
+          const thirtyDaysAgo = new Date(Date.now() - 29 * 24 * 3600 * 1000).toISOString();
+          let heightRecords: any = null;
+          try {
+            heightRecords = await HealthConnectModule.readRecords('Height', {
+              timeRangeFilter: {
+                operator: 'between',
+                startTime: thirtyDaysAgo,
+                endTime: endOfToday,
+              },
+            });
+          } catch (e30) {
+            console.warn('[FitnessBridge] 30-day height query failed:', e30);
+          }
+
+          // If no records in past 30 days, attempt full history query
+          if (!heightRecords?.records?.length) {
+            try {
+              heightRecords = await HealthConnectModule.readRecords('Height', {
+                timeRangeFilter: {
+                  operator: 'between',
+                  startTime: '1970-01-01T00:00:00.000Z',
+                  endTime: endOfToday,
+                },
+              });
+            } catch (ehist) {
+              console.log('[FitnessBridge] Historical height query skipped/denied by OS:', ehist);
+            }
+          }
+
+          if (heightRecords?.records?.length > 0) {
+            console.log(`[FitnessBridge] Found ${heightRecords.records.length} height record(s) in Health Connect`);
+            const sorted = [...heightRecords.records].sort(
+              (a: any, b: any) =>
+                new Date(b.time || b.startTime || 0).getTime() -
+                new Date(a.time || a.startTime || 0).getTime()
+            );
+            const latestHeight: any = sorted[0];
+            const rawMeters =
+              latestHeight?.height?.inMeters ??
+              (latestHeight?.height?.inInches ? latestHeight.height.inInches * 0.0254 : null) ??
+              (latestHeight?.height?.inFeet ? latestHeight.height.inFeet * 0.3048 : null) ??
+              latestHeight?.length?.inMeters ??
+              (typeof latestHeight?.height === 'number' ? latestHeight.height : null) ??
+              (typeof latestHeight?.value === 'number' ? latestHeight.value : null);
+            if (typeof rawMeters === 'number' && rawMeters > 0) {
+              // Convert meters to cm (or keep cm if > 50)
+              heightCm =
+                rawMeters > 50
+                  ? Math.round(rawMeters * 10) / 10
+                  : Math.round(rawMeters * 100 * 10) / 10;
+              console.log(`[FitnessBridge] Synced height: ${heightCm} cm`);
+            }
+          } else {
+            console.log('[FitnessBridge] No height records found in Health Connect (companion app may not write height).');
+          }
+        } catch (e) {
+          console.warn('[FitnessBridge] Failed to read Height:', e);
+        }
       }
     } catch (err) {
-      console.warn('[FitnessBridge] Error reading Health Connect records:', err);
+      console.warn('[FitnessBridge] Error querying Health Connect:', err);
     }
 
     const sleepQualityScore = Math.min(

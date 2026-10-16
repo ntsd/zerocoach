@@ -58,13 +58,6 @@ interface FoodSearchAndReviewModalProps {
 
 type ModalTab = 'snap' | 'search' | 'barcode';
 
-const DEMO_BARCODES = [
-  { label: 'Fairlife Core Power', code: '0856312002772' },
-  { label: 'Quest Protein Bar', code: '888849000010' },
-  { label: 'Chobani Greek Yogurt', code: '0894700010045' },
-  { label: 'Quaker Rolled Oats', code: '0030000010402' },
-];
-
 export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> = ({
   visible,
   initialMealType,
@@ -968,23 +961,6 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   {barcodeError && (
                     <Text style={styles.barcodeErrorText}>{barcodeError}</Text>
                   )}
-
-                  <Text style={[styles.sectionSubtitle, { marginTop: 16 }]}>
-                    Try Popular Grocery Barcodes:
-                  </Text>
-                  <View style={styles.barcodePresetsRow}>
-                    {DEMO_BARCODES.map((item) => (
-                      <TouchableOpacity
-                        key={item.code}
-                        style={styles.demoBarcodeChip}
-                        onPress={() => handleBarcodeLookup(item.code)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.demoBarcodeLabel}>{item.label}</Text>
-                        <Text style={styles.demoBarcodeCode}>{item.code}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
                 </ScrollView>
               )}
             </>
@@ -1241,27 +1217,6 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 12,
     marginBottom: 8,
-  },
-  barcodePresetsRow: {
-    gap: 8,
-  },
-  demoBarcodeChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  demoBarcodeLabel: {
-    color: COLORS.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  demoBarcodeCode: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    marginTop: 2,
-    fontFamily: 'monospace',
   },
   nlpBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',

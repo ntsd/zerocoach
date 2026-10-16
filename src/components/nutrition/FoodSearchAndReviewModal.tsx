@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { FoodItem, MealType, NutrientProfile } from '../../types/nutrition';
@@ -62,15 +63,6 @@ const DEMO_BARCODES = [
   { label: 'Quest Protein Bar', code: '888849000010' },
   { label: 'Chobani Greek Yogurt', code: '0894700010045' },
   { label: 'Quaker Rolled Oats', code: '0030000010402' },
-];
-
-const QUICK_MEAL_PRESETS = [
-  { label: '🍳 Eggs & Avocado Toast', query: '3 eggs, 1 avocado, 2 slices sourdough bread' },
-  { label: '🍗 Chicken, Rice & Greens', query: '180g chicken breast, 150g jasmine rice, 100g broccoli' },
-  { label: '🥩 Steak & Sweet Potato', query: '200g sirloin steak, 200g sweet potato, 80g broccoli' },
-  { label: '🥣 Oats, Whey & Banana', query: '60g rolled oats, 1 scoop whey protein, 1 banana' },
-  { label: '🍣 Salmon Protein Bowl', query: '180g salmon, 150g white rice, 80g asparagus, 10g olive oil' },
-  { label: '🥗 Greek Salad & Chicken', query: '150g chicken breast, 150g mixed salad greens, 15g olive oil' },
 ];
 
 export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> = ({
@@ -254,17 +246,6 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     }
   };
 
-  const handleSelectQuickMeal = (query: string) => {
-    setPhotoAnalysisError(null);
-    setNlpInput(query);
-    const result = decomposeMealText(query);
-    if (capturedImageUri) {
-      result.asFoodItem.imageUrl = capturedImageUri;
-    }
-    setDecompositionResult(result);
-    selectFoodForReview(result.asFoodItem, result.totalGrams);
-  };
-
   const handleDecomposeText = () => {
     if (!nlpInput.trim()) return;
     setPhotoAnalysisError(null);
@@ -297,6 +278,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     setConsumedGrams((prev) => Math.max(10, Math.min(1500, prev + delta)));
   };
 
+  const insets = useSafeAreaInsets();
+  const bottomSafePadding = Math.max(insets.bottom, Platform.OS === 'android' ? 48 : 20) + 12;
+
   // Calculate live review nutrients
   const dynamicNutrients: NutrientProfile | null = reviewFood
     ? calculateNutrientsForGrams(reviewFood.nutrientsPer100g, consumedGrams)
@@ -306,10 +290,10 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <KeyboardAvoidingView
-          behavior="padding"
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalKeyboardAvoid}
         >
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { paddingBottom: bottomSafePadding }]}>
           {/* Top Bar */}
           <View style={styles.topBar}>
             <View style={styles.topBarLeft}>
@@ -588,9 +572,41 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
               {/* Tab 1: Snap / AI (First Tab) */}
               {activeTab === 'snap' && (
-                <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-                  <Text style={styles.sectionSubtitle}>
-                    Snap a meal plate, restaurant menu, or food label with your camera, or describe your dish:
+                <ScrollView
+                  style={styles.tabContent}
+                  contentContainerStyle={styles.tabScrollContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {/* Description & Decomposition Input (Before Image) */}
+                  <View style={styles.nlpBox}>
+                    <Text style={styles.nlpLabel}>Describe dish or paste menu text:</Text>
+                    <TextInput
+                      style={styles.nlpInput}
+                      placeholder="e.g., 2 eggs, avocado sourdough toast, or Salmon Quinoa Bowl from menu"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={nlpInput}
+                      onChangeText={setNlpInput}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={styles.decomposeBtn}
+                      onPress={handleDecomposeText}
+                      activeOpacity={0.7}
+                      disabled={isAnalyzingPhoto}
+                    >
+                      {isAnalyzingPhoto ? (
+                        <ActivityIndicator size="small" color="#080B10" />
+                      ) : (
+                        <Sparkles size={16} color="#080B10" />
+                      )}
+                      <Text style={styles.decomposeBtnText}>
+                        {isAnalyzingPhoto ? 'Analyzing...' : 'Decompose & Estimate Macros'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={[styles.sectionSubtitle, { marginTop: 14 }]}>
+                    Or snap a photo of your meal plate, restaurant menu, or food label:
                   </Text>
 
                   {/* Camera Snap Action Buttons */}
@@ -653,56 +669,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <View style={styles.photoErrorTextCol}>
                         <Text style={styles.photoErrorTitle}>Can't identify food or menu text</Text>
                         <Text style={styles.photoErrorSub}>
-                          Please describe your dish or paste the menu item text below to calculate macros.
+                          Please describe your dish or paste the menu item text above to calculate macros.
                         </Text>
                       </View>
                     </View>
                   )}
-
-                  {/* Quick Meal Matching Chips */}
-                  <View style={styles.quickMealSection}>
-                    <Text style={styles.quickMealTitle}>QUICK MATCH OR TAP TO IDENTIFY:</Text>
-                    <View style={styles.quickMealChipsRow}>
-                      {QUICK_MEAL_PRESETS.map((preset) => (
-                        <TouchableOpacity
-                          key={preset.label}
-                          style={styles.quickMealChip}
-                          onPress={() => handleSelectQuickMeal(preset.query)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.quickMealChipText}>{preset.label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Description & Decomposition Input */}
-                  <View style={styles.nlpBox}>
-                    <Text style={styles.nlpLabel}>Describe dish or paste menu text:</Text>
-                    <TextInput
-                      style={styles.nlpInput}
-                      placeholder="e.g., 2 eggs, avocado sourdough toast, or Salmon Quinoa Bowl from menu"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={nlpInput}
-                      onChangeText={setNlpInput}
-                      multiline
-                    />
-                    <TouchableOpacity
-                      style={styles.decomposeBtn}
-                      onPress={handleDecomposeText}
-                      activeOpacity={0.7}
-                      disabled={isAnalyzingPhoto}
-                    >
-                      {isAnalyzingPhoto ? (
-                        <ActivityIndicator size="small" color="#080B10" />
-                      ) : (
-                        <Sparkles size={16} color="#080B10" />
-                      )}
-                      <Text style={styles.decomposeBtnText}>
-                        {isAnalyzingPhoto ? 'Analyzing...' : 'Decompose & Estimate Macros'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
                 </ScrollView>
               )}
 
@@ -791,7 +762,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView style={styles.resultsList} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={styles.resultsList}
+                    contentContainerStyle={styles.tabScrollContent}
+                    showsVerticalScrollIndicator={false}
+                  >
                     {searchResults.length === 0 && !isSearching ? (
                       <View style={styles.emptySearchResults}>
                         <Search size={30} color={COLORS.textMuted} />
@@ -870,7 +845,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
               {/* Tab 3: Barcode (with Live Camera Scanner) */}
               {activeTab === 'barcode' && (
-                <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  style={styles.tabContent}
+                  contentContainerStyle={styles.tabScrollContent}
+                  showsVerticalScrollIndicator={false}
+                >
                   <Text style={styles.sectionSubtitle}>
                     Scan packaged food barcode with camera or enter code manually:
                   </Text>
@@ -1035,7 +1014,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     height: '88%',
-    padding: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+  },
+  tabScrollContent: {
+    paddingBottom: 24,
   },
   topBar: {
     flexDirection: 'row',
@@ -1660,35 +1643,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     lineHeight: 15,
-  },
-  quickMealSection: {
-    marginTop: 10,
-    marginBottom: 12,
-  },
-  quickMealTitle: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  },
-  quickMealChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  quickMealChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  quickMealChipText: {
-    color: COLORS.textPrimary,
-    fontSize: 11,
-    fontWeight: '600',
   },
   nlpLabel: {
     color: COLORS.textSecondary,

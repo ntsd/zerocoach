@@ -383,41 +383,127 @@ export function generateAdaptiveWorkoutPlan(
   const exercises: ExerciseItem[] = [];
 
   // ==========================================
-  // WARM-UP & MOBILITY BLOCK
+  // DYNAMIC WARM-UP & MOBILITY (Split-Specific)
   // ==========================================
-  const catCow = exerciseRepository.getById('cat-cow');
-  if (catCow) {
+  let warmup1Id = 'cat-cow';
+  let warmup1Sets = 2;
+  let warmup1Reps = '10–12 fluid reps';
+  let warmup1Rest = 30;
+  let warmup1Intensity = 'Low • Spinal Articulation';
+  let warmup1Cue = 'Synchronize breath: inhale into thoracic extension, exhale into posterior pelvic tuck.';
+
+  let warmup2Id: string | undefined = 'glute-bridge';
+  let warmup2Sets = 2;
+  let warmup2Reps = '12 paused glute contractions';
+  let warmup2Rest = 30;
+  let warmup2Intensity = 'Moderate • Pelvic & Core Activation';
+  let warmup2Cue = 'Drive through heels, squeeze glutes at the peak for 2 seconds.';
+
+  if (activeSplit === 'push') {
+    warmup1Id = isGym ? 'bench-chest-stretch' : 'doorway-chest-stretch';
+    warmup1Reps = '30s hold per side';
+    warmup1Intensity = 'Low • Pectoral & Anterior Deltoid Opening';
+    warmup1Cue = 'Open the chest wall gently without flaring the ribcage.';
+
+    warmup2Id = 'downward-dog-to-plank';
+    warmup2Reps = '8 slow fluid transitions';
+    warmup2Intensity = 'Moderate • Scapular Stability & Serratus Activation';
+    warmup2Cue = 'Push the floor away at the top of the plank to activate serratus anterior.';
+  } else if (activeSplit === 'pull') {
+    warmup1Id = 'band-pull-apart';
+    warmup1Reps = '12–15 continuous tension reps';
+    warmup1Intensity = 'Low • Scapular Retraction & Rotator Cuff Primer';
+    warmup1Cue = 'Lead with the rear delts and pinch the scapulae firmly together.';
+
+    warmup2Id = 'bench-lat-stretch';
+    warmup2Reps = '30s deep stretch';
+    warmup2Intensity = 'Moderate • Latissimus & Thoracic Mobility';
+    warmup2Cue = 'Sink hips backward while maintaining lengthened lats and neutral neck.';
+  } else if (activeSplit === 'legs' || activeSplit === 'lower') {
+    warmup1Id = 'downward-dog-to-low-lunge';
+    warmup1Reps = '6–8 slow lunges / side';
+    warmup1Intensity = 'Low • Dynamic Hip Flexor & Psoas Articulation';
+    warmup1Cue = 'Drop hips down and forward while keeping the front heel planted.';
+
+    warmup2Id = 'deep-squat-hold';
+    warmup2Reps = '30–45s deep primal hold';
+    warmup2Intensity = 'Moderate • Ankle Dorsiflexion & Hip Capsule Opener';
+    warmup2Cue = 'Keep chest upright, push knees outward with elbows, and breathe into the pelvic floor.';
+  } else if (activeSplit === 'upper') {
+    warmup1Id = 'band-pull-apart';
+    warmup1Reps = '12 reps';
+    warmup1Intensity = 'Low • Rotator Cuff & Posterior Girdle Primer';
+    warmup1Cue = 'Keep shoulders depressed away from ears during retraction.';
+
+    warmup2Id = 'bench-chest-stretch';
+    warmup2Reps = '30s hold';
+    warmup2Intensity = 'Moderate • Pectoral Opening';
+    warmup2Cue = 'Gently open anterior shoulder fibers before pressing.';
+  } else if (activeSplit === 'cardio_engine') {
+    warmup1Id = 'jumping-jacks';
+    warmup1Reps = '45s rhythmic cadence';
+    warmup1Intensity = 'Low • Core Temperature & CNS Elevation';
+    warmup1Cue = 'Land softly on the balls of your feet with continuous rhythmic breathing.';
+
+    warmup2Id = 'inchworm';
+    warmup2Reps = '6 controlled walkouts';
+    warmup2Intensity = 'Moderate • Hamstring & Shoulder Priming';
+    warmup2Cue = 'Hinge at the hips, walk hands forward into plank, and walk back with straight legs.';
+  } else if (activeSplit === 'calisthenics_skills') {
+    warmup1Id = 'downward-dog-to-plank';
+    warmup1Reps = '8 slow transitions';
+    warmup1Intensity = 'Low • Scapular Protraction & Hollow Primer';
+    warmup1Cue = 'Emphasize strong scapular protraction and hollow body tuck at the plank.';
+
+    warmup2Id = 'bench-lat-stretch';
+    warmup2Reps = '30s hold';
+    warmup2Intensity = 'Moderate • Overhead Shoulder Girdle Mobility';
+    warmup2Cue = 'Decompress thoracic spine and lengthen latissimus dorsi.';
+  } else {
+    // core_mobility / full_body / daily_health_longevity
+    warmup1Id = 'cat-cow';
+    warmup1Reps = '10–12 fluid reps';
+    warmup1Intensity = 'Low • Spinal Articulation & Pelvic Tilt';
+    warmup1Cue = 'Synchronize breath: inhale into thoracic extension, exhale into posterior pelvic tuck.';
+
+    warmup2Id = 'glute-bridge';
+    warmup2Reps = '12 paused glute contractions';
+    warmup2Intensity = 'Moderate • Pelvic & Core Activation';
+    warmup2Cue = 'Drive through heels and lock glutes at peak contraction.';
+  }
+
+  // Push Warmup 1
+  const ex1 = exerciseRepository.getById(warmup1Id) || exerciseRepository.getById('cat-cow');
+  if (ex1) {
     exercises.push(
       createExerciseItemFromRepDB(
-        catCow,
+        ex1,
         'warmup',
-        2,
-        '10–12 fluid reps',
-        30,
-        'Low • Spinal Articulation',
-        isStrict
-          ? 'Synchronize breath: inhale into thoracic extension, exhale into posterior pelvic tuck.'
-          : catCow.tips_en?.[0]
+        warmup1Sets,
+        warmup1Reps,
+        warmup1Rest,
+        warmup1Intensity,
+        isStrict ? warmup1Cue : ex1.tips_en?.[0] || warmup1Cue
       )
     );
   }
 
-  const prepId = activeSplit === 'push' || activeSplit === 'upper'
-    ? 'bench-chest-stretch'
-    : 'glute-bridge';
-  const prepEx = exerciseRepository.getById(prepId) || exerciseRepository.getById('glute-bridge');
-  if (prepEx) {
-    exercises.push(
-      createExerciseItemFromRepDB(
-        prepEx,
-        'warmup',
-        2,
-        prepId === 'glute-bridge' ? '12 paused glute contractions' : '30s hold per side',
-        30,
-        'Moderate • Kinetic Activation',
-        prepEx.tips_en?.[0]
-      )
-    );
+  // Push Warmup 2
+  if (warmup2Id) {
+    const ex2 = exerciseRepository.getById(warmup2Id) || exerciseRepository.getById('glute-bridge');
+    if (ex2) {
+      exercises.push(
+        createExerciseItemFromRepDB(
+          ex2,
+          'warmup',
+          warmup2Sets,
+          warmup2Reps,
+          warmup2Rest,
+          warmup2Intensity,
+          isStrict ? warmup2Cue : ex2.tips_en?.[0] || warmup2Cue
+        )
+      );
+    }
   }
 
   // ==========================================

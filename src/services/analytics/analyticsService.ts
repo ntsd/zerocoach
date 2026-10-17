@@ -45,6 +45,8 @@ export interface AnalyticsSummary {
   timeRange: TimeRangeFilter;
   points: DayTrendPoint[];
   averageOverallScore: number;
+  averageWorkoutScore: number;
+  averageNutritionScore: number;
   totalWorkoutsCompleted: number;
   averageReadiness: number;
   averageSleepHours: number;
@@ -112,7 +114,7 @@ export class AnalyticsService {
     }
 
     // 3. Nutrition Domain (30% weight baseline)
-    const nutritionLog = nutritionState.logsByDate[date];
+    const nutritionLog = nutritionState.getDailyLog(date);
     let nutritionScore = 0;
     let hasNutrition = false;
 
@@ -122,15 +124,31 @@ export class AnalyticsService {
       const targetCals = Math.max(1, nutritionLog.targetCalories);
       const targetPro = Math.max(1, nutritionLog.targetProtein);
 
-      // Calorie accuracy: 100% if exact, reduces if under/over by >15%
-      const calRatio = summary.totalCalories / targetCals;
-      const calAccuracy = Math.max(0, 100 - Math.abs(1 - calRatio) * 100);
-
-      // Protein target compliance (100% if goal reached)
+      // 1. Protein target compliance (up to 100%) - foundation of athlete performance
       const proRatio = summary.totalProtein / targetPro;
-      const proAccuracy = Math.min(100, proRatio * 100);
+      const proScore = Math.min(100, Math.round(proRatio * 100));
 
-      nutritionScore = Math.round(calAccuracy * 0.5 + proAccuracy * 0.5);
+      // 2. Calorie pacing & compliance
+      const calRatio = summary.totalCalories / targetCals;
+      let calScore = 0;
+
+      if (isToday) {
+        // Today is active: progressive fueling rewards logging towards target
+        if (calRatio <= 1.0) {
+          calScore = Math.min(100, Math.round(50 + calRatio * 50));
+        } else if (calRatio <= 1.15) {
+          calScore = 100;
+        } else {
+          calScore = Math.max(0, Math.round(100 - (calRatio - 1.15) * 150));
+        }
+      } else {
+        // Completed past day: proximity to target (within ±15% tolerance)
+        const diffRatio = Math.abs(1 - calRatio);
+        calScore = Math.max(0, Math.round(100 - diffRatio * 100));
+      }
+
+      // Athletic Nutrition: 60% Protein Target + 40% Calorie Pacing
+      nutritionScore = Math.round(proScore * 0.6 + calScore * 0.4);
     }
 
     // 4. Weighted Composite Score
@@ -198,8 +216,8 @@ export class AnalyticsService {
       const workout = workoutState.historyByDate[dateStr];
 
       // Nutrition
-      const nutLog = nutritionState.logsByDate[dateStr];
-      const nutSummary = nutLog ? nutritionState.getSummaryForDate(dateStr) : null;
+      const nutLog = nutritionState.getDailyLog(dateStr);
+      const nutSummary = nutLog.foods.length > 0 ? nutritionState.getSummaryForDate(dateStr) : null;
 
       const hasRealData = dailyScore.hasTelemetry || dailyScore.hasWorkout || dailyScore.hasNutrition;
 
@@ -243,6 +261,22 @@ export class AnalyticsService {
         ? Math.round(daysWithData.reduce((acc, p) => acc + p.overallScore, 0) / countWithData)
         : 0;
 
+    const daysWithNutrition = points.filter((p) => p.nutritionCalories > 0 || p.nutritionScore > 0);
+    const avgNutrition =
+      daysWithNutrition.length > 0
+        ? Math.round(
+            daysWithNutrition.reduce((acc, p) => acc + p.nutritionScore, 0) / daysWithNutrition.length
+          )
+        : 0;
+
+    const daysWithWorkout = points.filter((p) => p.workoutCompleted || p.workoutScore > 0);
+    const avgWorkout =
+      daysWithWorkout.length > 0
+        ? Math.round(
+            daysWithWorkout.reduce((acc, p) => acc + p.workoutScore, 0) / daysWithWorkout.length
+          )
+        : 0;
+
     const avgReadiness =
       points.filter((p) => p.readinessScore > 0).length > 0
         ? Math.round(
@@ -276,6 +310,8 @@ export class AnalyticsService {
       timeRange,
       points,
       averageOverallScore: avgOverall,
+      averageWorkoutScore: avgWorkout,
+      averageNutritionScore: avgNutrition,
       totalWorkoutsCompleted: totalWorkouts,
       averageReadiness: avgReadiness,
       averageSleepHours: avgSleep,

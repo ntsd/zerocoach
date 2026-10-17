@@ -49,7 +49,7 @@ export const AnalyzeScreen: React.FC = () => {
 
   const { metrics, syncing, syncTelemetry } = useTelemetryStore();
   const { historyByDate } = useWorkoutStore();
-  const { logsByDate } = useNutritionStore();
+  const { logsByDate, getDailyLog, getSummaryForDate } = useNutritionStore();
 
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('7D');
   const [activeDomain, setActiveDomain] = useState<DomainTab>('workout');
@@ -59,6 +59,16 @@ export const AnalyzeScreen: React.FC = () => {
   const trends = useMemo(() => {
     return analyticsService.getTrends(timeRange);
   }, [timeRange, metrics, historyByDate, logsByDate]);
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate()
+  ).padStart(2, '0')}`;
+
+  const todayPoint = trends.points.find((p) => p.isToday);
+  const todayNutLog = getDailyLog(todayStr);
+  const todayNutSummary = todayNutLog.foods.length > 0 ? getSummaryForDate(todayStr) : null;
+  const todayNutritionScore = todayPoint?.nutritionScore || 0;
 
   // Overall Score Grade / Tier
   const getScoreRating = (score: number) => {
@@ -245,8 +255,10 @@ export const AnalyzeScreen: React.FC = () => {
               <View style={styles.domainItemHeader}>
                 <Text style={styles.domainItemLabel}>NUTRITION</Text>
                 <Text style={[styles.domainItemVal, { color: COLORS.warning }]}>
-                  {trends.averageCalorieIntake > 0
-                    ? `~${trends.averageCalorieIntake}`
+                  {trends.averageNutritionScore > 0
+                    ? `${trends.averageNutritionScore}%`
+                    : todayNutritionScore > 0
+                    ? `${todayNutritionScore}%`
                     : '--'}
                 </Text>
               </View>
@@ -255,7 +267,7 @@ export const AnalyzeScreen: React.FC = () => {
                   style={[
                     styles.domainBarFill,
                     {
-                      width: trends.averageCalorieIntake > 0 ? '85%' : '0%',
+                      width: `${Math.min(100, Math.max(0, trends.averageNutritionScore || todayNutritionScore))}%`,
                       backgroundColor: COLORS.warning,
                     },
                   ]}
@@ -463,36 +475,104 @@ export const AnalyzeScreen: React.FC = () => {
         {/* ============================================================== */}
         {activeDomain === 'nutrition' && (
           <View style={styles.domainContent}>
+            {/* Nutrition Adherence Score Hero Card */}
+            <GlassCard
+              glowColor={`${COLORS.warning}30`}
+              borderColor={`${COLORS.warning}45`}
+              style={styles.domainScoreHeroCard}
+            >
+              <View style={styles.domainScoreHeaderRow}>
+                <View style={styles.domainScoreTitleBox}>
+                  <View style={[styles.domainScoreIconBadge, { backgroundColor: `${COLORS.warning}20` }]}>
+                    <Utensils size={18} color={COLORS.warning} />
+                  </View>
+                  <View>
+                    <Text style={styles.domainScoreSuperTitle}>NUTRITION ADHERENCE SCORE</Text>
+                    <View style={styles.domainScoreRow}>
+                      <Text style={[styles.domainScoreBig, { color: COLORS.warning }]}>
+                        {todayNutritionScore > 0
+                          ? todayNutritionScore
+                          : trends.averageNutritionScore > 0
+                          ? trends.averageNutritionScore
+                          : '--'}
+                      </Text>
+                      <Text style={styles.domainScoreMax}>/ 100</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={[styles.ratingBadge, { borderColor: COLORS.warning, backgroundColor: `${COLORS.warning}15` }]}>
+                  <Text style={[styles.ratingBadgeText, { color: COLORS.warning }]}>
+                    {(todayNutritionScore >= 80 || trends.averageNutritionScore >= 80)
+                      ? 'EXCELLENT'
+                      : (todayNutritionScore >= 60 || trends.averageNutritionScore >= 60)
+                      ? 'ON TRACK'
+                      : todayNutLog.foods.length > 0
+                      ? 'FUELING'
+                      : 'NO LOGS'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Progress Bar */}
+              <View style={styles.domainScoreProgressBarBg}>
+                <View
+                  style={[
+                    styles.domainScoreProgressBarFill,
+                    {
+                      width: `${Math.min(100, Math.max(0, todayNutritionScore || trends.averageNutritionScore))}%`,
+                      backgroundColor: COLORS.warning,
+                    },
+                  ]}
+                />
+              </View>
+
+              {/* Sub-breakdown: Protein & Calorie Status */}
+              <View style={styles.macroPacingRow}>
+                <View style={styles.macroPacingItem}>
+                  <Text style={styles.macroPacingLabel}>PROTEIN FULFILLMENT</Text>
+                  <Text style={[styles.macroPacingVal, { color: COLORS.success }]}>
+                    {todayNutSummary
+                      ? `${todayNutSummary.totalProtein}g / ${todayNutLog.targetProtein}g`
+                      : '--'}
+                  </Text>
+                </View>
+                <View style={styles.macroPacingDivider} />
+                <View style={styles.macroPacingItem}>
+                  <Text style={styles.macroPacingLabel}>CALORIE PACING</Text>
+                  <Text style={[styles.macroPacingVal, { color: COLORS.warning }]}>
+                    {todayNutSummary
+                      ? `${todayNutSummary.totalCalories} / ${todayNutLog.targetCalories} kcal`
+                      : '--'}
+                  </Text>
+                </View>
+              </View>
+            </GlassCard>
+
             {/* Quick KPI stats */}
             <View style={styles.kpiRow}>
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>AVG CALORIES</Text>
+                <Text style={styles.kpiLabel}>CALORIES TODAY</Text>
                 <Text style={[styles.kpiVal, { color: COLORS.warning }]}>
-                  {trends.averageCalorieIntake > 0 ? trends.averageCalorieIntake : '--'}
+                  {todayNutSummary ? todayNutSummary.totalCalories : (trends.averageCalorieIntake > 0 ? trends.averageCalorieIntake : '--')}
                 </Text>
-                <Text style={styles.kpiSub}>kcal / day</Text>
+                <Text style={styles.kpiSub}>kcal</Text>
               </View>
 
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>LOGGED DAYS</Text>
+                <Text style={styles.kpiLabel}>LOGGED FOODS</Text>
                 <Text style={[styles.kpiVal, { color: modeColors.accent }]}>
-                  {trends.points.filter((p) => p.nutritionCalories > 0).length}
+                  {todayNutLog.foods.length} items
                 </Text>
-                <Text style={styles.kpiSub}>of {trends.points.length} days</Text>
+                <Text style={styles.kpiSub}>Today</Text>
               </View>
 
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>AVG PROTEIN</Text>
+                <Text style={styles.kpiLabel}>PROTEIN TODAY</Text>
                 <Text style={[styles.kpiVal, { color: COLORS.textPrimary }]}>
-                  {trends.points.filter((p) => p.nutritionProtein > 0).length > 0
-                    ? Math.round(
-                        trends.points.reduce((acc, p) => acc + p.nutritionProtein, 0) /
-                          Math.max(1, trends.points.filter((p) => p.nutritionProtein > 0).length)
-                      )
-                    : '--'}
-                  g
+                  {todayNutSummary ? `${todayNutSummary.totalProtein}g` : '--'}
                 </Text>
-                <Text style={styles.kpiSub}>Daily avg</Text>
+                <Text style={styles.kpiSub}>Target: {todayNutLog.targetProtein}g</Text>
               </View>
             </View>
 
@@ -509,6 +589,58 @@ export const AnalyzeScreen: React.FC = () => {
                 height={140}
               />
             </GlassCard>
+
+            {/* Today's Logged Foods List */}
+            <View style={styles.sectionTitleRow}>
+              <Utensils size={14} color={COLORS.warning} />
+              <Text style={styles.domainSectionHeading}>TODAY'S LOGGED MEALS</Text>
+            </View>
+
+            {todayNutLog.foods.length > 0 ? (
+              todayNutLog.foods.map((food) => (
+                <GlassCard key={food.id} style={styles.sessionCard}>
+                  <View style={styles.sessionTopRow}>
+                    <View style={styles.sessionTitleBox}>
+                      <Text style={styles.sessionTitle}>{food.name}</Text>
+                      <Text style={styles.sessionDate}>
+                        {food.mealType.toUpperCase()} • {food.consumedGrams}g
+                      </Text>
+                    </View>
+                    <View style={[styles.sessionBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                      <Text style={[styles.sessionBadgeText, { color: COLORS.warning }]}>
+                        {food.nutrients.calories} kcal
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.sessionSpecsRow}>
+                    <View style={styles.sessionSpecItem}>
+                      <Text style={[styles.sessionSpecText, { color: COLORS.success, fontWeight: '700' }]}>
+                        {food.nutrients.proteinGrams}g Protein
+                      </Text>
+                    </View>
+                    <View style={styles.sessionSpecItem}>
+                      <Text style={styles.sessionSpecText}>
+                        {food.nutrients.carbsGrams}g Carbs
+                      </Text>
+                    </View>
+                    <View style={styles.sessionSpecItem}>
+                      <Text style={styles.sessionSpecText}>
+                        {food.nutrients.fatGrams}g Fat
+                      </Text>
+                    </View>
+                  </View>
+                </GlassCard>
+              ))
+            ) : (
+              <GlassCard style={styles.emptyCard}>
+                <Utensils size={28} color={COLORS.textMuted} />
+                <Text style={styles.emptyCardTitle}>No foods logged today</Text>
+                <Text style={styles.emptyCardSub}>
+                  Log your meals in the Nutrition tab to see your nutrition adherence score and macro breakdown here.
+                </Text>
+              </GlassCard>
+            )}
           </View>
         )}
 
@@ -932,5 +1064,88 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: COLORS.textMuted,
     marginTop: 1,
+  },
+  domainScoreHeroCard: {
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    gap: SPACING.sm + 2,
+    marginBottom: SPACING.xs,
+  },
+  domainScoreHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  domainScoreTitleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  domainScoreIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  domainScoreSuperTitle: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+  },
+  domainScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginTop: 1,
+  },
+  domainScoreBig: {
+    ...TYPOGRAPHY.h1,
+    fontSize: 26,
+    fontWeight: '900',
+    lineHeight: 32,
+  },
+  domainScoreMax: {
+    ...TYPOGRAPHY.body,
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
+  domainScoreProgressBarBg: {
+    height: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: RADIUS.round,
+    overflow: 'hidden',
+  },
+  domainScoreProgressBarFill: {
+    height: '100%',
+    borderRadius: RADIUS.round,
+  },
+  macroPacingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  macroPacingItem: {
+    flex: 1,
+    gap: 2,
+  },
+  macroPacingDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginHorizontal: SPACING.sm,
+  },
+  macroPacingLabel: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 8.5,
+    color: COLORS.textMuted,
+  },
+  macroPacingVal: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

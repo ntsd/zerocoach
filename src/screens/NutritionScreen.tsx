@@ -30,6 +30,17 @@ export const NutritionScreen: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeModalMealType, setActiveModalMealType] = useState<MealType>('breakfast');
 
+  // Always ensure selectedDate is today on mount
+  useEffect(() => {
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate()
+    ).padStart(2, '0')}`;
+    if (selectedDate !== todayStr) {
+      setSelectedDate(todayStr);
+    }
+  }, []);
+
   // Purge any legacy demo foods that were previously seeded
   useEffect(() => {
     const currentLog = getDailyLog(selectedDate);
@@ -53,6 +64,12 @@ export const NutritionScreen: React.FC = () => {
   };
 
   const handleNextDay = () => {
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate()
+    ).padStart(2, '0')}`;
+    if (selectedDate >= todayStr) return; // Prevent navigating into future dates
+
     const [year, month, day] = selectedDate.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     date.setDate(date.getDate() + 1);

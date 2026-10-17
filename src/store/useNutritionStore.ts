@@ -88,7 +88,45 @@ export const useNutritionStore = create<NutritionState>()(
 
       getDailyLog: (date?: string) => {
         const targetDate = date || get().selectedDate || getTodayString();
-        const existing = get().logsByDate[targetDate];
+        let existing = get().logsByDate[targetDate];
+
+        // Self-heal: If targetDate is today and has no foods, check if foods were saved under tomorrow
+        const todayStr = getTodayString();
+        if (targetDate === todayStr && (!existing || existing.foods.length === 0)) {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+          const tomorrowLog = get().logsByDate[tomorrowStr];
+
+          if (tomorrowLog && tomorrowLog.foods.length > 0) {
+            const now = Date.now();
+            const foodsToMove = tomorrowLog.foods.filter((f) => f.timestamp <= now + 60000);
+            if (foodsToMove.length > 0) {
+              const healedLog: DailyNutritionLog = {
+                date: todayStr,
+                targetCalories: tomorrowLog.targetCalories || DEFAULT_TARGETS.targetCalories,
+                targetProtein: tomorrowLog.targetProtein || DEFAULT_TARGETS.targetProtein,
+                targetCarbs: tomorrowLog.targetCarbs || DEFAULT_TARGETS.targetCarbs,
+                targetFat: tomorrowLog.targetFat || DEFAULT_TARGETS.targetFat,
+                targetFiber: tomorrowLog.targetFiber || DEFAULT_TARGETS.targetFiber,
+                foods: foodsToMove,
+              };
+              set((state) => ({
+                selectedDate: todayStr,
+                logsByDate: {
+                  ...state.logsByDate,
+                  [todayStr]: healedLog,
+                  [tomorrowStr]: {
+                    ...tomorrowLog,
+                    foods: tomorrowLog.foods.filter((f) => f.timestamp > now + 60000),
+                  },
+                },
+              }));
+              existing = healedLog;
+            }
+          }
+        }
+
         if (existing) {
           const nonDemoFoods = existing.foods.filter((f) => !f.id.startsWith('demo_'));
           return {
@@ -273,12 +311,54 @@ export const useNutritionStore = create<NutritionState>()(
     {
       name: 'zerocoach-nutrition-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        ...state,
+        selectedDate: getTodayString(),
+      }),
       onRehydrateStorage: () => (state) => {
-        if (state?.logsByDate) {
+        if (!state) return;
+        state.selectedDate = getTodayString();
+
+        if (state.logsByDate) {
+          // Clean legacy demo foods
           for (const date in state.logsByDate) {
             state.logsByDate[date].foods = state.logsByDate[date].foods.filter(
               (f) => !f.id.startsWith('demo_')
             );
+          }
+
+          // If foods were saved to tomorrow's date with today's timestamp, move them to today
+          const today = getTodayString();
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+
+          if (state.logsByDate[tomorrowStr]?.foods?.length > 0) {
+            const todayLog = state.logsByDate[today] || {
+              date: today,
+              targetCalories: state.logsByDate[tomorrowStr].targetCalories || 2450,
+              targetProtein: state.logsByDate[tomorrowStr].targetProtein || 175,
+              targetCarbs: state.logsByDate[tomorrowStr].targetCarbs || 260,
+              targetFat: state.logsByDate[tomorrowStr].targetFat || 75,
+              targetFiber: state.logsByDate[tomorrowStr].targetFiber || 35,
+              foods: [],
+            };
+
+            const now = Date.now();
+            const foodsToMove = state.logsByDate[tomorrowStr].foods.filter(
+              (f) => f.timestamp <= now + 60000
+            );
+            const foodsToKeep = state.logsByDate[tomorrowStr].foods.filter(
+              (f) => f.timestamp > now + 60000
+            );
+
+            if (foodsToMove.length > 0) {
+              const existingIds = new Set(todayLog.foods.map((f) => f.id));
+              const newFoods = foodsToMove.filter((f) => !existingIds.has(f.id));
+              todayLog.foods = [...todayLog.foods, ...newFoods];
+              state.logsByDate[today] = todayLog;
+              state.logsByDate[tomorrowStr].foods = foodsToKeep;
+            }
           }
         }
       },

@@ -1,5 +1,9 @@
 # ZeroCoach
 
+[![GitHub Release](https://img.shields.io/github/v/release/ntsd/zerocoach?color=00F0FF&label=Latest%20Release)](https://github.com/ntsd/zerocoach/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-Android%20APK-00F0FF?style=flat&logo=android)](https://github.com/ntsd/zerocoach/releases/latest/download/ZeroCoach-v1.0.0.apk)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 ZeroCoach is an open-source, privacy-first mobile fitness and AI coaching application powered entirely by on-device and local AI models. Built with React Native and Expo, it delivers science-backed workout programming, adaptive nutrition targets, and real-time coaching—with zero cloud latency and absolute data privacy.
 
 ---
@@ -135,9 +139,11 @@ npm run android
 npm run ios
 ```
 
-### 📦 Standalone Android APK Build (No Play Store Required)
+### 📦 Standalone Android APK (No Play Store Required)
 
-To distribute or install the app directly on any Android device without Google Play:
+Pre-built signed release APKs are available on the [**GitHub Releases**](https://github.com/ntsd/zerocoach/releases) page for immediate download.
+
+To build the APK locally from source:
 
 ```bash
 # Build standalone release APK (bundles JS, assets, and native llama.rn libraries)

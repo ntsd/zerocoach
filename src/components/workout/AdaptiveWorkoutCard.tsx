@@ -35,10 +35,13 @@ import {
   Trophy,
 } from 'lucide-react-native';
 
+import { formatDateDisplay } from '@/components/common/DateNavigationBar';
+
 interface AdaptiveWorkoutCardProps {
   plan: GeneratedWorkoutPlan;
   mode: CoachingMode;
   onAskCoach: (plan: GeneratedWorkoutPlan) => void;
+  date?: string;
 }
 
 function formatEquipment(eq?: string): string {
@@ -61,53 +64,56 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   plan,
   mode,
   onAskCoach,
+  date,
 }) => {
   const modeColors = getModeColors(mode);
   const todayDateStr = new Date().toISOString().split('T')[0];
+  const currentDateStr = date || todayDateStr;
+  const isToday = currentDateStr === todayDateStr;
   const { activeDraft, historyByDate, saveDraft, finishWorkout } = useWorkoutStore();
-  const todayCompletedSession = historyByDate[todayDateStr];
+  const sessionForDate = historyByDate[currentDateStr];
 
   // Stateful exercises in the workout (restores from completed session or draft if present)
   const [exercises, setExercises] = useState<ExerciseItem[]>(() => {
-    if (todayCompletedSession) {
-      return todayCompletedSession.exercises;
+    if (sessionForDate) {
+      return sessionForDate.exercises;
     }
-    if (activeDraft && activeDraft.date === todayDateStr && activeDraft.planId === plan.id) {
+    if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
       return activeDraft.exercises;
     }
     return plan.exercises;
   });
 
   const [completedExercises, setCompletedExercises] = useState<Record<string, boolean>>(() => {
-    if (todayCompletedSession) {
+    if (sessionForDate) {
       const map: Record<string, boolean> = {};
-      todayCompletedSession.completedExerciseIds.forEach((id) => {
+      sessionForDate.completedExerciseIds.forEach((id) => {
         map[id] = true;
       });
       return map;
     }
-    if (activeDraft && activeDraft.date === todayDateStr && activeDraft.planId === plan.id) {
+    if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
       return activeDraft.completedExercises;
     }
     return {};
   });
 
   const [skippedExercises, setSkippedExercises] = useState<Record<string, boolean>>(() => {
-    if (todayCompletedSession) {
+    if (sessionForDate) {
       const map: Record<string, boolean> = {};
-      todayCompletedSession.skippedExerciseIds.forEach((id) => {
+      sessionForDate.skippedExerciseIds.forEach((id) => {
         map[id] = true;
       });
       return map;
     }
-    if (activeDraft && activeDraft.date === todayDateStr && activeDraft.planId === plan.id) {
+    if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
       return activeDraft.skippedExercises;
     }
     return {};
   });
 
   const startedAtRef = useRef<number>(
-    todayCompletedSession?.startedAt || activeDraft?.startedAt || Date.now()
+    sessionForDate?.startedAt || activeDraft?.startedAt || Date.now()
   );
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
@@ -122,9 +128,10 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
   // Auto-save workout draft to local AsyncStorage
   useEffect(() => {
-    if (todayCompletedSession) return; // Already finalized today
+    if (sessionForDate) return; // Already finalized on this date
+    if (!isToday) return; // Only auto-save active draft for today
     saveDraft({
-      date: todayDateStr,
+      date: currentDateStr,
       planId: plan.id,
       exercises,
       completedExercises,
@@ -137,8 +144,9 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     completedExercises,
     skippedExercises,
     plan.id,
-    todayDateStr,
-    todayCompletedSession,
+    currentDateStr,
+    sessionForDate,
+    isToday,
     saveDraft,
   ]);
 
@@ -147,14 +155,14 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   useEffect(() => {
     if (prevPlanIdRef.current !== plan.id) {
       prevPlanIdRef.current = plan.id;
-      if (!todayCompletedSession) {
+      if (!sessionForDate) {
         setExercises(plan.exercises);
         setCompletedExercises({});
         setSkippedExercises({});
         startedAtRef.current = Date.now();
       }
     }
-  }, [plan.id, plan.exercises, todayCompletedSession]);
+  }, [plan.id, plan.exercises, sessionForDate]);
 
   const toggleExercise = (id: string) => {
     // Cannot toggle completion if exercise is skipped
@@ -330,11 +338,11 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       .reduce((acc, ex) => acc + ex.targetSets, 0);
 
     finishWorkout({
-      date: todayDateStr,
+      date: currentDateStr,
       planId: plan.id,
-      title: plan.title,
-      split: plan.selectedSplit || 'full_body',
-      tier: plan.tier,
+      title: sessionForDate?.title || plan.title,
+      split: sessionForDate?.split || plan.selectedSplit || 'full_body',
+      tier: sessionForDate?.tier || plan.tier,
       exercises,
       completedExerciseIds: completedIds,
       skippedExerciseIds: skippedIds,
@@ -353,16 +361,18 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     <>
       <GlassCard glowColor={`${tierColor}30`} borderColor={`${tierColor}40`} style={styles.card}>
         {/* Completed Session Status Banner */}
-        {todayCompletedSession && (
+        {sessionForDate && (
           <View style={styles.completedSessionBanner}>
             <View style={styles.completedBannerLeft}>
               <View style={[styles.completedIconBox, { backgroundColor: `${COLORS.success}20` }]}>
                 <CheckCircle2 size={16} color={COLORS.success} />
               </View>
               <View style={styles.completedTextCol}>
-                <Text style={styles.completedBannerTitle}>WORKOUT LOGGED TODAY</Text>
+                <Text style={styles.completedBannerTitle}>
+                  {isToday ? 'WORKOUT LOGGED TODAY' : `WORKOUT LOGGED (${formatDateDisplay(currentDateStr).toUpperCase()})`}
+                </Text>
                 <Text style={styles.completedBannerSub}>
-                  {todayCompletedSession.durationMinutes}m • {todayCompletedSession.caloriesBurned} kcal • {todayCompletedSession.completedMovements} movements • {todayCompletedSession.totalSets} sets
+                  {sessionForDate.durationMinutes}m • {sessionForDate.caloriesBurned} kcal • {sessionForDate.completedMovements} movements • {sessionForDate.totalSets} sets
                 </Text>
               </View>
             </View>
@@ -384,7 +394,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
             </View>
             <View style={styles.headerTitleBox}>
               <Text style={styles.planSuperTitle}>DATA-GENERATED EXERCISE PLAN</Text>
-              <Text style={styles.planTitle}>{plan.title}</Text>
+              <Text style={styles.planTitle}>{sessionForDate?.title || plan.title}</Text>
             </View>
           </View>
 
@@ -770,7 +780,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           onPress={() => setIsSummaryModalVisible(true)}
           style={[
             styles.finishWorkoutBtn,
-            todayCompletedSession
+            sessionForDate
               ? { backgroundColor: `${COLORS.success}20`, borderColor: `${COLORS.success}60` }
               : completedCount > 0
               ? { backgroundColor: COLORS.success, borderColor: COLORS.success }
@@ -781,7 +791,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           <Trophy
             size={16}
             color={
-              todayCompletedSession
+              sessionForDate
                 ? COLORS.success
                 : completedCount > 0
                 ? COLORS.background
@@ -793,7 +803,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
               styles.finishWorkoutBtnText,
               {
                 color:
-                  todayCompletedSession
+                  sessionForDate
                     ? COLORS.success
                     : completedCount > 0
                     ? COLORS.background
@@ -801,8 +811,8 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
               },
             ]}
           >
-            {todayCompletedSession
-              ? `Workout Complete (${todayCompletedSession.completedMovements} Movements Logged)`
+            {sessionForDate
+              ? `Workout Complete (${sessionForDate.completedMovements} Movements Logged)`
               : `Finish Workout (${completedCount}/${totalActiveCount} Completed)`}
           </Text>
         </TouchableOpacity>
@@ -869,8 +879,8 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         completedExercises={exercises.filter((ex) => completedExercises[ex.id])}
         skippedExercises={exercises.filter((ex) => skippedExercises[ex.id])}
         mode={mode}
-        initialDurationMin={todayCompletedSession?.durationMinutes || plan.estimatedDurationMin}
-        initialCaloriesBurn={todayCompletedSession?.caloriesBurned || plan.estimatedCaloriesBurn || 220}
+        initialDurationMin={sessionForDate?.durationMinutes || plan.estimatedDurationMin}
+        initialCaloriesBurn={sessionForDate?.caloriesBurned || plan.estimatedCaloriesBurn || 220}
       />
     </>
   );

@@ -3,11 +3,21 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CompletedWorkoutSession, WorkoutDraftSession } from '@/types/history';
 
+function getTodayString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export interface WorkoutState {
+  selectedDate: string;
   activeDraft: WorkoutDraftSession | null;
   historyByDate: Record<string, CompletedWorkoutSession>;
 
   // Actions
+  setSelectedDate: (date: string) => void;
   saveDraft: (draft: WorkoutDraftSession) => void;
   clearDraft: () => void;
   finishWorkout: (
@@ -21,8 +31,13 @@ export interface WorkoutState {
 export const useWorkoutStore = create<WorkoutState>()(
   persist<WorkoutState>(
     (set, get) => ({
+      selectedDate: getTodayString(),
       activeDraft: null,
       historyByDate: {},
+
+      setSelectedDate: (date: string) => {
+        set({ selectedDate: date });
+      },
 
       saveDraft: (draft: WorkoutDraftSession) => {
         set({ activeDraft: draft });
@@ -82,6 +97,11 @@ export const useWorkoutStore = create<WorkoutState>()(
     {
       name: 'zerocoach-workout-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.selectedDate = getTodayString();
+        }
+      },
     }
   )
 );

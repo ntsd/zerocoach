@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { GlassCard } from '../common/GlassCard';
+import { DateNavigationBar } from '../common/DateNavigationBar';
 import { DailyNutritionLog, NutritionDailySummary } from '../../types/nutrition';
 import { COLORS } from '../../theme/colors';
-import { ChevronLeft, ChevronRight, Flame, Target } from 'lucide-react-native';
+import { Flame, Target } from 'lucide-react-native';
 
 interface MacroProgressHeaderProps {
   currentDate: string;
@@ -22,49 +23,19 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
   onNextDay,
   onToday,
 }) => {
-  const isToday = () => {
-    const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-      d.getDate()
-    ).padStart(2, '0')}`;
-    return currentDate === todayStr;
-  };
-
-  const formatDateDisplay = (dateStr: string) => {
-    if (isToday()) return 'Today';
-    try {
-      const [year, month, day] = dateStr.split('-').map(Number);
-      const date = new Date(year, month - 1, day);
-      return date.toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
   const calProgress = Math.min(100, summary.calorieProgressPercent);
   const remaining = Math.max(0, dailyLog.targetCalories - summary.totalCalories);
 
   return (
     <View style={styles.container}>
       {/* Date Navigation Bar */}
-      <View style={styles.dateRow}>
-        <TouchableOpacity style={styles.navButton} onPress={onPrevDay} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={COLORS.textSecondary} />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={onToday} activeOpacity={0.7} style={styles.dateCenter}>
-          <Text style={styles.dateTitle}>{formatDateDisplay(currentDate)}</Text>
-          <Text style={styles.dateSubtitle}>{currentDate}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navButton} onPress={onNextDay} activeOpacity={0.7}>
-          <ChevronRight size={20} color={COLORS.textSecondary} />
-        </TouchableOpacity>
-      </View>
+      <DateNavigationBar
+        currentDate={currentDate}
+        onPrevDay={onPrevDay}
+        onNextDay={onNextDay}
+        onToday={onToday}
+        accentColor="#10B981"
+      />
 
       {/* Primary Calorie & Macro Card */}
       <GlassCard style={styles.card}>

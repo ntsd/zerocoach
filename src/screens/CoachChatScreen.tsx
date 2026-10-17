@@ -51,7 +51,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
   } = useChatStore();
 
   const { mode } = useCoachStore();
-  const { provider, openAIConfig, status, downloadProgress } = useModelStore();
+  const { provider, status, downloadProgress } = useModelStore();
   const modeColors = getModeColors(mode);
 
   const handleSend = async (textToSend?: string) => {
@@ -134,19 +134,6 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
               <ZeroCoachLogo size={20} mode={mode} />
               <Text style={styles.brandTitle}>ZEROCOACH</Text>
             </View>
-            <Text style={styles.brandSub} numberOfLines={1} ellipsizeMode="tail">
-              {provider === 'openai_compatible'
-                ? `${openAIConfig.modelName || 'LLM'} • OpenAI-Compatible`
-                : Platform.OS === 'web'
-                ? 'On-Device AI (Web Simulator) • Private'
-                : status === 'loaded'
-                ? 'Gemma 2 (2B On-Device RAM) • 100% Private'
-                : status === 'loading'
-                ? 'Loading Gemma 2 into RAM...'
-                : status === 'downloading'
-                ? `Downloading Gemma 2 (${downloadProgress}%)...`
-                : '100% On-Device AI • Private'}
-            </Text>
           </View>
 
           <View style={styles.headerRight}>
@@ -336,11 +323,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.5,
     color: COLORS.textPrimary,
-  },
-  brandSub: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 10,
-    color: COLORS.textMuted,
   },
   headerRight: {
     flexDirection: 'row',

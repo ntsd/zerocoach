@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   ViewStyle,
+  View,
 } from 'react-native';
 import { useCoachStore } from '@/store/useCoachStore';
 import { COLORS, getModeColors } from '@/theme/colors';
@@ -87,6 +88,26 @@ export const HorizontalChipBar: React.FC<HorizontalChipBarProps> = ({
             >
               {item.label}
             </Text>
+            {item.badge !== undefined && (
+              <View
+                style={[
+                  styles.badge,
+                  {
+                    backgroundColor: isSelected ? modeColors.accent : `${modeColors.accent}25`,
+                    borderColor: `${modeColors.accent}50`,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.badgeText,
+                    { color: isSelected ? COLORS.background : modeColors.accent },
+                  ]}
+                >
+                  {item.badge}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         );
       })}
@@ -133,5 +154,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.textPrimary,
+  },
+  badge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
 });

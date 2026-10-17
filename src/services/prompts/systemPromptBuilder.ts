@@ -72,15 +72,23 @@ export function buildSystemPrompt(params: {
     activeCalories: telemetry.activeCalories,
     equipmentMode,
     sex: userProfile.sex,
+    skillLevel: userProfile.skillLevel || 'intermediate',
   });
 
   const workoutPlanBlock = `- DATA-GENERATED EXERCISE PLAN:
   * Focus: ${adaptivePlan.title} (${adaptivePlan.tierLabel})
-  * Estimated Session Duration: ${adaptivePlan.estimatedDurationMin} min
+  * Estimated Session Duration: ${adaptivePlan.estimatedDurationMin} min (~${adaptivePlan.estimatedCaloriesBurn || 250} kcal)
   * Target Skill Milestone: ${adaptivePlan.targetSkillMilestone || 'None'}
   * Autoregulation Directive: ${adaptivePlan.readinessMultiplierDesc}
+  * Coach Split Recommendation: ${adaptivePlan.coachRecommendation?.splitTitle || adaptivePlan.title}
+  * Recommendation Rationale: ${adaptivePlan.coachRecommendation?.reasoning || 'Autoregulated for optimal athletic progression.'}
   * Prescribed Exercises:
-${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.name} (${e.targetSets} sets × ${e.targetReps}, rest ${e.restPeriodSeconds}s, ${e.intensityNote}) | Cue: ${e.coachingCue}`).join('\n')}`;
+${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.name} (${e.targetSets} sets × ${e.targetReps}, rest ${e.restPeriodSeconds}s, ${e.intensityNote}) | Cue: ${e.coachingCue}`).join('\n')}
+  * WORKOUT SUGGESTION DIRECTIVE:
+    When the athlete asks to "suggest workout plan" or asks what to train today:
+    1. Immediately evaluate their goal (${userProfile.primaryGoals?.[0]?.replace(/_/g, ' ').toUpperCase() || 'STRENGTH'}), skill level (${(userProfile.skillLevel || 'intermediate').toUpperCase()}), and current readiness score (${telemetry.readinessScore}/100).
+    2. Suggest the recommended split "${adaptivePlan.title}". State clearly why it is optimal for their recovery state and skill level today.
+    3. List 3 to 4 core exercises with target sets, reps, and biomechanical cues.`;
 
   const nutritionBlock = nutritionSummary
     ? `- DAILY NUTRITION LOG & MACRO STATUS:
@@ -104,6 +112,7 @@ ${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.nam
 - ACTIVE COACHING MODE: ${mode.toUpperCase()}
 - USER PROFILE:
   * Name: ${userProfile.name || 'Athlete'}
+  * Athlete Skill Level: ${(userProfile.skillLevel || 'intermediate').toUpperCase()}
   * Biological Sex: ${(userProfile.sex || 'male').toUpperCase()} (${userProfile.sex === 'female' ? 'Higher relative volume tolerance, faster intra-set recovery' : 'Higher relative mechanical tension, longer recovery intervals'})
   * Training Environment: ${userProfile.equipmentPreference === 'home' ? 'Home / Bodyweight (Calisthenics)' : userProfile.equipmentPreference === 'both' ? 'Hybrid (Gym & Bodyweight)' : 'Full Gym (Barbells, DBs, Cables)'}
   * Body Weight: ${userProfile.weightKg} kg | Height: ${userProfile.heightCm} cm

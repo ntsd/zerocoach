@@ -1,6 +1,26 @@
-import { CoachingMode, TrainingGoal } from './coach';
+import { CoachingMode, TrainingGoal, SkillLevel } from './coach';
 
 export type ExerciseCategory = 'warmup' | 'skill' | 'strength' | 'metabolic' | 'cooldown';
+
+export type WorkoutSplit =
+  | 'full_body'
+  | 'push'
+  | 'pull'
+  | 'legs'
+  | 'upper'
+  | 'lower'
+  | 'core_mobility'
+  | 'calisthenics_skills'
+  | 'cardio_engine';
+
+export interface CoachSplitRecommendation {
+  recommendedSplit: WorkoutSplit;
+  splitTitle: string;
+  badge: string;
+  headline: string;
+  reasoning: string;
+  focusMuscles?: string[];
+}
 
 export interface ExerciseItem {
   id: string;
@@ -45,4 +65,7 @@ export interface GeneratedWorkoutPlan {
   coachingNotes: string;
   generatedDate: string;
   sourceAttribution?: string;
+  skillLevel?: SkillLevel;
+  selectedSplit?: WorkoutSplit;
+  coachRecommendation?: CoachSplitRecommendation;
 }

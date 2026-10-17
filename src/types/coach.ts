@@ -1,5 +1,7 @@
 export type CoachingMode = 'strict' | 'comfortable';
 
+export type SkillLevel = 'beginner' | 'intermediate' | 'advanced';
+
 export type TrainingGoal =
   | 'strength_hypertrophy'
   | 'calisthenics_mastery'
@@ -23,6 +25,8 @@ export interface UserProfile {
   primaryGoal?: string;
   currentCalisthenicsFocus?: string;
   equipmentPreference?: EquipmentPreference;
+  skillLevel?: SkillLevel;
+  selectedWorkoutSplit?: string;
 }
 
 export interface CoachState {
@@ -31,6 +35,7 @@ export interface CoachState {
   userProfile: UserProfile;
   toggleMode: () => void;
   setMode: (mode: CoachingMode) => void;
+  setSkillLevel: (level: SkillLevel) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
   completeOnboarding: (profile: UserProfile, mode: CoachingMode) => void;
   resetOnboarding: () => void;

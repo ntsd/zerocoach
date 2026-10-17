@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CoachState, CoachingMode, UserProfile } from '@/types/coach';
+import { CoachState, CoachingMode, UserProfile, SkillLevel } from '@/types/coach';
 
 const DEFAULT_PROFILE: UserProfile = {
   name: '',
   sex: 'male',
   equipmentPreference: 'both',
+  skillLevel: 'intermediate',
   weightKg: 0,
   heightCm: 0,
   dailyCalorieTarget: 0,
@@ -29,6 +30,11 @@ export const useCoachStore = create<CoachState>()(
         })),
 
       setMode: (mode: CoachingMode) => set({ mode }),
+
+      setSkillLevel: (skillLevel: SkillLevel) =>
+        set((state) => ({
+          userProfile: { ...state.userProfile, skillLevel },
+        })),
 
       updateProfile: (updates: Partial<UserProfile>) =>
         set((state) => ({

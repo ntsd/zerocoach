@@ -153,6 +153,14 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
             {plan.equipmentMode === 'bodyweight' ? 'HOME / BODYWEIGHT' : 'ALL GYM'}
           </Text>
         </View>
+
+        {plan.skillLevel && (
+          <View style={[styles.metaPill, { borderColor: `${modeColors.accent}50`, backgroundColor: `${modeColors.accent}15` }]}>
+            <Text style={[styles.metaPillText, { color: modeColors.accent, fontWeight: '700', fontSize: 10 }]}>
+              {plan.skillLevel.toUpperCase()}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Readiness Autoregulation Guidance Banner */}

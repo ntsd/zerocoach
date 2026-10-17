@@ -31,6 +31,15 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
     const isHome = userProfile.equipmentPreference === 'home';
     const wantsCalisthenics = userProfile.primaryGoals?.includes('calisthenics_mastery');
 
+    const goalName = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'Strength';
+    const skillLevel = userProfile.skillLevel || 'intermediate';
+    const workoutPlanChip: ChipItem = {
+      id: 'suggest_workout_plan',
+      label: 'Suggest workout plan',
+      prompt: `Coach, based on my primary goal (${goalName}), my skill level (${skillLevel.toUpperCase()}), and my current readiness score, suggest the best workout plan and split for me today. Breakdown the exercises, sets, reps, and why it fits my physiology.`,
+      icon: Dumbbell,
+    };
+
     const foodChip: ChipItem = {
       id: 'suggest_food',
       label: 'Suggest food',
@@ -40,13 +49,14 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
 
     if (isGym && !wantsCalisthenics) {
       return [
+        workoutPlanChip,
+        foodChip,
         {
           id: 'macros',
           label: 'Adjust macros',
           prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
           icon: Flame,
         },
-        foodChip,
         {
           id: 'bench',
           label: 'Bench cues',
@@ -70,13 +80,14 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
 
     if (isHome || wantsCalisthenics) {
       return [
+        workoutPlanChip,
+        foodChip,
         {
           id: 'macros',
           label: 'Adjust macros',
           prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
           icon: Flame,
         },
-        foodChip,
         {
           id: 'bw_form',
           label: 'Bodyweight cues',
@@ -100,13 +111,14 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
 
     // Default / Hybrid (Both Gym & Bodyweight)
     return [
+      workoutPlanChip,
+      foodChip,
       {
         id: 'macros',
         label: 'Adjust macros',
         prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
         icon: Flame,
       },
-      foodChip,
       {
         id: 'exercise_form',
         label: 'Form cues',
@@ -126,7 +138,7 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
         icon: ShieldCheck,
       },
     ];
-  }, [userProfile.equipmentPreference, userProfile.primaryGoals, foodPrompt]);
+  }, [userProfile.equipmentPreference, userProfile.primaryGoals, userProfile.skillLevel, foodPrompt]);
 
   return (
     <HorizontalChipBar

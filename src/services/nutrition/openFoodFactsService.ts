@@ -104,6 +104,87 @@ function parseOffNutriments(nutriments: Record<string, any> = {}): NutrientProfi
   };
 }
 
+/**
+ * Parse Open Food Facts quantity or serving size string / numeric fields to grams/ml.
+ */
+export function parseOffQuantityString(
+  qtyStr?: string | null,
+  numericQty?: number | null,
+  unitStr?: string | null
+): { grams: number; displayUnit: string } | null {
+  // 1. If numeric quantity is available from API
+  if (typeof numericQty === 'number' && numericQty > 0) {
+    const u = (unitStr || '').toLowerCase().trim();
+    let grams = numericQty;
+    if (u === 'kg' || u === 'l') grams = numericQty * 1000;
+    else if (u === 'cl') grams = numericQty * 10;
+    else if (u === 'dl') grams = numericQty * 100;
+    else if (u === 'oz') grams = numericQty * 28.3495;
+    else if (u === 'fl oz' || u === 'floz') grams = numericQty * 29.5735;
+
+    const display = qtyStr?.trim() || `${Math.round(grams)}${u === 'ml' || u === 'l' ? 'ml' : 'g'}`;
+    return { grams: Math.max(1, Math.round(grams)), displayUnit: display };
+  }
+
+  if (!qtyStr || typeof qtyStr !== 'string') return null;
+  const cleanStr = qtyStr.trim();
+  if (!cleanStr) return null;
+
+  // 2. Check for expressions with equals, e.g. '3 x 200g = 600g'
+  const eqMatch = cleanStr.match(/=\s*([0-9.,]+)\s*(kg|g|l|ml|cl|dl|oz|fl\s*oz)\b/i);
+  if (eqMatch) {
+    const val = parseFloat(eqMatch[1].replace(',', '.'));
+    const u = eqMatch[2].toLowerCase().replace(/\s+/g, '');
+    let grams = val;
+    if (u === 'kg' || u === 'l') grams *= 1000;
+    else if (u === 'cl') grams *= 10;
+    else if (u === 'dl') grams *= 100;
+    else if (u === 'oz') grams *= 28.3495;
+    else if (u === 'floz') grams *= 29.5735;
+    return { grams: Math.max(1, Math.round(grams)), displayUnit: cleanStr };
+  }
+
+  // 3. Multi-pack expressions like '4 x 100 g', '2x125g', '6 x 33cl'
+  const multiMatch = cleanStr.match(/(\d+)\s*[xX*]\s*([0-9.,]+)\s*(kg|g|l|ml|cl|dl|oz|fl\s*oz)\b/i);
+  if (multiMatch) {
+    const count = parseInt(multiMatch[1], 10);
+    const each = parseFloat(multiMatch[2].replace(',', '.'));
+    const u = multiMatch[3].toLowerCase().replace(/\s+/g, '');
+    let total = count * each;
+    if (u === 'kg' || u === 'l') total *= 1000;
+    else if (u === 'cl') total *= 10;
+    else if (u === 'dl') total *= 100;
+    else if (u === 'oz') total *= 28.3495;
+    else if (u === 'floz') total *= 29.5735;
+    return { grams: Math.max(1, Math.round(total)), displayUnit: cleanStr };
+  }
+
+  // 4. Standard expression: number followed by unit (e.g. '330 ml', '500g', '400 g e', '1.5 L')
+  const stdMatch = cleanStr.match(/([0-9.,]+)\s*(kg|g|l|ml|cl|dl|oz|fl\s*oz)\b/i);
+  if (stdMatch) {
+    const val = parseFloat(stdMatch[1].replace(',', '.'));
+    const u = stdMatch[2].toLowerCase().replace(/\s+/g, '');
+    let grams = val;
+    if (u === 'kg' || u === 'l') grams *= 1000;
+    else if (u === 'cl') grams *= 10;
+    else if (u === 'dl') grams *= 100;
+    else if (u === 'oz') grams *= 28.3495;
+    else if (u === 'floz') grams *= 29.5735;
+    return { grams: Math.max(1, Math.round(grams)), displayUnit: cleanStr };
+  }
+
+  // 5. Bare number
+  const numOnlyMatch = cleanStr.match(/^[0-9.,]+$/);
+  if (numOnlyMatch) {
+    const val = parseFloat(numOnlyMatch[0].replace(',', '.'));
+    if (!isNaN(val) && val > 0) {
+      return { grams: Math.round(val), displayUnit: `${Math.round(val)}g` };
+    }
+  }
+
+  return null;
+}
+
 // Convert OFF product object to FoodItem
 function mapOffProductToFoodItem(product: any): FoodItem | null {
   if (!product || (!product.product_name && !product.product_name_en)) {
@@ -158,18 +239,47 @@ function mapOffProductToFoodItem(product: any): FoodItem | null {
     nutrients.vitaminC_mg > 0 ||
     nutrients.vitaminA_mcg > 0;
 
+  // Parse package quantity and serving quantity directly from Open Food Facts
+  const parsedPackageQty = parseOffQuantityString(
+    product.quantity,
+    product.product_quantity,
+    product.product_quantity_unit
+  );
+
+  const parsedServingQty = parseOffQuantityString(
+    product.serving_size,
+    product.serving_quantity,
+    product.serving_quantity_unit
+  );
+
+  const packageGrams = parsedPackageQty?.grams;
+  const servingGrams = parsedServingQty?.grams;
+
+  // The primary quantity following Open Food Facts (e.g. 330ml for Coke, 50g for Snickers)
+  const offQuantityGrams = packageGrams || servingGrams || 100;
+  const offDisplayUnit =
+    parsedPackageQty?.displayUnit ||
+    parsedServingQty?.displayUnit ||
+    product.quantity ||
+    product.serving_size ||
+    '100g';
+
   return {
     id: `off_${product.code || product._id || Math.random().toString(36).substring(7)}`,
     name,
     brand,
     category,
-    servingSizeGrams: 100,
-    servingUnitName: product.serving_size || '100g',
+    servingSizeGrams: offQuantityGrams,
+    servingUnitName: offDisplayUnit,
     nutrientsPer100g: nutrients,
     source: 'open_food_facts',
     barcode: product.code,
     imageUrl: product.image_front_small_url || product.image_small_url || product.image_url,
     hasCompleteMicros: hasMicros,
+    packageQuantityGrams: packageGrams,
+    packageQuantityUnitName: parsedPackageQty?.displayUnit || (product.quantity ? String(product.quantity) : undefined),
+    servingQuantityGrams: servingGrams,
+    offQuantity: product.quantity ? String(product.quantity) : parsedPackageQty?.displayUnit,
   };
 }
 
@@ -183,7 +293,7 @@ export async function fetchProductByBarcode(barcode: string): Promise<FoodItem |
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     const response = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${cleanCode}.json?fields=code,product_name,product_name_en,brands,brands_tags,nutriments,serving_size,categories,image_front_small_url`,
+      `https://world.openfoodfacts.org/api/v2/product/${cleanCode}.json?fields=code,product_name,product_name_en,brands,brands_tags,nutriments,serving_size,serving_quantity,serving_quantity_unit,quantity,product_quantity,product_quantity_unit,categories,image_front_small_url`,
       {
         headers: {
           'User-Agent': 'ZeroCoach-App - Android - Version 1.0 (https://zerocoach.app)',
@@ -216,7 +326,7 @@ export async function searchOpenFoodFacts(query: string, page = 1, pageSize = 20
 
     const url = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(
       cleanQuery
-    )}&page=${page}&page_size=${pageSize}&fields=code,product_name,product_name_en,brands,brands_tags,nutriments,serving_size,categories,image_front_small_url`;
+    )}&page=${page}&page_size=${pageSize}&fields=code,product_name,product_name_en,brands,brands_tags,nutriments,serving_size,serving_quantity,serving_quantity_unit,quantity,product_quantity,product_quantity_unit,categories,image_front_small_url`;
 
     const response = await fetch(url, {
       headers: {

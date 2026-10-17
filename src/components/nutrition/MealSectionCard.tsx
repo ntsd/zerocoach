@@ -128,7 +128,9 @@ export const MealSectionCard: React.FC<MealSectionCardProps> = ({
                 {food.brand && <Text style={styles.brandName}>{food.brand}</Text>}
 
                 <View style={styles.nutrientsRow}>
-                  <Text style={styles.portionText}>{Math.round(food.consumedGrams)}g</Text>
+                  <Text style={styles.portionText}>
+                    {food.offQuantity ? `${food.offQuantity} (${Math.round(food.consumedGrams)}g)` : `${Math.round(food.consumedGrams)}g`}
+                  </Text>
                   <Text style={styles.dotSeparator}>•</Text>
                   <Text style={styles.calBadge}>{food.nutrients.calories} kcal</Text>
                   <Text style={styles.dotSeparator}>•</Text>

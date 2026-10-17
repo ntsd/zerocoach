@@ -46,13 +46,17 @@ export interface FoodItem {
   name: string;
   brand?: string;
   category: FoodCategory;
-  servingSizeGrams: number; // baseline e.g. 100g
-  servingUnitName: string; // e.g. "100g", "1 medium (120g)", "1 scoop (30g)"
+  servingSizeGrams: number; // baseline e.g. 100g, or product serving size
+  servingUnitName: string; // e.g. "100g", "1 medium (120g)", "330 ml", "1 scoop (30g)"
   nutrientsPer100g: NutrientProfile;
   source: FoodSource;
   barcode?: string;
   imageUrl?: string;
   hasCompleteMicros: boolean;
+  packageQuantityGrams?: number;
+  packageQuantityUnitName?: string;
+  servingQuantityGrams?: number;
+  offQuantity?: string;
 }
 
 export interface LoggedFood {
@@ -67,6 +71,10 @@ export interface LoggedFood {
   nutrients: NutrientProfile;
   source: FoodSource;
   barcode?: string;
+  packageQuantityGrams?: number;
+  packageQuantityUnitName?: string;
+  servingQuantityGrams?: number;
+  offQuantity?: string;
 }
 
 export interface DailyNutritionLog {

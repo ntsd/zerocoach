@@ -150,7 +150,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     try {
       const product = await fetchProductByBarcode(clean);
       if (product) {
-        selectFoodForReview(product);
+        // Use the exact quantity following Open Food Facts (e.g. 330ml for Coke, 50g for Snickers)
+        const offQuantityGrams = product.packageQuantityGrams || product.servingSizeGrams || 100;
+        selectFoodForReview(product, offQuantityGrams);
       } else {
         setBarcodeError(`Product not found for barcode: ${clean}. Try USDA or text search.`);
       }
@@ -252,7 +254,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   const selectFoodForReview = (food: FoodItem, defaultGrams?: number) => {
     setReviewFood(food);
-    setConsumedGrams(defaultGrams ?? food.servingSizeGrams ?? 100);
+    const initialGrams = defaultGrams ?? food.packageQuantityGrams ?? food.servingSizeGrams ?? 100;
+    setConsumedGrams(initialGrams);
   };
 
   const handleConfirmLog = () => {
@@ -318,34 +321,44 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
               {/* Food Header Card */}
               <View style={styles.reviewHeaderCard}>
                 <View style={styles.reviewTitleRow}>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
                     <Text style={styles.reviewFoodName}>{reviewFood.name}</Text>
                     {reviewFood.brand && (
                       <Text style={styles.reviewFoodBrand}>{reviewFood.brand}</Text>
                     )}
                   </View>
-                  <View
-                    style={[
-                      styles.sourceTag,
-                      reviewFood.source === 'usda_bundled'
-                        ? { backgroundColor: 'rgba(16, 185, 129, 0.15)' }
-                        : { backgroundColor: 'rgba(56, 189, 248, 0.15)' },
-                    ]}
-                  >
-                    <Text
+                  <View style={styles.reviewTitleRight}>
+                    <View
                       style={[
-                        styles.sourceTagText,
+                        styles.sourceTag,
                         reviewFood.source === 'usda_bundled'
-                          ? { color: '#10B981' }
-                          : { color: '#38BDF8' },
+                          ? { backgroundColor: 'rgba(16, 185, 129, 0.15)' }
+                          : { backgroundColor: 'rgba(56, 189, 248, 0.15)' },
                       ]}
                     >
-                      {reviewFood.source === 'usda_bundled'
-                        ? 'USDA Whole Food'
-                        : reviewFood.source === 'ai_decomposed'
-                        ? 'AI Decomposed'
-                        : 'Open Food Facts'}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.sourceTagText,
+                          reviewFood.source === 'usda_bundled'
+                            ? { color: '#10B981' }
+                            : { color: '#38BDF8' },
+                        ]}
+                      >
+                        {reviewFood.source === 'usda_bundled'
+                          ? 'USDA Whole Food'
+                          : reviewFood.source === 'ai_decomposed'
+                          ? 'AI Decomposed'
+                          : 'Open Food Facts'}
+                      </Text>
+                    </View>
+
+                    {reviewFood.offQuantity && (
+                      <View style={styles.offQuantityBadge}>
+                        <Text style={styles.offQuantityBadgeText}>
+                          Qty: {reviewFood.offQuantity}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
 
@@ -400,25 +413,83 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 </View>
 
                 {/* Quick gram chips */}
-                <View style={styles.quickGramsRow}>
-                  {[50, 100, 150, 200, 300].map((g) => (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.quickGramsRow}
+                >
+                  {reviewFood.packageQuantityGrams ? (
                     <TouchableOpacity
-                      key={g}
-                      style={[styles.quickGramChip, consumedGrams === g && styles.quickGramChipActive]}
-                      onPress={() => setConsumedGrams(g)}
+                      style={[
+                        styles.quickGramChip,
+                        styles.quickGramChipOff,
+                        consumedGrams === reviewFood.packageQuantityGrams && styles.quickGramChipActive,
+                      ]}
+                      onPress={() => setConsumedGrams(reviewFood.packageQuantityGrams!)}
                       activeOpacity={0.7}
                     >
                       <Text
                         style={[
                           styles.quickGramText,
-                          consumedGrams === g && styles.quickGramTextActive,
+                          styles.quickGramTextOff,
+                          consumedGrams === reviewFood.packageQuantityGrams && styles.quickGramTextActive,
                         ]}
                       >
-                        {g}g
+                        {reviewFood.packageQuantityUnitName || `${reviewFood.packageQuantityGrams}g`} (Full Pack)
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
+                  ) : null}
+
+                  {reviewFood.servingQuantityGrams &&
+                  reviewFood.servingQuantityGrams !== reviewFood.packageQuantityGrams ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.quickGramChip,
+                        styles.quickGramChipOff,
+                        consumedGrams === reviewFood.servingQuantityGrams && styles.quickGramChipActive,
+                      ]}
+                      onPress={() => setConsumedGrams(reviewFood.servingQuantityGrams!)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.quickGramText,
+                          styles.quickGramTextOff,
+                          consumedGrams === reviewFood.servingQuantityGrams && styles.quickGramTextActive,
+                        ]}
+                      >
+                        {reviewFood.servingUnitName || `${reviewFood.servingQuantityGrams}g`} (1 Serving)
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {[50, 100, 150, 200, 300]
+                    .filter(
+                      (g) =>
+                        g !== reviewFood.packageQuantityGrams &&
+                        g !== reviewFood.servingQuantityGrams
+                    )
+                    .map((g) => (
+                      <TouchableOpacity
+                        key={g}
+                        style={[
+                          styles.quickGramChip,
+                          consumedGrams === g && styles.quickGramChipActive,
+                        ]}
+                        onPress={() => setConsumedGrams(g)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.quickGramText,
+                            consumedGrams === g && styles.quickGramTextActive,
+                          ]}
+                        >
+                          {g}g
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
               </View>
 
               {/* Dynamic Macro & Micronutrient Summary */}
@@ -777,7 +848,12 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         <TouchableOpacity
                           key={item.id}
                           style={styles.resultItem}
-                          onPress={() => selectFoodForReview(item)}
+                          onPress={() =>
+                            selectFoodForReview(
+                              item,
+                              item.packageQuantityGrams || item.servingSizeGrams
+                            )
+                          }
                           activeOpacity={0.7}
                         >
                           {item.imageUrl ? (
@@ -802,6 +878,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                               </Text>
                             ) : null}
                             <Text style={styles.resultNutrients}>
+                              {item.offQuantity ? `${item.offQuantity} • ` : ''}
                               {item.nutrientsPer100g.calories} kcal • {item.nutrientsPer100g.proteinGrams}g P •{' '}
                               {item.nutrientsPer100g.carbsGrams}g C • {item.nutrientsPer100g.fatGrams}g F (per 100g)
                             </Text>
@@ -1263,6 +1340,35 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 14,
+  },
+  reviewTitleRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  offQuantityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 240, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+  },
+  offQuantityBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#00F0FF',
+  },
+  quickGramChipOff: {
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+  },
+  quickGramTextOff: {
+    color: '#00F0FF',
+    fontWeight: '700',
   },
   reviewFoodName: {
     color: COLORS.textPrimary,

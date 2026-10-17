@@ -159,6 +159,10 @@ export const useNutritionStore = create<NutritionState>()(
           nutrients: calculatedNutrients,
           source: food.source,
           barcode: food.barcode,
+          packageQuantityGrams: food.packageQuantityGrams,
+          packageQuantityUnitName: food.packageQuantityUnitName,
+          servingQuantityGrams: food.servingQuantityGrams,
+          offQuantity: food.offQuantity,
         };
 
         const updatedFoods = [...currentLog.foods, newLoggedFood];

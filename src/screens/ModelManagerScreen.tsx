@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
 import { useCoachStore } from '@/store/useCoachStore';
+import { updateService } from '@/services/updates/updateService';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -72,6 +73,8 @@ export const ModelManagerScreen: React.FC = () => {
   const modeColors = getModeColors(mode);
   const [otaStatus, setOtaStatus] = useState<string | null>(null);
   const [checkingOta, setCheckingOta] = useState(false);
+  const [otaCanReload, setOtaCanReload] = useState(false);
+  const otaMetadata = updateService.getUpdateMetadata();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -124,13 +127,25 @@ export const ModelManagerScreen: React.FC = () => {
     setShowConfirmModal(false);
   };
 
-  const handleCheckOTA = () => {
+  const handleCheckOTA = async () => {
     setCheckingOta(true);
     setOtaStatus(null);
-    setTimeout(() => {
+    setOtaCanReload(false);
+    try {
+      const result = await updateService.checkForUpdate();
+      setOtaStatus(result.statusMessage);
+      if (result.canReload) {
+        setOtaCanReload(true);
+      }
+    } catch (e: any) {
+      setOtaStatus('Failed to check for updates: ' + (e?.message || 'Network error'));
+    } finally {
       setCheckingOta(false);
-      setOtaStatus('ZeroCoach is up-to-date with latest prompt & inference logic.');
-    }, 1200);
+    }
+  };
+
+  const handleApplyOTA = async () => {
+    await updateService.applyUpdate();
   };
 
   return (
@@ -514,6 +529,22 @@ export const ModelManagerScreen: React.FC = () => {
             Pull instant prompt refinements and UI enhancements without waiting for App Store / Google Play review cycles.
           </Text>
 
+          {/* OTA Channel & Runtime Badges */}
+          <View style={styles.otaBadgeRow}>
+            <View style={styles.otaBadge}>
+              <Text style={styles.otaBadgeLabel}>CHANNEL</Text>
+              <Text style={styles.otaBadgeValue}>{otaMetadata.channel.toUpperCase()}</Text>
+            </View>
+            <View style={styles.otaBadge}>
+              <Text style={styles.otaBadgeLabel}>RUNTIME</Text>
+              <Text style={styles.otaBadgeValue}>{otaMetadata.runtimeVersion}</Text>
+            </View>
+            <View style={styles.otaBadge}>
+              <Text style={styles.otaBadgeLabel}>ENGINE</Text>
+              <Text style={styles.otaBadgeValue}>EXPO EAS</Text>
+            </View>
+          </View>
+
           <TouchableOpacity
             onPress={handleCheckOTA}
             disabled={checkingOta}
@@ -535,6 +566,17 @@ export const ModelManagerScreen: React.FC = () => {
               <CheckCircle2 size={14} color={COLORS.success} />
               <Text style={styles.otaStatusText}>{otaStatus}</Text>
             </View>
+          )}
+
+          {otaCanReload && (
+            <TouchableOpacity
+              onPress={handleApplyOTA}
+              style={[styles.otaBtn, { backgroundColor: COLORS.success, borderColor: COLORS.success, marginTop: SPACING.xs }]}
+              activeOpacity={0.8}
+            >
+              <RotateCcw size={14} color="#000" />
+              <Text style={[styles.otaBtnText, { color: '#000', fontWeight: '800' }]}>RESTART APP TO APPLY UPDATE</Text>
+            </TouchableOpacity>
           )}
         </GlassCard>
 
@@ -1016,6 +1058,34 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 17,
     marginBottom: SPACING.md,
+  },
+  otaBadgeRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  otaBadge: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: RADIUS.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  otaBadgeLabel: {
+    ...TYPOGRAPHY.mono,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+  },
+  otaBadgeValue: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    color: COLORS.purpleAccent,
+    marginTop: 2,
+    fontWeight: '700',
   },
   otaBtn: {
     flexDirection: 'row',

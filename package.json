@@ -11,6 +11,7 @@
     "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "~57.0.2",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.26",
     "llama.rn": "^0.13.0-rc.7",
     "lucide-react-native": "^1.57.0",
     "react": "19.2.3",
@@ -33,7 +34,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:apk": "cd android && ./gradlew assembleRelease",
-    "build:apk-debug": "cd android && ./gradlew assembleDebug"
+    "build:apk-debug": "cd android && ./gradlew assembleDebug",
+    "update:publish": "eas update --branch production",
+    "update:preview": "eas update --branch preview"
   },
   "private": true
 }

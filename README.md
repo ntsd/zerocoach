@@ -156,6 +156,17 @@ npm run build:apk
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 ```
 
+### ⚡ Over-The-Air (OTA) Updates (iOS & Android)
+
+ZeroCoach supports Over-The-Air (OTA) hotfixes via `expo-updates`. Bug fixes, coach prompt refinements, UI improvements, and calculation updates can be deployed directly to existing Android and iOS installs without rebuilding binaries:
+
+```bash
+# Push an instant OTA hotfix to both Android and iOS installs
+npm run update:publish -- --message "Fix macro calculation and prompt tuning"
+```
+
+Users can also tap **"CHECK FOR OTA UPDATES"** anytime in **Settings → Over-The-Air (OTA) Hotfix Channel** to check for and apply updates on-demand.
+
 ---
 
 ## 🧠 Model Configuration & GGUF Support

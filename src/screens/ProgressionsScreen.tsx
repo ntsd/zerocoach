@@ -10,7 +10,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useChatStore } from '@/store/useChatStore';
-import { CalisthenicsStage } from '@/types/telemetry';
 import { SkillLevel, TrainingGoal } from '@/types/coach';
 import { WorkoutSplit } from '@/types/workout';
 import {
@@ -21,12 +20,10 @@ import { AdaptiveWorkoutCard } from '@/components/workout/AdaptiveWorkoutCard';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
-import { SkillTreeCard } from '@/components/progressions/SkillTreeCard';
 import { HorizontalChipBar, ChipItem } from '@/components/common/HorizontalChipBar';
 import { GlassCard } from '@/components/common/GlassCard';
 import {
   Dumbbell,
-  Trophy,
   Activity,
   Sparkles,
   Flame,
@@ -36,7 +33,6 @@ import {
   MessageSquare,
   Sliders,
   Target,
-  Plus,
 } from 'lucide-react-native';
 
 interface ProgressionsScreenProps {
@@ -72,16 +68,10 @@ const WORKOUT_SPLITS: Array<{ id: WorkoutSplit; label: string; icon: any }> = [
 export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
-  const [selectedFilter, setSelectedFilter] = useState<string>('All');
   const { mode, userProfile, updateProfile, setSkillLevel } = useCoachStore();
   const defaultMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
-  const {
-    calisthenicsStages,
-    metrics,
-    toggleStageCompletion,
-    deleteStage,
-  } = useTelemetryStore();
+  const { calisthenicsStages, metrics } = useTelemetryStore();
   const { sendMessage } = useChatStore();
   const modeColors = getModeColors(mode);
 
@@ -152,41 +142,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     setSkillLevel(level);
   };
 
-  // Dynamic filter options based on current equipment environment + custom user skills
-  const filterOptions: ChipItem[] = useMemo(() => {
-    const customSkillItems = Array.from(
-      new Set(
-        calisthenicsStages
-          .filter((s) => s.isCustom && (equipmentMode === 'all' ? true : s.category === 'bodyweight'))
-          .map((s) => s.skillName)
-      )
-    ).map((name) => ({
-      id: name,
-      label: name,
-      icon: Trophy,
-    }));
-
-    if (equipmentMode === 'all') {
-      return [
-        { id: 'All', label: 'All Gym Benchmarks', icon: Dumbbell },
-        { id: 'Barbell Bench Press', label: 'Bench Press', icon: Dumbbell },
-        { id: 'Barbell Back Squat', label: 'Back Squat', icon: Zap },
-        { id: 'Barbell Bent-Over Row', label: 'Barbell Row', icon: ShieldCheck },
-        ...customSkillItems,
-        { id: 'bodyweight_all', label: 'Bodyweight Skills', icon: Flame },
-      ];
-    } else {
-      return [
-        { id: 'All', label: 'All Bodyweight Skills', icon: Flame },
-        { id: 'Push-Up & Dip Mastery', label: 'Push-Up & Dips', icon: Dumbbell },
-        { id: 'Pull-Up & Muscle-Up', label: 'Pull-Up & Muscle-Up', icon: Zap },
-        { id: 'Core & L-Sit', label: 'Core & L-Sit', icon: ShieldCheck },
-        ...customSkillItems,
-        { id: 'gym_all', label: 'Gym Benchmarks', icon: Dumbbell },
-      ];
-    }
-  }, [equipmentMode, calisthenicsStages]);
-
   // Goal chip items
   const goalChipItems: ChipItem[] = useMemo(() => {
     return TRAINING_GOALS.map((g) => ({
@@ -206,39 +161,12 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     }));
   }, [coachRec.recommendedSplit]);
 
-  const filteredStages = useMemo(() => {
-    return calisthenicsStages.filter((stage) => {
-      if (selectedFilter === 'All') {
-        return equipmentMode === 'all'
-          ? (stage.category === 'gym' || !stage.category)
-          : stage.category === 'bodyweight';
-      }
-      if (selectedFilter === 'bodyweight_all') {
-        return stage.category === 'bodyweight';
-      }
-      if (selectedFilter === 'gym_all') {
-        return stage.category === 'gym' || !stage.category;
-      }
-      return stage.skillName === selectedFilter;
-    });
-  }, [calisthenicsStages, selectedFilter, equipmentMode]);
-
-  const completedCount = filteredStages.filter((s) => s.completed).length;
-  const totalCount = filteredStages.length;
-  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
   const handleAskCoachPlan = () => {
     onNavigateToChat();
     const goalTitle = TRAINING_GOALS.find((g) => g.id === activeGoal)?.label || activeGoal;
     sendMessage(
       `Coach, I am reviewing today's suggested plan: "${adaptivePlan.title}" (${adaptivePlan.tierLabel}, ~${adaptivePlan.estimatedDurationMin} min). My goal is ${goalTitle} at ${activeSkillLevel.toUpperCase()} level with a Readiness Score of ${metrics.readinessScore}/100. Why is this workout split and progression scheme best for me today?`
     );
-  };
-
-  const handleAskCoach = async (stage: CalisthenicsStage) => {
-    onNavigateToChat();
-    const prompt = `Coach, I am currently working on ${stage.skillName} Stage ${stage.stageNumber}: "${stage.stageTitle}". The standard is "${stage.standard}". What form cues, setup mechanics, and set/rep progression schemes should I adhere to based on my readiness?`;
-    await sendMessage(prompt);
   };
 
   return (
@@ -251,10 +179,10 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Dumbbell size={20} color={modeColors.accent} />
-            <Text style={styles.title}>WORKOUT & PROGRESSIONS</Text>
+            <Text style={styles.title}>ADAPTIVE WORKOUT</Text>
           </View>
           <Text style={styles.subtitle}>
-            Goal-Driven Adaptive Training • RepDB Open Exercise Library
+            Goal-Driven Training • RepDB Open Exercise Library
           </Text>
         </View>
 
@@ -416,10 +344,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         {/* Equipment Mode Segmented Selector */}
         <View style={styles.equipmentToggleContainer}>
           <TouchableOpacity
-            onPress={() => {
-              setEquipmentMode('all');
-              setSelectedFilter('All');
-            }}
+            onPress={() => setEquipmentMode('all')}
             style={[
               styles.equipmentOption,
               equipmentMode === 'all' && {
@@ -444,10 +369,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => {
-              setEquipmentMode('bodyweight');
-              setSelectedFilter('All');
-            }}
+            onPress={() => setEquipmentMode('bodyweight')}
             style={[
               styles.equipmentOption,
               equipmentMode === 'bodyweight' && {
@@ -478,61 +400,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           mode={mode}
           onAskCoach={() => handleAskCoachPlan()}
         />
-
-        {/* Training Progression & Benchmark Section Header */}
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeaderLeft}>
-            <Text style={styles.sectionTitle}>
-              {equipmentMode === 'all' ? 'GYM BENCHMARK PROGRESSIONS' : 'BODYWEIGHT & SKILL PROGRESSIONS'}
-            </Text>
-            <Text style={styles.sectionSubtitle}>Milestone Standards & Mastery Tree</Text>
-          </View>
-        </View>
-
-        {/* Overall Mastery Progress Card */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
-            <View style={styles.trophyRow}>
-              <Trophy size={16} color={COLORS.warning} />
-              <Text style={styles.progressTitle}>
-                {equipmentMode === 'all' ? 'GYM BENCHMARK MASTERY' : 'SKILL PROGRESSION MASTERY'}
-              </Text>
-            </View>
-            <Text style={styles.progressValue}>
-              {completedCount} of {totalCount} ({progressPercent}%)
-            </Text>
-          </View>
-          <View style={styles.progressBarBg}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${progressPercent}%`, backgroundColor: modeColors.accent },
-              ]}
-            />
-          </View>
-        </View>
-
-        {/* Progression Filter Pills */}
-        <HorizontalChipBar
-          items={filterOptions}
-          selectedId={selectedFilter}
-          onSelect={(item) => setSelectedFilter(item.id)}
-          style={styles.filterChipScroll}
-          contentContainerStyle={styles.filterChipContent}
-        />
-
-        {/* List of Stages */}
-        <View style={styles.stageList}>
-          {filteredStages.map((stage) => (
-            <SkillTreeCard
-              key={stage.id}
-              stage={stage}
-              onToggle={toggleStageCompletion}
-              onDelete={deleteStage}
-              onAskCoach={handleAskCoach}
-            />
-          ))}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -559,56 +426,54 @@ const styles = StyleSheet.create({
   title: {
     ...TYPOGRAPHY.h3,
     fontSize: 18,
-    fontWeight: '900',
     color: COLORS.textPrimary,
+    letterSpacing: 0.5,
   },
   subtitle: {
     ...TYPOGRAPHY.caption,
-    fontSize: 11,
     color: COLORS.textMuted,
     marginTop: 2,
   },
 
-  // Selector Groups
+  // Selector Groups (Goal, Skill Level, Workout Plan)
   selectorGroup: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm + 4,
+    gap: 6,
   },
   selectorHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
     paddingHorizontal: 2,
   },
   selectorTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   selectorGroupTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 10,
+    fontSize: 9.5,
     color: COLORS.textMuted,
     letterSpacing: 0.8,
   },
   selectorActiveText: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.captionBold,
     fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: COLORS.textPrimary,
   },
   selectorChipScroll: {
     marginHorizontal: -SPACING.lg,
-    height: 32,
+    height: 36,
   },
   selectorChipContent: {
     paddingHorizontal: SPACING.lg,
     alignItems: 'center',
     gap: 6,
-    height: 32,
+    height: 36,
   },
 
-  // Skill Segment Control
+  // Skill Level Segmented Control
   skillSegmentContainer: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -628,12 +493,12 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   skillSegmentText: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.captionBold,
     fontSize: 11,
     color: COLORS.textSecondary,
-    fontWeight: '600',
   },
   skillSegmentSubText: {
+    ...TYPOGRAPHY.caption,
     fontSize: 9,
     color: COLORS.textMuted,
     marginTop: 1,
@@ -642,45 +507,42 @@ const styles = StyleSheet.create({
   // Coach Recommendation Banner
   coachRecCard: {
     padding: SPACING.md,
-    marginBottom: SPACING.md,
     borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+    gap: 8,
   },
   coachRecTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-    gap: 8,
+    alignItems: 'center',
   },
   coachRecTitleBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flex: 1,
   },
   coachRecIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   coachRecLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 8.5,
     color: COLORS.textMuted,
     letterSpacing: 0.8,
   },
   coachRecSplitTitle: {
-    ...TYPOGRAPHY.body,
-    fontSize: 14,
-    fontWeight: '800',
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
     color: COLORS.textPrimary,
   },
   coachRecBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.round,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: RADIUS.xs,
     borderWidth: 1,
   },
   coachRecBadgeText: {
@@ -690,29 +552,27 @@ const styles = StyleSheet.create({
   },
   coachRecReasoning: {
     ...TYPOGRAPHY.caption,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 11.5,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.sm + 2,
+    lineHeight: 16,
   },
   coachRecActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexWrap: 'wrap',
+    marginTop: 2,
   },
   applyCoachBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 6,
+    borderRadius: RADIUS.xs,
   },
   applyCoachBtnText: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.captionBold,
     fontSize: 11,
-    fontWeight: '800',
     color: COLORS.background,
   },
   activeCoachBadge: {
@@ -720,32 +580,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 5,
+    borderRadius: RADIUS.xs,
     borderWidth: 1,
   },
   activeCoachBadgeText: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.captionBold,
     fontSize: 11,
-    fontWeight: '700',
   },
   askCoachPlanBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 5,
+    borderRadius: RADIUS.xs,
     borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   askCoachPlanBtnText: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.captionBold,
     fontSize: 11,
-    fontWeight: '700',
   },
 
-  // Equipment Toggle
+  // Equipment Mode Segmented Selector
   equipmentToggleContainer: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -772,98 +629,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textSecondary,
     fontWeight: '600',
-  },
-
-  // Progression Tree
-  sectionHeaderRow: {
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  sectionHeaderLeft: {
-    flex: 1,
-    gap: 2,
-  },
-  addSkillButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: RADIUS.round,
-    borderWidth: 1,
-    marginBottom: 2,
-  },
-  addSkillButtonText: {
-    ...TYPOGRAPHY.badge,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  sectionTitle: {
-    ...TYPOGRAPHY.badge,
-    fontSize: 10,
-    color: COLORS.textMuted,
-    letterSpacing: 1,
-  },
-  sectionSubtitle: {
-    ...TYPOGRAPHY.h3,
-    fontSize: 15,
-    color: COLORS.textPrimary,
-  },
-  progressCard: {
-    backgroundColor: COLORS.cardBackground,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
-    marginBottom: SPACING.lg,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs + 2,
-  },
-  trophyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  progressTitle: {
-    ...TYPOGRAPHY.badge,
-    fontSize: 10,
-    color: COLORS.textPrimary,
-  },
-  progressValue: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-  },
-  progressBarBg: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.cardSecondary,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  filterChipScroll: {
-    marginHorizontal: -SPACING.lg,
-    marginBottom: SPACING.md,
-    height: 32,
-  },
-  filterChipContent: {
-    paddingHorizontal: SPACING.lg,
-    alignItems: 'center',
-    gap: 6,
-    height: 32,
-  },
-  stageList: {
-    gap: SPACING.xs,
   },
 });

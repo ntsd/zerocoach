@@ -757,6 +757,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   placeholderTextColor={COLORS.textMuted}
                   value={name}
                   onChangeText={setName}
+                  autoComplete="name"
+                  textContentType="name"
+                  autoCapitalize="words"
+                  autoCorrect={false}
                 />
 
                 {/* Body Metrics with sync indicator */}

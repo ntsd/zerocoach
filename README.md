@@ -4,34 +4,16 @@ ZeroCoach is an open-source, privacy-first mobile fitness and AI coaching applic
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- 📱 **100% On-Device AI Inference**: Runs quantized GGUF models (e.g., Gemma 2) directly on your device's hardware using `llama.rn` with Metal (iOS) and GPU/OpenCL (Android) hardware acceleration. All athlete metrics, biometrics, and chat transcripts stay strictly on your phone.
-- 🔌 **OpenAI-Compatible Local Endpoint Support**: Seamlessly switch between on-device inference and local desktop LLM servers (Ollama, LM Studio, vLLM, llama.cpp server) or OpenAI-compatible inference APIs with full streaming token generation.
-- 🏋️ **RepDB Open Exercise Database**: Powered by an integrated database of 643 science-backed exercises categorized by movement type (Compound, Isolation, Bodyweight, Plyometric, Warmup, Cooldown), mechanical target muscle groups, and metabolic equivalents (MET).
-- 🔄 **Adaptive Training Generator**: Dynamically generates tailored daily routines based on your equipment preference (**Full Gym** vs. **Bodyweight / Home**) and daily physiological readiness score.
-- 🎯 **Milestone Progressions & Benchmark Mastery**:
-  - **Gym Benchmarks**: Barbell Bench Press, Barbell Back Squat, and Barbell Bent-Over Row milestone trees with relative bodyweight standards.
-  - **Bodyweight & Skill Mastery**: Push-Up & Dip progression, Pull-Up to Bar Muscle-Up progression, and Core & L-Sit progressions.
-- 🥗 **Smart Nutrition & Micronutrient Bio-Tracking**:
-  - Precision macronutrient monitoring: Calories, Carbs, Protein, Fat, and Dietary Fiber with dynamic athlete targets.
-  - Complete micronutrient bio-scorecard tracking key vitamins (A, C, D, B12, E) and minerals/electrolytes (Iron, Calcium, Magnesium, Potassium, Sodium, Zinc) against RDA baselines.
-  - Dual open data source engine:
-    - **Open Food Facts API**: Instant barcode scan and packaged grocery lookup.
-    - **Bundled USDA Whole Foods Database**: 100% offline, lab-assayed staple raw foods for complete micronutrient profiles.
-  - **AI Meal Decomposer**: Natural-language composite meal parsing and photo plate simulator for home-cooked meals.
-  - **Coach Prompt Injection**: Live nutrition totals and remaining macros are automatically fed into the AI Coach's system prompt for intelligent nutrition advice.
-- ⚡ **Dual Coaching Personas**:
-  - **Strict Coach**: High-intensity, uncompromising athletic conditioning focused on progressive overload, kinetic chain alignment, and accountability.
-  - **Comfort Coach**: Sustainable, empathetic habit-building focused on longevity, recovery pacing, and joint health.
-- ⌚ **Universal Multi-App Wearable & Health Sync (100% On-Device)**:
-  - **Android Health Connect (`react-native-health-connect`)**: Connects natively to the Android OS health database.
-  - **Apple HealthKit (`react-native-health`)**: Connects natively to iOS HealthKit.
-  - **Universal Fitness Companion Aggregation**: Automatically ingests biometrics from **Garmin Connect, Apple Watch, Samsung Health, Whoop 4.0, Oura Ring, Google Fit, Strava, and Xiaomi (Mi Fitness)** without requiring individual brand developer portal accounts or remote cloud aggregators.
-  - **Live Biometric Telemetry**: Daily Step counts, Active Energy Burned (kcal), Resting Heart Rate (BPM), Heart Rate Variability (HRV rMSSD/SDNN), and Sleep Architecture (total hours and deep sleep percentage).
-  - **Smart Scale & Body Weight Auto-Sync**: Automatically detects synced weight readings from smart scales/wearables, updates athlete profile weight, and recalculates daily Coach calorie and macro targets.
-  - **Graceful Web & Simulator Fallback**: Built-in simulated device bridge and interactive **Fitness App Sync Bridge** modal for zero-setup previews in Web, Simulator, and Expo Go.
-- 📱 **Mobile & iPhone Optimized**: Tuned for modern mobile viewports (including iPhone 16 Dynamic Island) with locked dark viewport shells, zero white canvas overscroll, and compact horizontal scrolling chip bars.
+- 📱 **100% On-Device AI Inference**: Runs quantized LLM models (e.g. Gemma 2) locally with hardware acceleration—zero cloud latency, zero API costs, and absolute data privacy.
+- 🔌 **OpenAI-Compatible Local Endpoints**: Connect seamlessly to local network LLM runners like Ollama, LM Studio, vLLM, or desktop llama.cpp servers.
+- 💬 **Conversational Athletic Coach**: Real-time AI coaching with dual personas (*Strict* vs. *Comfort*), auto-regulating advice based on live recovery metrics and nutrition.
+- 🏋️ **Goal-Driven Adaptive Training**: Automatically generates personalized workout splits based on readiness scores, equipment (Gym vs. Bodyweight), and athlete skill level.
+- 📚 **RepDB Exercise Library**: Integrated catalog of 643 science-backed exercises with start/peak pose previews, customizable movement swapping, and skipping.
+- 🥗 **Smart Nutrition & Macro Tracking**: Dynamic calorie and macronutrient targets with whole food search, barcode scanning, and natural-language composite meal decomposition.
+- ⌚ **Universal Wearable & Health Sync**: Direct on-device sync with Android Health Connect and Apple HealthKit to aggregate sleep, HRV, heart rate, and steps across Garmin, Apple Watch, Whoop, Oura, Samsung, and more.
+- 🎨 **Privacy-First Obsidian Interface**: Dark-mode glassmorphic aesthetic optimized for fluid mobile interactions and system safe insets.
 
 ---
 
@@ -45,7 +27,7 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
 | **On-Device Inference** | [llama.rn](https://github.com/mybigday/llama.rn) (React Native bindings for `llama.cpp`) running quantized GGUF models |
 | **Local LLM Providers** | OpenAI-compatible SSE streaming client supporting Ollama, LM Studio, and vLLM |
 | **Web Inference Engine** | Automatic deterministic simulation engine when running in browser environments |
-| **Exercise Database** | Open Exercise Repository adapted from [RepDB](https://repdb.co) (643 exercises) |
+| **Exercise Database** | Open Exercise Repository adapted from [RepDB](https://repdb.co) (643 movements with verified CDN pose assets) |
 | **Nutrition Databases** | [Open Food Facts](https://world.openfoodfacts.org/) API + Bundled USDA FoodData Central whole foods dataset |
 | **State Management** | [Zustand](https://github.com/pmndrs/zustand) with AsyncStorage local persistence |
 | **Styling & Design** | Sleek Cyber-Athletic Dark Mode (`#080B10`), HSL accents, and glassmorphic micro-components |
@@ -57,10 +39,11 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
 
 ### 1. 💬 Coach (`CoachChatScreen`)
 - Real-time conversational AI coaching with live tokens-per-second streaming metrics.
+- Formatted response rendering for structured lists, kinetic cues, bold titles, and biomechanical guidance.
 - Synchronized with active wearable telemetry (HRV, resting heart rate, sleep duration, calorie burn) and **today's logged nutrition totals & remaining macros**.
-- Horizontal micro-prompt chips (`HorizontalChipBar`) adapting dynamically to your equipment mode and goals:
-  - *Gym Mode*: Adjust macros, Bench cues, Compound overload plans, Readiness review.
-  - *Home Mode*: Adjust macros, Bodyweight form cues, Skill progression checks, Readiness review.
+- Context-aware coaching chips:
+  - *Suggest Food*, *Suggest Workout Plan*, *Adjust Macros*, *Readiness Review*, *Bodyweight Cues*.
+  - Deep-link action pills (*"Log Food in Nutrition Tracker"*, *"View Workout & Progressions"*).
 
 ### 2. 🥗 Nutrition (`NutritionScreen`)
 - **Macro Progress Header**: Real-time calorie gauge, remaining energy budget, and progress bars for Protein, Carbs, Fat, and Dietary Fiber.
@@ -72,11 +55,17 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
   - *Snap / AI Decomposer*: Snap a photo or describe composite meals (e.g. "2 eggs, avocado, sourdough") to decompose ingredients with scaled lab nutrients.
   - *Portion Review Sheet*: Adjust grams/servings with real-time nutrient recalculation before logging.
 
-### 3. 🏋️ Workout & Progressions (`ProgressionsScreen`)
-- Equipment segmented selector: **Full Gym (All Equipment)** vs. **Bodyweight / Home**.
-- Daily Adaptive Workout Card with structured warmups, primary compound/skill lifts, accessory volume, metabolic finishers, and cooldowns.
-- Interactive milestone mastery progress trees with one-tap *"Ask Coach"* shortcuts for biomechanical guidance.
-- Horizontal scrolling filter chips allowing instant filtering by specific lift or movement category.
+### 3. 🏋️ Workout (`ProgressionsScreen`)
+- **Training Goal & Skill Level Selectors**: Tailor routines for *Strength*, *Calisthenics*, *Fat Loss*, *Cardio*, or *Longevity* across *Beginner*, *Intermediate*, or *Advanced* tiers.
+- **Workout Split Hub**: Select *Full Body*, *Push*, *Pull*, *Legs*, *Upper*, *Lower*, *Core & Mobility*, *Calisthenics Skills*, or *Cardio Engine*.
+- **Coach Suggestion Banner**: 1-tap apply for CNS readiness-tailored split recommendations.
+- **Adaptive Daily Exercise Plan**:
+  - Complete routine with dynamic warmups, primary compound lifts, secondary volume, and cooldowns.
+  - RepDB movement specifications: target sets/reps, rest intervals, equipment, target muscles, and MET burn.
+  - **Skip / Restore**: Skip exercises dynamically without distorting completion progress.
+  - **Swap Movement**: Instant replacement with any exercise targeting the same muscle group.
+  - **Add Skill / Exercise from RepDB**: Search and select from 643 exercises (with quick filters for Pull-ups, Dips, Squats, etc.).
+  - **Kinetic Pose Previews**: Exercise detail modal showing start and peak pose images.
 
 ### 4. ⚡ Telemetry (`TelemetryScreen`)
 - **Dynamic 0–100 Readiness Gauge**: Visualizes Central Nervous System (CNS) recovery and neuromuscular adaptation based on HRV, resting heart rate, sleep duration, and deep sleep architecture.

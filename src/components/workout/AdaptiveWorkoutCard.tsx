@@ -264,7 +264,10 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                     <Text style={styles.volumeText}>
                       <Text style={styles.volumeAccent}>{item.targetSets} sets</Text> × {item.targetReps}
                     </Text>
-                    <Text style={styles.restText}>Rest: {item.restPeriodSeconds}s</Text>
+                    <View style={styles.restBadge}>
+                      <Clock size={9} color={COLORS.textMuted} />
+                      <Text style={styles.restText}>{item.restPeriodSeconds}s rest</Text>
+                    </View>
                   </View>
 
                   {/* Coaching Cue Box */}
@@ -547,22 +550,36 @@ const styles = StyleSheet.create({
   volumeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
-    marginTop: 2,
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 3,
   },
   volumeText: {
     ...TYPOGRAPHY.caption,
     fontSize: 12,
     color: COLORS.textSecondary,
+    flexShrink: 1,
   },
   volumeAccent: {
     color: COLORS.textPrimary,
     fontWeight: '800',
   },
+  restBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
   restText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.textMuted,
+    fontWeight: '600',
   },
   cueBox: {
     flexDirection: 'row',

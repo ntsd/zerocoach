@@ -1,5 +1,6 @@
 import { FoodItem, NutrientProfile, FoodCategory } from '../../types/nutrition';
 import { usdaWholeFoods } from './openFoodFactsService';
+import { llmService } from '../llm/llmService';
 
 export interface DecomposedIngredient {
   name: string;
@@ -259,4 +260,122 @@ export function decomposeMealText(inputText: string): MealDecompositionResult {
     totalNutrients,
     asFoodItem,
   };
+}
+
+/**
+ * Decomposes meal descriptions using Gemma on-device model,
+ * with graceful fallback to USDA whole food heuristics.
+ */
+export async function decomposeMealWithGemma(
+  inputText: string
+): Promise<MealDecompositionResult> {
+  const clean = inputText.trim();
+  if (!clean) {
+    return decomposeMealText('Prepared Meal');
+  }
+
+  try {
+    const prompt = `You are Gemma 2, an on-device sports nutrition AI. Analyze this meal description: "${clean}".
+Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Follow this exact structure:
+{
+  "dishTitle": "Name of the meal",
+  "totalGrams": 300,
+  "ingredients": [
+    {
+      "name": "ingredient name",
+      "quantityGrams": 100,
+      "calories": 150,
+      "proteinGrams": 12,
+      "carbsGrams": 15,
+      "fatGrams": 5,
+      "fiberGrams": 2
+    }
+  ]
+}`;
+
+    let fullOutput = '';
+    const res = await llmService.streamCompletion(
+      {
+        systemPrompt:
+          'You are Gemma 2, an athletic coach and nutritionist. Always output valid JSON strictly following the schema without markdown or conversational filler.',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        maxTokens: 350,
+      },
+      (token) => {
+        fullOutput += token;
+      }
+    );
+
+    const rawText = (fullOutput || res.fullText || '').trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
+        const ingredients: DecomposedIngredient[] = parsed.ingredients.map((ing: any) => {
+          const quantityGrams = Number(ing.quantityGrams) || 100;
+          const nutrients: NutrientProfile = {
+            calories: Number(ing.calories) || 0,
+            proteinGrams: Number(ing.proteinGrams) || 0,
+            carbsGrams: Number(ing.carbsGrams) || 0,
+            fatGrams: Number(ing.fatGrams) || 0,
+            fiberGrams: Number(ing.fiberGrams) || 0,
+            vitaminA_mcg: 0,
+            vitaminC_mg: 0,
+            vitaminD_mcg: 0,
+            vitaminB12_mcg: 0,
+            vitaminE_mg: 0,
+            iron_mg: 0,
+            calcium_mg: 0,
+            magnesium_mg: 0,
+            potassium_mg: 0,
+            sodium_mg: 0,
+            zinc_mg: 0,
+          };
+          return {
+            name: String(ing.name || 'Ingredient'),
+            quantityGrams,
+            nutrients,
+          };
+        });
+
+        const totalGrams =
+          Number(parsed.totalGrams) ||
+          ingredients.reduce((sum, item) => sum + item.quantityGrams, 0);
+
+        const totalNutrients = sumNutrients(ingredients.map((i) => i.nutrients));
+        const nutrientsPer100g = scaleNutrients(
+          totalNutrients,
+          totalGrams > 0 ? (100 / totalGrams) * 100 : 100
+        );
+
+        const dishTitle =
+          String(parsed.dishTitle || clean).slice(0, 45);
+
+        const asFoodItem: FoodItem = {
+          id: `gemma_meal_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+          name: dishTitle,
+          category: 'prepared_meal',
+          servingSizeGrams: totalGrams,
+          servingUnitName: `1 meal (${totalGrams}g)`,
+          nutrientsPer100g,
+          source: 'ai_decomposed',
+          hasCompleteMicros: false,
+        };
+
+        return {
+          dishTitle,
+          ingredients,
+          totalGrams,
+          totalNutrients,
+          asFoodItem,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[GemmaMealDecomposer] Gemma inference error, falling back to USDA heuristics:', err);
+  }
+
+  // Graceful fallback to bundled USDA database matcher
+  return decomposeMealText(clean);
 }

@@ -72,7 +72,7 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
 - **Log Food Modal**:
   - *Database Search*: Search whole foods (USDA) and packaged products (Open Food Facts).
   - *Barcode Scanner*: Scan barcodes or enter codes with instant OFF product lookup.
-  - *Snap / AI Decomposer*: Snap a photo or describe composite meals (e.g. "2 eggs, avocado, sourdough") to decompose ingredients with scaled lab nutrients.
+  - *Snap / NutriSight Label Scanner*: Dual-mode camera scanner featuring **Open Food Facts NutriSight** (`openfoodfacts/nutrition-extractor` LayoutLMv3 token schema) to extract exact nutrition tables (calories, protein, carbs, fat, fiber, sodium, and serving grams) from packaging labels, alongside multimodal cooked meal plate decomposition.
   - *Portion Review Sheet*: Adjust grams/servings with real-time nutrient recalculation before logging.
 
 ### 3. 🏋️ Workout (`ProgressionsScreen`)

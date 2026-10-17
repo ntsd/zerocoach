@@ -26,6 +26,10 @@ import {
   MealDecompositionResult,
 } from '../../services/nutrition/mealDecomposer';
 import { analyzeMealPhoto } from '../../services/nutrition/photoMealAnalyzer';
+import {
+  extractNutritionFromLabelPhoto,
+  parseNutritionLabelText,
+} from '../../services/nutrition/nutritionLabelExtractor';
 import { useModelStore } from '../../store/useModelStore';
 import { calculateNutrientsForGrams } from '../../store/useNutritionStore';
 import { COLORS } from '../../theme/colors';
@@ -47,6 +51,7 @@ import {
   RotateCcw,
   Globe,
   AlertCircle,
+  Tag,
 } from 'lucide-react-native';
 
 interface FoodSearchAndReviewModalProps {
@@ -57,6 +62,7 @@ interface FoodSearchAndReviewModalProps {
 }
 
 type ModalTab = 'snap' | 'search' | 'barcode';
+export type SnapMode = 'label' | 'meal';
 
 export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> = ({
   visible,
@@ -66,6 +72,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab>('snap');
   const [selectedMealType, setSelectedMealType] = useState<MealType>(initialMealType);
+  const [snapMode, setSnapMode] = useState<SnapMode>('label');
 
   // Snap / AI & Photo Capture State
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
@@ -172,24 +179,42 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     setPhotoAnalysisError(null);
     try {
       const openAIConfig = useModelStore.getState().openAIConfig;
-      const analysis = await analyzeMealPhoto(
-        uri,
-        base64,
-        openAIConfig,
-        selectedMealType,
-        notes
-      );
-      if (analysis.canIdentify && analysis.decomposition) {
-        setPhotoAnalysisError(null);
-        setNlpInput(analysis.ingredientsText || '');
-        setDecompositionResult(analysis.decomposition);
-        selectFoodForReview(analysis.decomposition.asFoodItem, analysis.decomposition.totalGrams);
+
+      if (snapMode === 'label') {
+        const result = await extractNutritionFromLabelPhoto(uri, base64, openAIConfig);
+        if (result.success && result.asFoodItem) {
+          setPhotoAnalysisError(null);
+          selectFoodForReview(result.asFoodItem, result.data?.servingSizeGrams || 100);
+        } else {
+          setPhotoAnalysisError(
+            result.errorMessage ||
+              "Could not identify nutrition table numbers from image. Make sure the table (calories, protein, carbs, fat) is clearly visible."
+          );
+        }
       } else {
-        setPhotoAnalysisError("Can't identify food from the image");
+        const analysis = await analyzeMealPhoto(
+          uri,
+          base64,
+          openAIConfig,
+          selectedMealType,
+          notes
+        );
+        if (analysis.canIdentify && analysis.decomposition) {
+          setPhotoAnalysisError(null);
+          setNlpInput(analysis.ingredientsText || '');
+          setDecompositionResult(analysis.decomposition);
+          selectFoodForReview(analysis.decomposition.asFoodItem, analysis.decomposition.totalGrams);
+        } else {
+          setPhotoAnalysisError("Can't identify food from the image");
+        }
       }
     } catch (err) {
-      console.warn('[FoodSearchModal] Failed to process meal photo:', err);
-      setPhotoAnalysisError("Can't identify food from the image");
+      console.warn('[FoodSearchModal] Failed to process photo:', err);
+      setPhotoAnalysisError(
+        snapMode === 'label'
+          ? "Failed to extract nutrition table. Check your connection or enter values above."
+          : "Can't identify food from the image"
+      );
     } finally {
       setIsAnalyzingPhoto(false);
     }
@@ -199,7 +224,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        alert('Camera permission is required to capture photos of meals.');
+        alert('Camera permission is required to capture photos.');
         return;
       }
 
@@ -244,12 +269,28 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   const handleDecomposeText = () => {
     if (!nlpInput.trim()) return;
     setPhotoAnalysisError(null);
-    const result = decomposeMealText(nlpInput);
-    if (capturedImageUri) {
-      result.asFoodItem.imageUrl = capturedImageUri;
+
+    if (snapMode === 'label') {
+      const result = parseNutritionLabelText(nlpInput);
+      if (result.success && result.asFoodItem) {
+        if (capturedImageUri) {
+          result.asFoodItem.imageUrl = capturedImageUri;
+        }
+        selectFoodForReview(result.asFoodItem, result.data?.servingSizeGrams || 100);
+      } else {
+        setPhotoAnalysisError(
+          result.errorMessage ||
+            "Could not parse nutrition table from text. Include calories, protein, carbs, fat (e.g., Calories 200, Protein 15g, Carbs 25g, Fat 5g)."
+        );
+      }
+    } else {
+      const result = decomposeMealText(nlpInput);
+      if (capturedImageUri) {
+        result.asFoodItem.imageUrl = capturedImageUri;
+      }
+      setDecompositionResult(result);
+      selectFoodForReview(result.asFoodItem, result.totalGrams);
     }
-    setDecompositionResult(result);
-    selectFoodForReview(result.asFoodItem, result.totalGrams);
   };
 
   const selectFoodForReview = (food: FoodItem, defaultGrams?: number) => {
@@ -641,12 +682,89 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   contentContainerStyle={styles.tabScrollContent}
                   showsVerticalScrollIndicator={false}
                 >
+                  {/* Mode Selector Chips */}
+                  <View style={styles.snapModeContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.snapModeChip,
+                        snapMode === 'label' && styles.snapModeChipActive,
+                      ]}
+                      onPress={() => {
+                        setSnapMode('label');
+                        setPhotoAnalysisError(null);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Tag
+                        size={13}
+                        color={snapMode === 'label' ? '#080B10' : '#00F0FF'}
+                      />
+                      <Text
+                        style={[
+                          styles.snapModeText,
+                          snapMode === 'label' && styles.snapModeTextActive,
+                        ]}
+                      >
+                        Nutrition Table (NutriSight)
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.snapModeChip,
+                        snapMode === 'meal' && styles.snapModeChipActive,
+                      ]}
+                      onPress={() => {
+                        setSnapMode('meal');
+                        setPhotoAnalysisError(null);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Utensils
+                        size={13}
+                        color={snapMode === 'meal' ? '#080B10' : COLORS.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.snapModeText,
+                          snapMode === 'meal' && styles.snapModeTextActive,
+                        ]}
+                      >
+                        Cooked Meal / Plate
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Open Food Facts NutriSight Info Banner */}
+                  {snapMode === 'label' && (
+                    <View style={styles.nutriSightBanner}>
+                      <View style={styles.nutriSightHeader}>
+                        <View style={styles.nutriSightBadge}>
+                          <Sparkles size={11} color="#00F0FF" />
+                          <Text style={styles.nutriSightBadgeText}>OPEN FOOD FACTS</Text>
+                        </View>
+                        <Text style={styles.nutriSightModelName}>LayoutLMv3 NutriSight</Text>
+                      </View>
+                      <Text style={styles.nutriSightDesc}>
+                        Point your camera at any food nutrition facts label to extract exact calories, protein, carbs, fat & serving grams.
+                      </Text>
+                    </View>
+                  )}
+
                   {/* Description & Decomposition Input (Before Image) */}
                   <View style={styles.nlpBox}>
-                    <Text style={styles.nlpLabel}>Describe dish or paste menu text:</Text>
+                    <Text style={styles.nlpLabel}>
+                      {snapMode === 'label'
+                        ? 'Paste nutrition table text (or OCR snippet):'
+                        : 'Describe dish or paste menu text:'}
+                    </Text>
                     <TextInput
                       style={styles.nlpInput}
-                      placeholder="e.g., 2 eggs, avocado sourdough toast, or Salmon Quinoa Bowl from menu"
+                      placeholder={
+                        snapMode === 'label'
+                          ? 'e.g., Per serving (45g): Calories 210, Protein 12g, Total Fat 7g, Carbohydrates 25g, Sodium 140mg'
+                          : 'e.g., 2 eggs, avocado sourdough toast, or Salmon Quinoa Bowl from menu'
+                      }
                       placeholderTextColor={COLORS.textMuted}
                       value={nlpInput}
                       onChangeText={setNlpInput}
@@ -664,13 +782,19 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         <Sparkles size={16} color="#080B10" />
                       )}
                       <Text style={styles.decomposeBtnText}>
-                        {isAnalyzingPhoto ? 'Analyzing...' : 'Decompose & Estimate Macros'}
+                        {isAnalyzingPhoto
+                          ? 'Extracting...'
+                          : snapMode === 'label'
+                          ? 'Extract Table via NutriSight'
+                          : 'Decompose & Estimate Macros'}
                       </Text>
                     </TouchableOpacity>
                   </View>
 
                   <Text style={[styles.sectionSubtitle, { marginTop: 14 }]}>
-                    Or snap a photo of your meal plate, restaurant menu, or food label:
+                    {snapMode === 'label'
+                      ? 'Or snap a clear photo of the packaging nutrition facts table:'
+                      : 'Or snap a photo of your meal plate, restaurant menu, or food label:'}
                   </Text>
 
                   {/* Camera Snap Action Buttons */}
@@ -681,7 +805,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       activeOpacity={0.7}
                     >
                       <Camera size={18} color="#080B10" />
-                      <Text style={styles.cameraPrimaryBtnText}>Take Photo / Menu</Text>
+                      <Text style={styles.cameraPrimaryBtnText}>
+                        {snapMode === 'label' ? 'Scan Nutrition Table' : 'Take Photo / Menu'}
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -690,7 +816,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       activeOpacity={0.7}
                     >
                       <ImageIcon size={18} color="#00F0FF" />
-                      <Text style={styles.gallerySecondaryBtnText}>Upload Photo</Text>
+                      <Text style={styles.gallerySecondaryBtnText}>
+                        {snapMode === 'label' ? 'Upload Label Photo' : 'Upload Photo'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
 
@@ -702,9 +830,13 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       {isAnalyzingPhoto && (
                         <View style={styles.photoAnalyzingOverlay}>
                           <ActivityIndicator size="large" color="#00F0FF" />
-                          <Text style={styles.photoAnalyzingTitle}>ZeroCoach Vision AI</Text>
+                          <Text style={styles.photoAnalyzingTitle}>
+                            {snapMode === 'label' ? 'Open Food Facts NutriSight' : 'ZeroCoach Vision AI'}
+                          </Text>
                           <Text style={styles.photoAnalyzingSub}>
-                            Analyzing meal or reading menu text...
+                            {snapMode === 'label'
+                              ? 'Extracting nutrition table tokens & macro values...'
+                              : 'Analyzing meal or reading menu text...'}
                           </Text>
                         </View>
                       )}
@@ -731,9 +863,15 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     <View style={styles.photoErrorBanner}>
                       <AlertCircle size={18} color="#FF6B35" />
                       <View style={styles.photoErrorTextCol}>
-                        <Text style={styles.photoErrorTitle}>Can't identify food or menu text</Text>
+                        <Text style={styles.photoErrorTitle}>
+                          {snapMode === 'label'
+                            ? "Can't read nutrition table"
+                            : "Can't identify food or menu text"}
+                        </Text>
                         <Text style={styles.photoErrorSub}>
-                          Please describe your dish or paste the menu item text above to calculate macros.
+                          {snapMode === 'label'
+                            ? 'Please ensure the nutrition facts table is well-lit and in focus, or paste the text numbers above.'
+                            : 'Please describe your dish or paste the menu item text above to calculate macros.'}
                         </Text>
                       </View>
                     </View>
@@ -1899,5 +2037,75 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  snapModeContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#0F141C',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  snapModeChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 9,
+    gap: 6,
+  },
+  snapModeChipActive: {
+    backgroundColor: '#00F0FF',
+  },
+  snapModeText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  snapModeTextActive: {
+    color: '#080B10',
+    fontWeight: '800',
+  },
+  nutriSightBanner: {
+    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+  },
+  nutriSightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  nutriSightBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 240, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  nutriSightBadgeText: {
+    color: '#00F0FF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  nutriSightModelName: {
+    color: '#E0E7FF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  nutriSightDesc: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });

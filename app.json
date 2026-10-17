@@ -68,6 +68,12 @@
     ],
     "experiments": {
       "tsconfigPaths": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5ce2eec9-4f3d-4b0c-ac28-afed84d5d5b6"
+      }
+    },
+    "owner": "ntsd"
   }
 }

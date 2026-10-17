@@ -60,7 +60,6 @@ export const ModelManagerScreen: React.FC = () => {
     openAIConfig,
     geminiApiKey,
     setGeminiApiKey,
-    stats,
     downloadModel,
     loadModel,
     unloadModel,
@@ -237,110 +236,108 @@ export const ModelManagerScreen: React.FC = () => {
               </View>
 
               {/* Gemma 2 On-Device Model Controls */}
-              <View style={styles.gemmaModelBox}>
-                <View style={styles.modelHeader}>
-                  <View>
-                    <Text style={styles.modelName}>{currentModel.name}</Text>
-                    <Text style={styles.quantBadge}>
-                      QUANTIZATION: {currentModel.quantization} (Low Memory)
+              <View style={styles.modelHeader}>
+                <View>
+                  <Text style={styles.modelName}>{currentModel.name}</Text>
+                  <Text style={styles.quantBadge}>
+                    QUANTIZATION: {currentModel.quantization} (Low Memory)
+                  </Text>
+                </View>
+                <View style={styles.statusBadge}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      {
+                        backgroundColor:
+                          status === 'loaded' || status === 'ready'
+                            ? COLORS.success
+                            : COLORS.warning,
+                      },
+                    ]}
+                  />
+                  <Text style={styles.statusText}>{status.toUpperCase()}</Text>
+                </View>
+              </View>
+
+              <View style={styles.specsGrid}>
+                <View style={styles.specItem}>
+                  <HardDrive size={13} color={COLORS.textSecondary} />
+                  <Text style={styles.specLabel}>ON-DISK:</Text>
+                  <Text style={styles.specValue}>{currentModel.sizeFormatted}</Text>
+                </View>
+                <View style={styles.specItem}>
+                  <Terminal size={13} color={COLORS.textSecondary} />
+                  <Text style={styles.specLabel}>CONTEXT:</Text>
+                  <Text style={styles.specValue}>{currentModel.contextLength} tokens</Text>
+                </View>
+              </View>
+
+              {/* Download Progress */}
+              {status === 'downloading' && (
+                <View style={styles.downloadBox}>
+                  <View style={styles.progressHeader}>
+                    <Text style={styles.downloadingText}>
+                      Streaming GGUF Model Weights...
                     </Text>
+                    <Text style={styles.downloadPercent}>{downloadProgress}%</Text>
                   </View>
-                  <View style={styles.statusBadge}>
+                  <View style={styles.progressBarBg}>
                     <View
                       style={[
-                        styles.statusDot,
+                        styles.progressBarFill,
                         {
-                          backgroundColor:
-                            status === 'loaded' || status === 'ready'
-                              ? COLORS.success
-                              : COLORS.warning,
+                          width: `${downloadProgress}%`,
+                          backgroundColor: modeColors.accent,
                         },
                       ]}
                     />
-                    <Text style={styles.statusText}>{status.toUpperCase()}</Text>
                   </View>
                 </View>
+              )}
 
-                <View style={styles.specsGrid}>
-                  <View style={styles.specItem}>
-                    <HardDrive size={14} color={COLORS.textSecondary} />
-                    <Text style={styles.specLabel}>ON-DISK SIZE:</Text>
-                    <Text style={styles.specValue}>{currentModel.sizeFormatted}</Text>
-                  </View>
-                  <View style={styles.specItem}>
-                    <Terminal size={14} color={COLORS.textSecondary} />
-                    <Text style={styles.specLabel}>CONTEXT LENGTH:</Text>
-                    <Text style={styles.specValue}>{currentModel.contextLength} tokens</Text>
-                  </View>
-                </View>
-
-                {/* Download Progress */}
-                {status === 'downloading' && (
-                  <View style={styles.downloadBox}>
-                    <View style={styles.progressHeader}>
-                      <Text style={styles.downloadingText}>
-                        Streaming GGUF Model Weights...
-                      </Text>
-                      <Text style={styles.downloadPercent}>{downloadProgress}%</Text>
-                    </View>
-                    <View style={styles.progressBarBg}>
-                      <View
-                        style={[
-                          styles.progressBarFill,
-                          {
-                            width: `${downloadProgress}%`,
-                            backgroundColor: modeColors.accent,
-                          },
-                        ]}
-                      />
-                    </View>
-                  </View>
+              {/* Action Buttons */}
+              <View style={styles.actionsRow}>
+                {status !== 'downloading' && (
+                  <TouchableOpacity
+                    onPress={() => downloadModel()}
+                    style={[
+                      styles.btn,
+                      { borderColor: `${modeColors.accent}40` },
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Download size={15} color={modeColors.accent} />
+                    <Text style={[styles.btnText, { color: modeColors.accent }]}>
+                      {status === 'ready' || status === 'loaded'
+                        ? 'RE-VERIFY WEIGHTS'
+                        : 'DOWNLOAD MODEL'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
 
-                {/* Action Buttons */}
-                <View style={styles.actionsRow}>
-                  {status !== 'downloading' && (
-                    <TouchableOpacity
-                      onPress={() => downloadModel()}
-                      style={[
-                        styles.btn,
-                        { borderColor: `${modeColors.accent}40` },
-                      ]}
-                      activeOpacity={0.8}
-                    >
-                      <Download size={15} color={modeColors.accent} />
-                      <Text style={[styles.btnText, { color: modeColors.accent }]}>
-                        {status === 'ready' || status === 'loaded'
-                          ? 'RE-VERIFY WEIGHTS'
-                          : 'DOWNLOAD MODEL'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {status === 'loaded' ? (
-                    <TouchableOpacity
-                      onPress={() => unloadModel()}
-                      style={[styles.btn, styles.btnDanger]}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.btnDangerText}>UNLOAD FROM RAM</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={() => loadModel()}
-                      style={[
-                        styles.btn,
-                        { backgroundColor: modeColors.accent, borderColor: modeColors.accent },
-                      ]}
-                      activeOpacity={0.8}
-                    >
-                      <Zap size={15} color={COLORS.textDark} />
-                      <Text style={[styles.btnText, { color: COLORS.textDark }]}>
-                        LOAD CONTEXT
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                {status === 'loaded' ? (
+                  <TouchableOpacity
+                    onPress={() => unloadModel()}
+                    style={[styles.btn, styles.btnDanger]}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.btnDangerText}>UNLOAD FROM RAM</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => loadModel()}
+                    style={[
+                      styles.btn,
+                      { backgroundColor: modeColors.accent, borderColor: modeColors.accent },
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Zap size={15} color={COLORS.textDark} />
+                    <Text style={[styles.btnText, { color: COLORS.textDark }]}>
+                      LOAD CONTEXT
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
@@ -541,34 +538,6 @@ export const ModelManagerScreen: React.FC = () => {
 
 
 
-        {/* Edge Hardware Acceleration Card */}
-        <GlassCard style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Zap size={16} color={COLORS.strict.accent} />
-            <Text style={styles.cardTitle}>HARDWARE ACCELERATION TELEMETRY</Text>
-          </View>
-
-          <View style={styles.hwGrid}>
-            <View style={styles.hwItem}>
-              <Text style={styles.hwLabel}>GPU BACKEND</Text>
-              <Text style={styles.hwValue}>
-                {stats.acceleration.toUpperCase()} (Metal / OpenCL)
-              </Text>
-            </View>
-            <View style={styles.hwItem}>
-              <Text style={styles.hwLabel}>RAM UTILIZATION</Text>
-              <Text style={styles.hwValue}>{stats.memoryUsageMb} MB / 2048 MB</Text>
-            </View>
-            <View style={styles.hwItem}>
-              <Text style={styles.hwLabel}>GPU OFFLOAD LAYERS</Text>
-              <Text style={styles.hwValue}>{stats.gpuLayersOffloaded} Layers</Text>
-            </View>
-            <View style={styles.hwItem}>
-              <Text style={styles.hwLabel}>INFERENCE SPEED</Text>
-              <Text style={styles.hwValue}>~{stats.tokensPerSec} tok/s</Text>
-            </View>
-          </View>
-        </GlassCard>
 
         {/* OTA Updates Section */}
         <GlassCard style={styles.card}>
@@ -799,16 +768,16 @@ export const ModelManagerScreen: React.FC = () => {
 
           <View style={styles.datasetInfoBox}>
             <View style={styles.datasetInfoRow}>
-              <Text style={styles.datasetInfoLabel}>SOURCE DATASET:</Text>
+              <Text style={styles.datasetInfoLabel}>SOURCE:</Text>
               <Text style={[styles.datasetInfoVal, { color: modeColors.accent }]}>RepDB (repdb.co)</Text>
             </View>
             <View style={styles.datasetInfoRow}>
-              <Text style={styles.datasetInfoLabel}>TOTAL MOVEMENTS:</Text>
-              <Text style={styles.datasetInfoVal}>643 Exercises (195 Bodyweight + 448 Gym Equipment)</Text>
+              <Text style={styles.datasetInfoLabel}>MOVEMENTS:</Text>
+              <Text style={styles.datasetInfoVal}>643 Exercises (195 Bodyweight + 448 Gym)</Text>
             </View>
             <View style={styles.datasetInfoRow}>
-              <Text style={styles.datasetInfoLabel}>CALORIE SCI-METRICS:</Text>
-              <Text style={styles.datasetInfoVal}>ACSM Metabolic Equivalent of Task (MET)</Text>
+              <Text style={styles.datasetInfoLabel}>CALORIE METRIC:</Text>
+              <Text style={styles.datasetInfoVal}>ACSM Metabolic Equivalent (MET)</Text>
             </View>
             <View style={styles.datasetInfoRow}>
               <Text style={styles.datasetInfoLabel}>ATTRIBUTION:</Text>
@@ -950,7 +919,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: SPACING.md,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   modelName: {
     ...TYPOGRAPHY.h3,
@@ -993,13 +963,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: SPACING.md,
-    gap: 12,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   specItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    flexShrink: 1,
   },
   specLabel: {
     ...TYPOGRAPHY.badge,
@@ -1079,30 +1050,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...TYPOGRAPHY.badge,
     fontSize: 10,
-    color: COLORS.textPrimary,
-  },
-  hwGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.md,
-  },
-  hwItem: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    backgroundColor: COLORS.cardSecondary,
-    padding: SPACING.sm + 2,
-    borderRadius: RADIUS.sm,
-  },
-  hwLabel: {
-    ...TYPOGRAPHY.badge,
-    fontSize: 9,
-    color: COLORS.textMuted,
-    marginBottom: 2,
-  },
-  hwValue: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 12,
-    fontWeight: '700',
     color: COLORS.textPrimary,
   },
   otaDesc: {
@@ -1336,14 +1283,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     gap: SPACING.sm,
   },
-  gemmaModelBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: SPACING.md,
-    marginTop: SPACING.xs,
-  },
   openAISettingsContainer: {
     marginTop: SPACING.xs,
     gap: SPACING.xs,
@@ -1441,25 +1380,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
     padding: SPACING.sm,
-    gap: 6,
+    gap: 8,
   },
   datasetInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'flex-start',
+    gap: 10,
   },
   datasetInfoLabel: {
     ...TYPOGRAPHY.badge,
     fontSize: 9,
     color: COLORS.textMuted,
     fontWeight: '800',
+    flexShrink: 0,
+    marginTop: 1,
   },
   datasetInfoVal: {
     ...TYPOGRAPHY.captionBold,
     fontSize: 11,
     color: COLORS.textSecondary,
     textAlign: 'right',
+    flex: 1,
+    flexShrink: 1,
   },
   profileSectionLabel: {
     ...TYPOGRAPHY.badge,

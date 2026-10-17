@@ -28,9 +28,14 @@ import { Send, Square, Trash2 } from 'lucide-react-native';
 interface CoachChatScreenProps {
   onNavigateToWorkout?: () => void;
   onNavigateToProgressions?: () => void;
+  onNavigateToNutrition?: () => void;
 }
 
-export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
+export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
+  onNavigateToWorkout,
+  onNavigateToProgressions,
+  onNavigateToNutrition,
+}) => {
   const [inputText, setInputText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -195,7 +200,13 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ChatBubble message={item} />}
+          renderItem={({ item }) => (
+            <ChatBubble
+              message={item}
+              onNavigateToNutrition={onNavigateToNutrition}
+              onNavigateToWorkout={onNavigateToWorkout}
+            />
+          )}
           contentContainerStyle={styles.messageList}
           ListFooterComponent={
             isGenerating && streamingMessage ? (

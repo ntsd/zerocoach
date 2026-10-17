@@ -1,7 +1,8 @@
 import React from 'react';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useNutritionStore } from '@/store/useNutritionStore';
 import { HorizontalChipBar, ChipItem } from '@/components/common/HorizontalChipBar';
-import { Flame, Dumbbell, Zap, ShieldCheck } from 'lucide-react-native';
+import { Flame, Dumbbell, Zap, ShieldCheck, Utensils } from 'lucide-react-native';
 
 interface QuickPromptChipsProps {
   onSelectPrompt: (promptText: string) => void;
@@ -13,11 +14,29 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
   disabled,
 }) => {
   const { userProfile } = useCoachStore();
+  const { getSummaryForDate } = useNutritionStore();
+  const nutritionSummary = getSummaryForDate();
+
+  const foodPrompt = React.useMemo(() => {
+    const remKcal = nutritionSummary.remainingCalories;
+    const remProtein = nutritionSummary.remainingProtein;
+    if (remKcal > 0) {
+      return `Based on my current daily targets (${remKcal} kcal and ${remProtein}g protein remaining), what meal or whole foods should I eat next? Give exact portions and macros.`;
+    }
+    return `What nutrient-dense recovery food or snack do you recommend right now to optimize muscle protein synthesis and recovery?`;
+  }, [nutritionSummary.remainingCalories, nutritionSummary.remainingProtein]);
 
   const chips: ChipItem[] = React.useMemo(() => {
     const isGym = userProfile.equipmentPreference === 'gym';
     const isHome = userProfile.equipmentPreference === 'home';
     const wantsCalisthenics = userProfile.primaryGoals?.includes('calisthenics_mastery');
+
+    const foodChip: ChipItem = {
+      id: 'suggest_food',
+      label: 'Suggest food',
+      prompt: foodPrompt,
+      icon: Utensils,
+    };
 
     if (isGym && !wantsCalisthenics) {
       return [
@@ -27,6 +46,7 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
           prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
           icon: Flame,
         },
+        foodChip,
         {
           id: 'bench',
           label: 'Bench cues',
@@ -56,6 +76,7 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
           prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
           icon: Flame,
         },
+        foodChip,
         {
           id: 'bw_form',
           label: 'Bodyweight cues',
@@ -85,6 +106,7 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
         prompt: "Can you analyze today's wearable calorie burn and adjust my macro targets accordingly?",
         icon: Flame,
       },
+      foodChip,
       {
         id: 'exercise_form',
         label: 'Form cues',
@@ -104,7 +126,7 @@ export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({
         icon: ShieldCheck,
       },
     ];
-  }, [userProfile.equipmentPreference, userProfile.primaryGoals]);
+  }, [userProfile.equipmentPreference, userProfile.primaryGoals, foodPrompt]);
 
   return (
     <HorizontalChipBar

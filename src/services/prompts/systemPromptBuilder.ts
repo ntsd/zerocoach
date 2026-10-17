@@ -87,9 +87,17 @@ ${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.nam
   * Calories: ${nutritionSummary.totalCalories} / ${nutritionSummary.targetCalories} kcal (${nutritionSummary.remainingCalories} kcal remaining)
   * Protein: ${nutritionSummary.totalProtein}g / ${nutritionSummary.targetProtein}g (${nutritionSummary.remainingProtein}g remaining)
   * Carbs: ${nutritionSummary.totalCarbs}g | Fat: ${nutritionSummary.totalFat}g | Fiber: ${nutritionSummary.totalFiber}g
-  * Logged Food Items Today: ${nutritionSummary.loggedMealsCount}`
+  * Logged Food Items Today: ${nutritionSummary.loggedMealsCount}
+  * FOOD SUGGESTION DIRECTIVE:
+    When the athlete asks to "suggest food" or for meal ideas:
+    1. Immediately calculate their remaining calories (${nutritionSummary.remainingCalories} kcal) and remaining protein (${nutritionSummary.remainingProtein}g).
+    2. Recommend 2 to 3 practical, real whole-food meal or snack options (e.g. wild salmon with sweet potatoes, Greek yogurt with berries and honey, grilled chicken breast with quinoa and avocado).
+    3. Specify exact portion sizes in grams/cups and macro estimates (Protein, Carbs, Fat, kcal) for each suggestion.
+    4. Match tone: In STRICT mode, emphasize nutrient timing, leucine threshold for protein synthesis, and low-inflammation recovery. In COMFORTABLE mode, make it delicious, wholesome, and easy to prepare.`
     : `- DAILY NUTRITION:
-  * Baseline Plan: ${userProfile.dailyCalorieTarget} kcal | ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat`;
+  * Baseline Plan: ${userProfile.dailyCalorieTarget} kcal | ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat
+  * FOOD SUGGESTION DIRECTIVE:
+    When the athlete asks to "suggest food" or for meal ideas, suggest 2-3 wholesome nutrient-dense whole-food options aligned with their baseline targets (${userProfile.dailyCalorieTarget} kcal, ${userProfile.proteinGrams}g protein), with exact portions and macro estimates.`;
 
   const contextBlock = `
 === CURRENT LIVE USER & TELEMETRY CONTEXT ===

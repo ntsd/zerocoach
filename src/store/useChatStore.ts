@@ -14,7 +14,7 @@ const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   content: `### ⚡ ZeroCoach Ready
 On-device AI active. All your training and biometrics stay 100% private on your phone.
 
-Ask me to design your workout session, adjust your daily macros, or guide your skill progression.`,
+Ask me to suggest food for your remaining macros, adjust your training plan, or guide your skill progression.`,
   timestamp: Date.now(),
   modeAtCreation: 'strict',
 };

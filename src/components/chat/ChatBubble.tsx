@@ -1,19 +1,44 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ChatMessage } from '@/types/chat';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
-import { User } from 'lucide-react-native';
 import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
+import { Utensils, Dumbbell, ChevronRight } from 'lucide-react-native';
 
 interface ChatBubbleProps {
   message: ChatMessage;
+  onNavigateToNutrition?: () => void;
+  onNavigateToWorkout?: () => void;
 }
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = ({
+  message,
+  onNavigateToNutrition,
+  onNavigateToWorkout,
+}) => {
   const isUser = message.role === 'user';
   const modeColors = getModeColors(message.modeAtCreation);
+
+  // Check if assistant message suggests foods or workouts so we can provide deep-link action pills
+  const isFoodRelated =
+    !isUser &&
+    Boolean(onNavigateToNutrition) &&
+    (
+      /remaining (protein|calories|kcal)/i.test(message.content) ||
+      /suggest(ed)? (food|meal|eat|snack|dish|breakfast|lunch|dinner)/i.test(message.content) ||
+      /\b(salmon|chicken breast|greek yogurt|sweet potato|oats|quinoa|eggs|protein shake)\b/i.test(message.content) ||
+      /\b(\d+g protein|\d+\s?kcal)\b/i.test(message.content)
+    );
+
+  const isWorkoutRelated =
+    !isUser &&
+    Boolean(onNavigateToWorkout) &&
+    !isFoodRelated &&
+    (
+      /prescribed exercises|workout plan|sets ×|scapular retraction|progressive overload|bodyweight cues/i.test(message.content)
+    );
 
   // Format content with lightweight markdown-like rendering (bold, headers, bullet points)
   const renderFormattedText = (rawText: string) => {
@@ -111,6 +136,46 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
         ]}
       >
         {renderFormattedText(message.content)}
+
+        {isFoodRelated && onNavigateToNutrition && (
+          <TouchableOpacity
+            style={[
+              styles.actionChip,
+              {
+                borderColor: `${modeColors.accent}40`,
+                backgroundColor: `${modeColors.accent}12`,
+              },
+            ]}
+            onPress={onNavigateToNutrition}
+            activeOpacity={0.75}
+          >
+            <Utensils size={12} color={modeColors.accent} />
+            <Text style={[styles.actionChipText, { color: modeColors.accent }]}>
+              Log Food in Nutrition Tracker
+            </Text>
+            <ChevronRight size={12} color={modeColors.accent} />
+          </TouchableOpacity>
+        )}
+
+        {isWorkoutRelated && onNavigateToWorkout && (
+          <TouchableOpacity
+            style={[
+              styles.actionChip,
+              {
+                borderColor: `${modeColors.accent}40`,
+                backgroundColor: `${modeColors.accent}12`,
+              },
+            ]}
+            onPress={onNavigateToWorkout}
+            activeOpacity={0.75}
+          >
+            <Dumbbell size={12} color={modeColors.accent} />
+            <Text style={[styles.actionChipText, { color: modeColors.accent }]}>
+              View Workout & Progressions
+            </Text>
+            <ChevronRight size={12} color={modeColors.accent} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -201,5 +266,22 @@ const styles = StyleSheet.create({
   },
   emptyLine: {
     height: 4,
+  },
+  actionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+  },
+  actionChipText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

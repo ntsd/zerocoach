@@ -8,8 +8,10 @@ import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
 import { ExerciseDetailModal } from './ExerciseDetailModal';
 import { SelectRepDBExerciseModal } from './SelectRepDBExerciseModal';
+import { WorkoutSummaryModal } from './WorkoutSummaryModal';
 import { createExerciseItemFromRepDB } from '@/services/workout/workoutPlanGenerator';
 import { RepDBExercise } from '@/types/exercise';
+import { useWorkoutStore } from '@/store/useWorkoutStore';
 import {
   Dumbbell,
   CheckCircle2,
@@ -29,6 +31,7 @@ import {
   RefreshCw,
   Plus,
   Trash2,
+  Trophy,
 } from 'lucide-react-native';
 
 interface AdaptiveWorkoutCardProps {
@@ -59,27 +62,97 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   onAskCoach,
 }) => {
   const modeColors = getModeColors(mode);
-  
-  // Stateful exercises in the workout (allows adding, swapping, or deleting)
-  const [exercises, setExercises] = useState<ExerciseItem[]>(plan.exercises);
-  const [completedExercises, setCompletedExercises] = useState<Record<string, boolean>>({});
-  const [skippedExercises, setSkippedExercises] = useState<Record<string, boolean>>({});
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const { activeDraft, historyByDate, saveDraft, finishWorkout } = useWorkoutStore();
+  const todayCompletedSession = historyByDate[todayDateStr];
+
+  // Stateful exercises in the workout (restores from completed session or draft if present)
+  const [exercises, setExercises] = useState<ExerciseItem[]>(() => {
+    if (todayCompletedSession) {
+      return todayCompletedSession.exercises;
+    }
+    if (activeDraft && activeDraft.date === todayDateStr && activeDraft.planId === plan.id) {
+      return activeDraft.exercises;
+    }
+    return plan.exercises;
+  });
+
+  const [completedExercises, setCompletedExercises] = useState<Record<string, boolean>>(() => {
+    if (todayCompletedSession) {
+      const map: Record<string, boolean> = {};
+      todayCompletedSession.completedExerciseIds.forEach((id) => {
+        map[id] = true;
+      });
+      return map;
+    }
+    if (activeDraft && activeDraft.date === todayDateStr && activeDraft.planId === plan.id) {
+      return activeDraft.completedExercises;
+    }
+    return {};
+  });
+
+  const [skippedExercises, setSkippedExercises] = useState<Record<string, boolean>>(() => {
+    if (todayCompletedSession) {
+      const map: Record<string, boolean> = {};
+      todayCompletedSession.skippedExerciseIds.forEach((id) => {
+        map[id] = true;
+      });
+      return map;
+    }
+    if (activeDraft && activeDraft.date === todayDateStr && activeDraft.planId === plan.id) {
+      return activeDraft.skippedExercises;
+    }
+    return {};
+  });
+
+  const startedAtRef = useRef<number>(
+    todayCompletedSession?.startedAt || activeDraft?.startedAt || Date.now()
+  );
+
   const [selectedExerciseForModal, setSelectedExerciseForModal] = useState<ExerciseItem | null>(null);
 
   // RepDB Modal states (for adding or swapping)
   const [isRepDBModalVisible, setIsRepDBModalVisible] = useState(false);
   const [swapTargetExercise, setSwapTargetExercise] = useState<ExerciseItem | null>(null);
 
+  // Workout Summary completion modal
+  const [isSummaryModalVisible, setIsSummaryModalVisible] = useState(false);
+
+  // Auto-save workout draft to local AsyncStorage
+  useEffect(() => {
+    if (todayCompletedSession) return; // Already finalized today
+    saveDraft({
+      date: todayDateStr,
+      planId: plan.id,
+      exercises,
+      completedExercises,
+      skippedExercises,
+      startedAt: startedAtRef.current,
+      lastUpdatedAt: Date.now(),
+    });
+  }, [
+    exercises,
+    completedExercises,
+    skippedExercises,
+    plan.id,
+    todayDateStr,
+    todayCompletedSession,
+    saveDraft,
+  ]);
+
   // Synchronize when the generated plan changes (e.g. split switch or goal change)
   const prevPlanIdRef = useRef(plan.id);
   useEffect(() => {
     if (prevPlanIdRef.current !== plan.id) {
       prevPlanIdRef.current = plan.id;
-      setExercises(plan.exercises);
-      setCompletedExercises({});
-      setSkippedExercises({});
+      if (!todayCompletedSession) {
+        setExercises(plan.exercises);
+        setCompletedExercises({});
+        setSkippedExercises({});
+        startedAtRef.current = Date.now();
+      }
     }
-  }, [plan.id, plan.exercises]);
+  }, [plan.id, plan.exercises, todayCompletedSession]);
 
   const toggleExercise = (id: string) => {
     // Cannot toggle completion if exercise is skipped
@@ -216,9 +289,64 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
   const tierColor = getTierColor();
 
+  const handleConfirmFinish = (summary: {
+    durationMinutes: number;
+    caloriesBurned: number;
+    notes?: string;
+  }) => {
+    const completedIds = exercises.filter((ex) => completedExercises[ex.id]).map((ex) => ex.id);
+    const skippedIds = exercises.filter((ex) => skippedExercises[ex.id]).map((ex) => ex.id);
+    const totalSets = exercises
+      .filter((ex) => completedExercises[ex.id])
+      .reduce((acc, ex) => acc + ex.targetSets, 0);
+
+    finishWorkout({
+      date: todayDateStr,
+      planId: plan.id,
+      title: plan.title,
+      split: plan.selectedSplit || 'full_body',
+      tier: plan.tier,
+      exercises,
+      completedExerciseIds: completedIds,
+      skippedExerciseIds: skippedIds,
+      totalMovements: exercises.length,
+      completedMovements: completedIds.length,
+      totalSets,
+      durationMinutes: summary.durationMinutes,
+      caloriesBurned: summary.caloriesBurned,
+      startedAt: startedAtRef.current,
+    });
+
+    setIsSummaryModalVisible(false);
+  };
+
   return (
     <>
       <GlassCard glowColor={`${tierColor}30`} borderColor={`${tierColor}40`} style={styles.card}>
+        {/* Completed Session Status Banner */}
+        {todayCompletedSession && (
+          <View style={styles.completedSessionBanner}>
+            <View style={styles.completedBannerLeft}>
+              <View style={[styles.completedIconBox, { backgroundColor: `${COLORS.success}20` }]}>
+                <CheckCircle2 size={16} color={COLORS.success} />
+              </View>
+              <View style={styles.completedTextCol}>
+                <Text style={styles.completedBannerTitle}>WORKOUT LOGGED TODAY</Text>
+                <Text style={styles.completedBannerSub}>
+                  {todayCompletedSession.durationMinutes}m • {todayCompletedSession.caloriesBurned} kcal • {todayCompletedSession.completedMovements} movements • {todayCompletedSession.totalSets} sets
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => setIsSummaryModalVisible(true)}
+              style={styles.reopenBtn}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text style={[styles.reopenBtnText, { color: modeColors.accent }]}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Header Badge Row */}
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
@@ -552,6 +680,48 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           </Text>
         </View>
 
+        {/* Finish Workout CTA Button */}
+        <TouchableOpacity
+          onPress={() => setIsSummaryModalVisible(true)}
+          style={[
+            styles.finishWorkoutBtn,
+            todayCompletedSession
+              ? { backgroundColor: `${COLORS.success}20`, borderColor: `${COLORS.success}60` }
+              : completedCount > 0
+              ? { backgroundColor: COLORS.success, borderColor: COLORS.success }
+              : { backgroundColor: `${modeColors.accent}20`, borderColor: `${modeColors.accent}50` },
+          ]}
+          activeOpacity={0.85}
+        >
+          <Trophy
+            size={16}
+            color={
+              todayCompletedSession
+                ? COLORS.success
+                : completedCount > 0
+                ? COLORS.background
+                : modeColors.accent
+            }
+          />
+          <Text
+            style={[
+              styles.finishWorkoutBtnText,
+              {
+                color:
+                  todayCompletedSession
+                    ? COLORS.success
+                    : completedCount > 0
+                    ? COLORS.background
+                    : modeColors.accent,
+              },
+            ]}
+          >
+            {todayCompletedSession
+              ? `Workout Complete (${todayCompletedSession.completedMovements} Movements Logged)`
+              : `Finish Workout (${completedCount}/${totalActiveCount} Completed)`}
+          </Text>
+        </TouchableOpacity>
+
         {/* Ask Coach CTA */}
         <TouchableOpacity
           onPress={() => onAskCoach({ ...plan, exercises })}
@@ -593,6 +763,19 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         onSelectExercise={handleSelectRepDBExercise}
         mode={mode}
         swapTargetExercise={swapTargetExercise}
+      />
+
+      {/* Workout Summary Completion Modal */}
+      <WorkoutSummaryModal
+        visible={isSummaryModalVisible}
+        onClose={() => setIsSummaryModalVisible(false)}
+        onConfirmFinish={handleConfirmFinish}
+        plan={plan}
+        completedExercises={exercises.filter((ex) => completedExercises[ex.id])}
+        skippedExercises={exercises.filter((ex) => skippedExercises[ex.id])}
+        mode={mode}
+        initialDurationMin={todayCompletedSession?.durationMinutes || plan.estimatedDurationMin}
+        initialCaloriesBurn={todayCompletedSession?.caloriesBurned || plan.estimatedCaloriesBurn || 220}
       />
     </>
   );
@@ -1070,5 +1253,71 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyBold,
     fontSize: 13,
     color: COLORS.textDark,
+  },
+  completedSessionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: `${COLORS.success}15`,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.success}45`,
+    padding: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  completedBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs + 2,
+    flex: 1,
+  },
+  completedIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completedTextCol: {
+    flex: 1,
+  },
+  completedBannerTitle: {
+    ...TYPOGRAPHY.badge,
+    color: COLORS.success,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  completedBannerSub: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    marginTop: 1,
+  },
+  reopenBtn: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  reopenBtnText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  finishWorkoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginTop: SPACING.xs,
+  },
+  finishWorkoutBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

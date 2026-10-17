@@ -18,19 +18,20 @@ import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { CoachChatScreen } from '@/screens/CoachChatScreen';
-import { TelemetryScreen } from '@/screens/TelemetryScreen';
 import { ProgressionsScreen } from '@/screens/ProgressionsScreen';
 import { ModelManagerScreen } from '@/screens/ModelManagerScreen';
 import { NutritionScreen } from '@/screens/NutritionScreen';
+import { AnalyzeScreen } from '@/screens/AnalyzeScreen';
 import {
   MessageSquare,
   Activity,
   Dumbbell,
   Settings,
   Utensils,
+  TrendingUp,
 } from 'lucide-react-native';
 
-type TabKey = 'coach' | 'nutrition' | 'workout' | 'telemetry' | 'settings';
+type TabKey = 'coach' | 'nutrition' | 'workout' | 'analyze' | 'settings';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
@@ -91,9 +92,9 @@ export default function App() {
       icon: Dumbbell,
     },
     {
-      key: 'telemetry' as const,
-      label: 'TELEMETRY',
-      icon: Activity,
+      key: 'analyze' as const,
+      label: 'ANALYZE',
+      icon: TrendingUp,
     },
     {
       key: 'settings' as const,
@@ -126,7 +127,7 @@ export default function App() {
                   onNavigateToChat={() => setActiveTab('coach')}
                 />
               )}
-              {activeTab === 'telemetry' && <TelemetryScreen />}
+              {activeTab === 'analyze' && <AnalyzeScreen />}
               {activeTab === 'settings' && <ModelManagerScreen />}
             </View>
 

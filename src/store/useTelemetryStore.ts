@@ -13,6 +13,15 @@ import { getPresetMetrics } from '@/services/telemetry/telemetryPresets';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useNutritionStore } from '@/store/useNutritionStore';
 import { calculateSmartNutrition } from '@/services/nutrition/nutritionCalculator';
+import { TelemetryDailySnapshot } from '@/types/history';
+
+function getTodayString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 const INITIAL_MANUAL_METRICS: TelemetryMetrics = {
   steps: 0,
@@ -297,6 +306,7 @@ export const useTelemetryStore = create<TelemetryState>()(
   persist<TelemetryState>(
     (set, get) => ({
       metrics: INITIAL_MANUAL_METRICS,
+      telemetryHistoryByDate: {},
       activePreset: 'manual',
       syncing: false,
       syncError: null,
@@ -319,7 +329,30 @@ export const useTelemetryStore = create<TelemetryState>()(
             fresh.heightCm = currentProfile.heightCm;
           }
 
-          set({ metrics: fresh, syncing: false, syncError: null });
+          const today = getTodayString();
+          const snapshot: TelemetryDailySnapshot = {
+            date: today,
+            readinessScore: fresh.readinessScore,
+            sleepHours: fresh.sleepHours,
+            deepSleepHours: fresh.deepSleepHours,
+            sleepQualityScore: fresh.sleepQualityScore,
+            restingHeartRate: fresh.restingHeartRate,
+            heartRateVariability: fresh.heartRateVariability,
+            steps: fresh.steps,
+            activeCalories: fresh.activeCalories,
+            weightKg: fresh.weightKg,
+            timestamp: Date.now(),
+          };
+
+          set((state) => ({
+            metrics: fresh,
+            syncing: false,
+            syncError: null,
+            telemetryHistoryByDate: {
+              ...state.telemetryHistoryByDate,
+              [today]: snapshot,
+            },
+          }));
 
           // Auto-update weight & height and recalculate smart nutrition targets
           const profileUpdates: any = {};
@@ -413,10 +446,29 @@ export const useTelemetryStore = create<TelemetryState>()(
           heightCm: inputs.heightCm,
         };
 
-        set({
+        const today = getTodayString();
+        const snapshot: TelemetryDailySnapshot = {
+          date: today,
+          readinessScore: readiness,
+          sleepHours: inputs.sleepHours,
+          deepSleepHours: Number((inputs.sleepHours * 0.22).toFixed(1)),
+          sleepQualityScore: inputs.sleepQualityScore,
+          restingHeartRate: inputs.restingHeartRate,
+          heartRateVariability: hasRealMetrics ? hrv : 0,
+          steps: inputs.steps,
+          activeCalories: inputs.activeCalories,
+          weightKg: inputs.weightKg,
+          timestamp: Date.now(),
+        };
+
+        set((state) => ({
           metrics: newMetrics,
           activePreset: 'manual',
-        });
+          telemetryHistoryByDate: {
+            ...state.telemetryHistoryByDate,
+            [today]: snapshot,
+          },
+        }));
       },
 
       applyPreset: (presetId: TelemetryPresetId) => {
@@ -425,7 +477,29 @@ export const useTelemetryStore = create<TelemetryState>()(
           return;
         }
         const metrics = getPresetMetrics(presetId);
-        set({ metrics, activePreset: presetId });
+        const today = getTodayString();
+        const snapshot: TelemetryDailySnapshot = {
+          date: today,
+          readinessScore: metrics.readinessScore,
+          sleepHours: metrics.sleepHours,
+          deepSleepHours: metrics.deepSleepHours,
+          sleepQualityScore: metrics.sleepQualityScore,
+          restingHeartRate: metrics.restingHeartRate,
+          heartRateVariability: metrics.heartRateVariability,
+          steps: metrics.steps,
+          activeCalories: metrics.activeCalories,
+          weightKg: metrics.weightKg,
+          timestamp: Date.now(),
+        };
+
+        set((state) => ({
+          metrics,
+          activePreset: presetId,
+          telemetryHistoryByDate: {
+            ...state.telemetryHistoryByDate,
+            [today]: snapshot,
+          },
+        }));
       },
 
       toggleStageCompletion: (stageId: string) => {
@@ -474,9 +548,14 @@ export const useTelemetryStore = create<TelemetryState>()(
         }));
       },
 
+      getTelemetryForDate: (date: string) => {
+        return get().telemetryHistoryByDate[date];
+      },
+
       clearTelemetryData: () => {
         set({
           metrics: INITIAL_MANUAL_METRICS,
+          telemetryHistoryByDate: {},
           activePreset: 'manual',
           syncing: false,
           syncError: null,

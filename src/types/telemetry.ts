@@ -40,8 +40,11 @@ export interface ProgressionStage {
 
 export type CalisthenicsStage = ProgressionStage;
 
+import { TelemetryDailySnapshot } from './history';
+
 export interface TelemetryState {
   metrics: TelemetryMetrics;
+  telemetryHistoryByDate: Record<string, TelemetryDailySnapshot>;
   activePreset: TelemetryPresetId;
   syncing: boolean;
   syncError: string | null;
@@ -64,5 +67,6 @@ export interface TelemetryState {
   addCustomStage: (stage: Omit<ProgressionStage, 'id' | 'completed' | 'skipped'>) => void;
   deleteStage: (stageId: string) => void;
   updateMetric: (updates: Partial<TelemetryMetrics>) => void;
+  getTelemetryForDate: (date: string) => TelemetryDailySnapshot | undefined;
   clearTelemetryData: () => void;
 }

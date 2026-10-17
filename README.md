@@ -135,6 +135,21 @@ npm run android
 npm run ios
 ```
 
+### 📦 Standalone Android APK Build (No Play Store Required)
+
+To distribute or install the app directly on any Android device without Google Play:
+
+```bash
+# Build standalone release APK (bundles JS, assets, and native llama.rn libraries)
+npm run build:apk
+
+# Generated APK output:
+# android/app/build/outputs/apk/release/app-release.apk
+
+# Sideload directly to a connected Android device:
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+```
+
 ---
 
 ## 🧠 Model Configuration & GGUF Support

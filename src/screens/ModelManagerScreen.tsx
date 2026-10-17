@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
@@ -47,10 +48,7 @@ import {
 } from '@/services/storage/userDataService';
 
 const PRESETS = [
-  { label: 'Ollama (Local)', url: 'http://localhost:11434/v1', model: 'llama3.2' },
-  { label: 'LM Studio', url: 'http://localhost:1234/v1', model: 'gemma-2-2b-it' },
-  { label: 'Groq Cloud', url: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
-  { label: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.5-flash-lite' },
 ];
 
 export const ModelManagerScreen: React.FC = () => {
@@ -60,6 +58,8 @@ export const ModelManagerScreen: React.FC = () => {
     downloadProgress,
     provider,
     openAIConfig,
+    geminiApiKey,
+    setGeminiApiKey,
     stats,
     downloadModel,
     loadModel,
@@ -226,13 +226,122 @@ export const ModelManagerScreen: React.FC = () => {
 
           {/* Active Provider Description & Configuration */}
           {provider === 'on_device' && (
-            <View style={styles.providerNoteBox}>
-              <Cpu size={14} color={modeColors.accent} />
-              <Text style={styles.providerNoteText}>
-                {Platform.OS === 'web'
-                  ? 'Browser Simulation Active: Automatically running the local on-device streaming simulator (~35 tok/s). On native iOS/Android, executes local GGUF weights via llama.rn with Metal / OpenCL acceleration.'
-                  : 'Mobile Mode: Runs quantized GGUF weights locally via llama.rn with Metal / OpenCL GPU acceleration and 0 cloud data transfer.'}
-              </Text>
+            <View style={styles.onDeviceSettingsContainer}>
+              <View style={styles.providerNoteBox}>
+                <Cpu size={14} color={modeColors.accent} />
+                <Text style={styles.providerNoteText}>
+                  {Platform.OS === 'web'
+                    ? 'Browser Simulation Active: Automatically running the local on-device streaming simulator (~35 tok/s). On native iOS/Android, executes local GGUF weights via llama.rn with Metal / OpenCL acceleration.'
+                    : 'Mobile Mode: Runs quantized GGUF weights locally via llama.rn with Metal / OpenCL GPU acceleration and 0 cloud data transfer.'}
+                </Text>
+              </View>
+
+              {/* Gemma 2 On-Device Model Controls */}
+              <View style={styles.gemmaModelBox}>
+                <View style={styles.modelHeader}>
+                  <View>
+                    <Text style={styles.modelName}>{currentModel.name}</Text>
+                    <Text style={styles.quantBadge}>
+                      QUANTIZATION: {currentModel.quantization} (Low Memory)
+                    </Text>
+                  </View>
+                  <View style={styles.statusBadge}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        {
+                          backgroundColor:
+                            status === 'loaded' || status === 'ready'
+                              ? COLORS.success
+                              : COLORS.warning,
+                        },
+                      ]}
+                    />
+                    <Text style={styles.statusText}>{status.toUpperCase()}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.specsGrid}>
+                  <View style={styles.specItem}>
+                    <HardDrive size={14} color={COLORS.textSecondary} />
+                    <Text style={styles.specLabel}>ON-DISK SIZE:</Text>
+                    <Text style={styles.specValue}>{currentModel.sizeFormatted}</Text>
+                  </View>
+                  <View style={styles.specItem}>
+                    <Terminal size={14} color={COLORS.textSecondary} />
+                    <Text style={styles.specLabel}>CONTEXT LENGTH:</Text>
+                    <Text style={styles.specValue}>{currentModel.contextLength} tokens</Text>
+                  </View>
+                </View>
+
+                {/* Download Progress */}
+                {status === 'downloading' && (
+                  <View style={styles.downloadBox}>
+                    <View style={styles.progressHeader}>
+                      <Text style={styles.downloadingText}>
+                        Streaming GGUF Model Weights...
+                      </Text>
+                      <Text style={styles.downloadPercent}>{downloadProgress}%</Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                      <View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${downloadProgress}%`,
+                            backgroundColor: modeColors.accent,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Action Buttons */}
+                <View style={styles.actionsRow}>
+                  {status !== 'downloading' && (
+                    <TouchableOpacity
+                      onPress={() => downloadModel()}
+                      style={[
+                        styles.btn,
+                        { borderColor: `${modeColors.accent}40` },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Download size={15} color={modeColors.accent} />
+                      <Text style={[styles.btnText, { color: modeColors.accent }]}>
+                        {status === 'ready' || status === 'loaded'
+                          ? 'RE-VERIFY WEIGHTS'
+                          : 'DOWNLOAD MODEL'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {status === 'loaded' ? (
+                    <TouchableOpacity
+                      onPress={() => unloadModel()}
+                      style={[styles.btn, styles.btnDanger]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.btnDangerText}>UNLOAD FROM RAM</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => loadModel()}
+                      style={[
+                        styles.btn,
+                        { backgroundColor: modeColors.accent, borderColor: modeColors.accent },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Zap size={15} color={COLORS.textDark} />
+                      <Text style={[styles.btnText, { color: COLORS.textDark }]}>
+                        LOAD CONTEXT
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
             </View>
           )}
 
@@ -383,112 +492,54 @@ export const ModelManagerScreen: React.FC = () => {
           )}
         </GlassCard>
 
-        {/* Model Spec Card */}
+        {/* Google Gemini Vision API Key for Food AI Snap */}
         <GlassCard style={styles.card}>
-          <View style={styles.modelHeader}>
-            <View>
-              <Text style={styles.modelName}>{currentModel.name}</Text>
-              <Text style={styles.quantBadge}>
-                QUANTIZATION: {currentModel.quantization} (Low Memory)
-              </Text>
-            </View>
-            <View style={styles.statusBadge}>
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor:
-                      status === 'loaded' || status === 'ready'
-                        ? COLORS.success
-                        : COLORS.warning,
-                  },
-                ]}
-              />
-              <Text style={styles.statusText}>{status.toUpperCase()}</Text>
-            </View>
+          <View style={styles.cardHeader}>
+            <Sparkles size={16} color="#00F0FF" />
+            <Text style={styles.cardTitle}>AI FOOD SNAP & VISION</Text>
+          </View>
+          <Text style={styles.otaDesc}>
+            Gemma 2 is an on-device text model. Google Gemini 3.8 Flash provides multimodal vision to recognize food dishes and portion weights from photos (1,500 snaps/day free, no credit card).
+          </Text>
+
+          <Text style={[styles.fieldSectionLabel, { marginTop: 12 }]}>GOOGLE GEMINI API KEY</Text>
+          <View style={styles.inputRow}>
+            <Key size={14} color={COLORS.textMuted} />
+            <TextInput
+              value={geminiApiKey}
+              onChangeText={setGeminiApiKey}
+              placeholder="Paste AIzaSy... API key"
+              placeholderTextColor={COLORS.textMuted}
+              style={styles.textInput}
+              secureTextEntry={!showApiKey}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              onPress={() => setShowApiKey(!showApiKey)}
+              style={styles.eyeBtn}
+              activeOpacity={0.7}
+            >
+              {showApiKey ? (
+                <EyeOff size={14} color={COLORS.textMuted} />
+              ) : (
+                <Eye size={14} color={COLORS.textMuted} />
+              )}
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.specsGrid}>
-            <View style={styles.specItem}>
-              <HardDrive size={14} color={COLORS.textSecondary} />
-              <Text style={styles.specLabel}>ON-DISK SIZE:</Text>
-              <Text style={styles.specValue}>{currentModel.sizeFormatted}</Text>
-            </View>
-            <View style={styles.specItem}>
-              <Terminal size={14} color={COLORS.textSecondary} />
-              <Text style={styles.specLabel}>CONTEXT LENGTH:</Text>
-              <Text style={styles.specValue}>{currentModel.contextLength} tokens</Text>
-            </View>
-          </View>
-
-          {/* Download Progress */}
-          {status === 'downloading' && (
-            <View style={styles.downloadBox}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.downloadingText}>
-                  Streaming GGUF Model Weights...
-                </Text>
-                <Text style={styles.downloadPercent}>{downloadProgress}%</Text>
-              </View>
-              <View style={styles.progressBarBg}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${downloadProgress}%`,
-                      backgroundColor: modeColors.accent,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          )}
-
-          {/* Action Buttons */}
-          <View style={styles.actionsRow}>
-            {status !== 'downloading' && (
-              <TouchableOpacity
-                onPress={() => downloadModel()}
-                style={[
-                  styles.btn,
-                  { borderColor: `${modeColors.accent}40` },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Download size={15} color={modeColors.accent} />
-                <Text style={[styles.btnText, { color: modeColors.accent }]}>
-                  {status === 'ready' || status === 'loaded'
-                    ? 'RE-VERIFY WEIGHTS'
-                    : 'DOWNLOAD MODEL'}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {status === 'loaded' ? (
-              <TouchableOpacity
-                onPress={() => unloadModel()}
-                style={[styles.btn, styles.btnDanger]}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.btnDangerText}>UNLOAD FROM RAM</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={() => loadModel()}
-                style={[
-                  styles.btn,
-                  { backgroundColor: modeColors.accent, borderColor: modeColors.accent },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Zap size={15} color={COLORS.textDark} />
-                <Text style={[styles.btnText, { color: COLORS.textDark }]}>
-                  LOAD CONTEXT
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <TouchableOpacity
+            style={{ marginTop: 8 }}
+            onPress={() => Linking.openURL('https://aistudio.google.com/app/apikey')}
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: '#00F0FF', fontSize: 12, fontWeight: '700' }}>
+              Get Free Gemini API Key at Google AI Studio ↗
+            </Text>
+          </TouchableOpacity>
         </GlassCard>
+
+
 
         {/* Edge Hardware Acceleration Card */}
         <GlassCard style={styles.card}>
@@ -936,12 +987,14 @@ const styles = StyleSheet.create({
   },
   specsGrid: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: SPACING.sm,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: COLORS.borderSubtle,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: SPACING.md,
+    gap: 12,
   },
   specItem: {
     flexDirection: 'row',
@@ -1278,6 +1331,18 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 16,
     flex: 1,
+  },
+  onDeviceSettingsContainer: {
+    marginTop: SPACING.xs,
+    gap: SPACING.sm,
+  },
+  gemmaModelBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: SPACING.md,
+    marginTop: SPACING.xs,
   },
   openAISettingsContainer: {
     marginTop: SPACING.xs,

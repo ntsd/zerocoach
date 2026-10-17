@@ -11,6 +11,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -74,8 +75,21 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   // Snap / AI & Photo Capture State
   const [capturedImageUri, setCapturedImageUri] = useState<string | null>(null);
+  const [capturedBase64, setCapturedBase64] = useState<string | null>(null);
   const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false);
+  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
   const [photoAnalysisError, setPhotoAnalysisError] = useState<string | null>(null);
+
+  const geminiApiKey = useModelStore((state) => state.geminiApiKey);
+  const openAIConfig = useModelStore((state) => state.openAIConfig);
+  const hasGeminiVisionKey = Boolean(
+    (geminiApiKey && geminiApiKey.trim().length > 0) ||
+    (openAIConfig?.apiKey && openAIConfig.apiKey.trim().startsWith('AIza')) ||
+    (openAIConfig?.geminiApiKey && openAIConfig.geminiApiKey.trim().length > 0) ||
+    (openAIConfig?.baseUrl?.includes('generativelanguage.googleapis.com') &&
+      openAIConfig?.apiKey &&
+      openAIConfig.apiKey.trim().length > 0)
+  );
 
   // Barcode Camera Scanner State
   const [permission, requestPermission] = useCameraPermissions();
@@ -107,9 +121,14 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   const [reviewFood, setReviewFood] = useState<FoodItem | null>(null);
   const [consumedGrams, setConsumedGrams] = useState(100);
 
-  // Sync initial meal type when modal opens
+  // Sync initial meal type and reset transient states when modal opens/closes
   useEffect(() => {
     setSelectedMealType(initialMealType);
+    if (!visible) {
+      setIsAnalyzingPhoto(false);
+      setIsAnalyzingText(false);
+      setPhotoAnalysisError(null);
+    }
   }, [initialMealType, visible]);
 
   const performSearch = useCallback(
@@ -179,13 +198,18 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   ) => {
     setIsAnalyzingPhoto(true);
     setPhotoAnalysisError(null);
+    if (base64) setCapturedBase64(base64);
+
     try {
       const openAIConfig = useModelStore.getState().openAIConfig;
+      const geminiApiKey = useModelStore.getState().geminiApiKey;
       const analysis = await analyzeMealPhoto(
         uri,
         base64,
         openAIConfig,
-        selectedMealType
+        selectedMealType,
+        undefined,
+        geminiApiKey
       );
       if (analysis.canIdentify && analysis.decomposition) {
         setPhotoAnalysisError(null);
@@ -193,7 +217,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
         setDecompositionResult(analysis.decomposition);
         selectFoodForReview(analysis.decomposition.asFoodItem, analysis.decomposition.totalGrams);
       } else {
-        setPhotoAnalysisError("Can't identify food from the image. Please describe the meal above.");
+        setPhotoAnalysisError(analysis.errorMessage || "Can't identify food from the image. Please describe the meal above.");
       }
     } catch (err) {
       console.warn('[FoodSearchModal] Failed to process meal photo:', err);
@@ -213,14 +237,15 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.85,
+        allowsEditing: true,
+        quality: 0.4,
         base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         setCapturedImageUri(asset.uri);
+        if (asset.base64) setCapturedBase64(asset.base64);
         await processCapturedFoodPhoto(asset.uri, asset.base64);
       }
     } catch (err) {
@@ -232,14 +257,15 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.85,
+        allowsEditing: true,
+        quality: 0.4,
         base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         setCapturedImageUri(asset.uri);
+        if (asset.base64) setCapturedBase64(asset.base64);
         await processCapturedFoodPhoto(asset.uri, asset.base64);
       }
     } catch (err) {
@@ -284,8 +310,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.85,
+        allowsEditing: true,
+        quality: 0.5,
         base64: true,
       });
 
@@ -302,8 +328,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.85,
+        allowsEditing: true,
+        quality: 0.5,
         base64: true,
       });
 
@@ -318,7 +344,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   const handleDecomposeText = async () => {
     if (!nlpInput.trim()) return;
-    setIsAnalyzingPhoto(true);
+    setIsAnalyzingText(true);
     setPhotoAnalysisError(null);
 
     try {
@@ -338,7 +364,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
       setDecompositionResult(fallback);
       selectFoodForReview(fallback.asFoodItem, fallback.totalGrams);
     } finally {
-      setIsAnalyzingPhoto(false);
+      setIsAnalyzingText(false);
     }
   };
 
@@ -356,6 +382,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     setReviewFood(null);
     setDecompositionResult(null);
     setCapturedImageUri(null);
+    setCapturedBase64(null);
+    setIsAnalyzingPhoto(false);
+    setIsAnalyzingText(false);
     setPhotoAnalysisError(null);
     onClose();
   };
@@ -689,7 +718,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   onPress={() => setActiveTab('snap')}
                   activeOpacity={0.7}
                 >
-                  <Camera size={15} color={activeTab === 'snap' ? '#00F0FF' : COLORS.textMuted} />
+                  {hasGeminiVisionKey ? (
+                    <Camera size={15} color={activeTab === 'snap' ? '#00F0FF' : COLORS.textMuted} />
+                  ) : (
+                    <Sparkles size={15} color={activeTab === 'snap' ? '#00F0FF' : COLORS.textMuted} />
+                  )}
                   <Text
                     style={[styles.tabText, activeTab === 'snap' && styles.tabTextActive]}
                   >
@@ -724,102 +757,14 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 </TouchableOpacity>
               </View>
 
-              {/* Tab 1: AI Snap (Food Plate Recognition + Gemma 2 Text) */}
+              {/* Tab 1: AI Snap (Gemma 2 Text + Optional Gemini Vision Photo Snap) */}
               {activeTab === 'snap' && (
                 <ScrollView
                   style={styles.tabContent}
                   contentContainerStyle={styles.tabScrollContent}
                   showsVerticalScrollIndicator={false}
                 >
-                  {/* Meal Plate Photo Snap */}
-                  <View style={styles.plateSnapCard}>
-                    <View style={styles.plateSnapHeader}>
-                      <View style={styles.plateSnapBadge}>
-                        <Sparkles size={11} color="#00F0FF" />
-                        <Text style={styles.plateSnapBadgeText}>AI VISION</Text>
-                      </View>
-                      <Text style={styles.plateSnapModelName}>Plate Recognition</Text>
-                    </View>
-                    <Text style={styles.plateSnapTitle}>Snap Meal or Food Plate</Text>
-                    <Text style={styles.plateSnapDesc}>
-                      Take a photo of your cooked dish, plate, drink, or snack. AI will identify ingredients and estimate portion sizes.
-                    </Text>
-
-                    {/* Camera & Gallery Action Buttons */}
-                    <View style={styles.photoActionsRow}>
-                      <TouchableOpacity
-                        style={styles.cameraPrimaryBtn}
-                        onPress={handleTakeFoodPhoto}
-                        activeOpacity={0.7}
-                        disabled={isAnalyzingPhoto}
-                      >
-                        <Camera size={18} color="#080B10" />
-                        <Text style={styles.cameraPrimaryBtnText}>Snap Meal Plate</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.gallerySecondaryBtn}
-                        onPress={handlePickFoodPhoto}
-                        activeOpacity={0.7}
-                        disabled={isAnalyzingPhoto}
-                      >
-                        <ImageIcon size={18} color="#00F0FF" />
-                        <Text style={styles.gallerySecondaryBtnText}>Upload Photo</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Captured Food Photo Preview */}
-                  {capturedImageUri && (
-                    <View style={styles.capturedPhotoCard}>
-                      <Image source={{ uri: capturedImageUri }} style={styles.capturedImage} />
-
-                      {isAnalyzingPhoto && (
-                        <View style={styles.photoAnalyzingOverlay}>
-                          <ActivityIndicator size="large" color="#00F0FF" />
-                          <Text style={styles.photoAnalyzingTitle}>Analyzing Meal Photo</Text>
-                          <Text style={styles.photoAnalyzingSub}>
-                            Identifying food items and estimating nutrition with Gemma 2...
-                          </Text>
-                        </View>
-                      )}
-
-                      <View style={styles.capturedPhotoHeader}>
-                        <View style={styles.photoBadge}>
-                          <Sparkles size={12} color="#00F0FF" />
-                          <Text style={styles.photoBadgeText}>PHOTO ATTACHED</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.retakeBtn}
-                          onPress={handleTakeFoodPhoto}
-                          activeOpacity={0.7}
-                        >
-                          <RotateCcw size={12} color={COLORS.textMuted} />
-                          <Text style={styles.retakeBtnText}>Retake</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Unidentified Food Alert Banner */}
-                  {photoAnalysisError && (
-                    <View style={styles.photoErrorBanner}>
-                      <AlertCircle size={18} color="#FF6B35" />
-                      <View style={styles.photoErrorTextCol}>
-                        <Text style={styles.photoErrorTitle}>Can't identify food from photo</Text>
-                        <Text style={styles.photoErrorSub}>{photoAnalysisError}</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Divider */}
-                  <View style={styles.snapDividerRow}>
-                    <View style={styles.snapDividerLine} />
-                    <Text style={styles.snapDividerText}>OR DESCRIBE IN TEXT</Text>
-                    <View style={styles.snapDividerLine} />
-                  </View>
-
-                  {/* Text Description (Gemma 2 AI) */}
+                  {/* Part 1: Text Description (Gemma 2 AI) */}
                   <View style={styles.nlpBox}>
                     <View style={styles.nlpHeaderRow}>
                       <Text style={styles.nlpLabel}>Describe meal or ingredients:</Text>
@@ -840,18 +785,121 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       style={styles.decomposeBtn}
                       onPress={handleDecomposeText}
                       activeOpacity={0.7}
-                      disabled={isAnalyzingPhoto}
+                      disabled={isAnalyzingText || isAnalyzingPhoto}
                     >
-                      {isAnalyzingPhoto ? (
+                      {isAnalyzingText ? (
                         <ActivityIndicator size="small" color="#080B10" />
                       ) : (
                         <Sparkles size={16} color="#080B10" />
                       )}
                       <Text style={styles.decomposeBtnText}>
-                        {isAnalyzingPhoto ? 'Analyzing with Gemma 2...' : 'Analyze Meal with Gemma 2'}
+                        {isAnalyzingText ? 'Analyzing with Gemma 2...' : 'Analyze Meal with Gemma 2'}
                       </Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Part 2: Photo Snap Card (Only shown if Gemini API key is provided) */}
+                  {hasGeminiVisionKey && (
+                    <>
+                      {/* Divider */}
+                      <View style={styles.snapDividerRow}>
+                        <View style={styles.snapDividerLine} />
+                        <Text style={styles.snapDividerText}>OR SNAP FOOD PHOTO</Text>
+                        <View style={styles.snapDividerLine} />
+                      </View>
+
+                      {/* Meal Plate Photo Snap */}
+                      <View style={styles.plateSnapCard}>
+                        <View style={styles.plateSnapHeader}>
+                          <View style={styles.plateSnapBadge}>
+                            <Sparkles size={11} color="#00F0FF" />
+                            <Text style={styles.plateSnapBadgeText}>AI VISION</Text>
+                          </View>
+                          <Text style={styles.plateSnapModelName}>Plate Recognition</Text>
+                        </View>
+                        <Text style={styles.plateSnapTitle}>Snap Meal or Food Plate</Text>
+                        <Text style={styles.plateSnapDesc}>
+                          Take a photo of your cooked dish, plate, drink, or snack. Gemini Vision will identify ingredients and Gemma 2 computes portion macros.
+                        </Text>
+
+                        {/* Camera & Gallery Action Buttons */}
+                        <View style={styles.photoActionsRow}>
+                          <TouchableOpacity
+                            style={styles.cameraPrimaryBtn}
+                            onPress={handleTakeFoodPhoto}
+                            activeOpacity={0.7}
+                            disabled={isAnalyzingPhoto || isAnalyzingText}
+                          >
+                            <Camera size={18} color="#080B10" />
+                            <Text style={styles.cameraPrimaryBtnText}>Snap Meal Plate</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.gallerySecondaryBtn}
+                            onPress={handlePickFoodPhoto}
+                            activeOpacity={0.7}
+                            disabled={isAnalyzingPhoto || isAnalyzingText}
+                          >
+                            <ImageIcon size={18} color="#00F0FF" />
+                            <Text style={styles.gallerySecondaryBtnText}>Upload Photo</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {/* Captured Food Photo Preview */}
+                      {capturedImageUri && (
+                        <View style={styles.capturedPhotoCard}>
+                          <Image source={{ uri: capturedImageUri }} style={styles.capturedImage} />
+
+                          {isAnalyzingPhoto && (
+                            <View style={styles.photoAnalyzingOverlay}>
+                              <ActivityIndicator size="large" color="#00F0FF" />
+                              <Text style={styles.photoAnalyzingTitle}>Analyzing Meal Photo</Text>
+                              <Text style={styles.photoAnalyzingSub}>
+                                Identifying food with Gemini Vision & estimating macros with Gemma 2...
+                              </Text>
+                            </View>
+                          )}
+
+                          <View style={styles.capturedPhotoHeader}>
+                            <View style={styles.photoBadge}>
+                              <Sparkles size={12} color="#00F0FF" />
+                              <Text style={styles.photoBadgeText}>PHOTO ATTACHED</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={styles.retakeBtn}
+                              onPress={handleTakeFoodPhoto}
+                              activeOpacity={0.7}
+                            >
+                              <RotateCcw size={12} color={COLORS.textMuted} />
+                              <Text style={styles.retakeBtnText}>Retake</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Unidentified Food Alert Banner */}
+                      {photoAnalysisError && (
+                        <View style={styles.photoErrorBanner}>
+                          <AlertCircle size={18} color="#FF6B35" />
+                          <View style={styles.photoErrorTextCol}>
+                            <Text style={styles.photoErrorTitle}>Can't identify food from photo</Text>
+                            <Text style={styles.photoErrorSub}>{photoAnalysisError}</Text>
+                            {capturedImageUri && (
+                              <TouchableOpacity
+                                style={styles.retryAnalysisBtn}
+                                onPress={() => processCapturedFoodPhoto(capturedImageUri, capturedBase64)}
+                                activeOpacity={0.7}
+                              >
+                                <RotateCcw size={12} color="#00F0FF" />
+                                <Text style={styles.retryAnalysisBtnText}>Retry Analysis</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      )}
+                    </>
+                  )}
                 </ScrollView>
               )}
 
@@ -1908,6 +1956,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     lineHeight: 15,
+  },
+  retryAnalysisBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  retryAnalysisBtnText: {
+    color: '#00F0FF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   nlpLabel: {
     color: COLORS.textSecondary,

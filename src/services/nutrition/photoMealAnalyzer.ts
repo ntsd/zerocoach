@@ -1,32 +1,34 @@
-import { decomposeMealText, MealDecompositionResult } from './mealDecomposer';
+import { decomposeMealText, decomposeMealWithGemma, MealDecompositionResult } from './mealDecomposer';
+import { analyzeFoodWithGemini } from './geminiVisionService';
 import { OpenAICompatibleConfig } from '@/types/model';
 import { MealType } from '@/types/nutrition';
+import { useModelStore } from '@/store/useModelStore';
 
 export interface PhotoAnalysisResponse {
   canIdentify: boolean;
   dishTitle?: string;
   ingredientsText?: string;
   decomposition?: MealDecompositionResult;
-  source: 'openai_vision' | 'user_prompt' | 'unidentified';
+  source: 'gemini_vision' | 'openai_vision' | 'user_prompt' | 'unidentified';
+  requiresApiKey?: boolean;
   errorMessage?: string;
 }
 
 /**
- * Analyzes a meal photo using OpenAI-compatible vision if available.
- * If vision is not configured, unavailable, or cannot identify the meal,
- * returns canIdentify: false so the UI clearly tells the user
- * "Can't identify food from the image".
+ * Analyzes a meal photo using Google Gemini 3.8 Flash (free tier) or OpenAI-compatible vision.
+ * Decomposes the detected meal plate and ingredients into macro nutrients via Gemma 2.
  */
 export async function analyzeMealPhoto(
   photoUri: string,
   base64Data?: string | null,
   openAIConfig?: OpenAICompatibleConfig,
   currentMealType?: MealType,
-  userNotes?: string
+  userNotes?: string,
+  explicitGeminiKey?: string
 ): Promise<PhotoAnalysisResponse> {
   // If user already typed or selected notes, decompose their description directly
   if (userNotes && userNotes.trim().length > 0) {
-    const decomposition = decomposeMealText(userNotes.trim());
+    const decomposition = await decomposeMealWithGemma(userNotes.trim());
     decomposition.asFoodItem.imageUrl = photoUri;
     return {
       canIdentify: true,
@@ -37,8 +39,65 @@ export async function analyzeMealPhoto(
     };
   }
 
-  // If OpenAI-compatible endpoint with vision is available and base64 is provided
-  if (base64Data && openAIConfig && openAIConfig.baseUrl && openAIConfig.apiKey) {
+  if (!base64Data) {
+    return {
+      canIdentify: false,
+      source: 'unidentified',
+      errorMessage: 'No image data captured. Please try taking the photo again.',
+    };
+  }
+
+  // 1. Check for Google Gemini API Key (from explicit param, store, or openAIConfig)
+  const storeGeminiKey = useModelStore.getState().geminiApiKey;
+  const configApiKey = openAIConfig?.apiKey?.trim() || '';
+  const geminiKey = (
+    explicitGeminiKey ||
+    storeGeminiKey ||
+    (configApiKey.startsWith('AIza') ? configApiKey : '') ||
+    openAIConfig?.geminiApiKey ||
+    ''
+  ).trim();
+
+  if (geminiKey) {
+    const preferredModel =
+      openAIConfig?.baseUrl?.includes('generativelanguage.googleapis.com') && openAIConfig.modelName
+        ? openAIConfig.modelName.trim()
+        : undefined;
+    const geminiResult = await analyzeFoodWithGemini(base64Data, geminiKey, preferredModel);
+    if (geminiResult.success && geminiResult.ingredientsText) {
+      try {
+        const decomposition = await decomposeMealWithGemma(geminiResult.ingredientsText);
+        decomposition.asFoodItem.imageUrl = photoUri;
+        return {
+          canIdentify: true,
+          dishTitle: decomposition.dishTitle,
+          ingredientsText: geminiResult.ingredientsText,
+          decomposition,
+          source: 'gemini_vision',
+        };
+      } catch (decompErr) {
+        console.warn('[PhotoMealAnalyzer] Gemma decomposition fallback:', decompErr);
+        const fallback = decomposeMealText(geminiResult.ingredientsText);
+        fallback.asFoodItem.imageUrl = photoUri;
+        return {
+          canIdentify: true,
+          dishTitle: fallback.dishTitle,
+          ingredientsText: geminiResult.ingredientsText,
+          decomposition: fallback,
+          source: 'gemini_vision',
+        };
+      }
+    } else {
+      return {
+        canIdentify: false,
+        source: 'unidentified',
+        errorMessage: geminiResult.errorMessage || "Could not identify food items in this photo.",
+      };
+    }
+  }
+
+  // 2. Check for OpenAI-compatible endpoint with vision (e.g., Ollama or OpenAI)
+  if (openAIConfig && openAIConfig.baseUrl && openAIConfig.baseUrl.trim()) {
     try {
       let base = openAIConfig.baseUrl.trim().replace(/\/+$/, '');
       const url =
@@ -46,15 +105,19 @@ export async function analyzeMealPhoto(
           ? `${base}/chat/completions`
           : `${base}/v1/chat/completions`;
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (openAIConfig.apiKey && openAIConfig.apiKey.trim()) {
+        headers['Authorization'] = `Bearer ${openAIConfig.apiKey.trim()}`;
+      }
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 14000);
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openAIConfig.apiKey.trim()}`,
-        },
+        headers,
         signal: controller.signal,
         body: JSON.stringify({
           model: openAIConfig.modelName || 'gpt-4o',
@@ -62,14 +125,14 @@ export async function analyzeMealPhoto(
             {
               role: 'system',
               content:
-                'You are a clinical sports nutritionist and multimodal food & menu analyzer. Analyze the image, which may be: 1) A photo of an actual meal or dish, 2) A printed or digital restaurant menu, blackboard, or receipt with food text, or 3) A packaged food nutrition facts or ingredients label. If it is a menu, receipt, or label, read the text, extract the primary meal or dish, and break down its ingredients with realistic restaurant portion weights in grams. Return a single concise string listing the ingredients and weights in grams, separated by commas (e.g., "180g grilled chicken breast, 150g jasmine rice, 80g steamed broccoli"). If neither food nor readable food menu/label text is found, reply with "UNIDENTIFIED".',
+                'You are a clinical sports nutritionist. Identify the meal plate or food dish in the image. Return a single concise string listing the ingredients and realistic weights in grams, separated by commas (e.g., "180g grilled chicken breast, 150g jasmine rice, 80g steamed broccoli"). If no food is found, reply with "UNIDENTIFIED".',
             },
             {
               role: 'user',
               content: [
                 {
                   type: 'text',
-                  text: 'Identify the meal plate or read the food menu/label, and list ingredients with portion weights in grams:',
+                  text: 'Identify this food plate and list ingredients with portion weights in grams:',
                 },
                 {
                   type: 'image_url',
@@ -87,7 +150,7 @@ export async function analyzeMealPhoto(
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content?.trim();
         if (content && !content.toUpperCase().includes('UNIDENTIFIED') && content.length > 3) {
-          const decomposition = decomposeMealText(content);
+          const decomposition = await decomposeMealWithGemma(content);
           decomposition.asFoodItem.imageUrl = photoUri;
           return {
             canIdentify: true,
@@ -103,13 +166,12 @@ export async function analyzeMealPhoto(
     }
   }
 
-  // Quick 600ms latency to provide visual feedback before returning
-  await new Promise((resolve) => setTimeout(resolve, 600));
-
-  // Cannot identify food or menu text from the image
+  // 3. No vision provider configured
   return {
     canIdentify: false,
+    requiresApiKey: true,
     source: 'unidentified',
-    errorMessage: "Can't identify food or menu text from the image. Please describe the meal or select below.",
+    errorMessage:
+      'Google Gemini API key required. Add your free key from aistudio.google.com to enable instant food plate recognition.',
   };
 }

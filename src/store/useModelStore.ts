@@ -37,6 +37,7 @@ export const useModelStore = create<ModelState>()(
       downloadProgress: 0,
       provider: 'on_device',
       openAIConfig: DEFAULT_OPENAI_CONFIG,
+      geminiApiKey: '',
       errorMessage: null,
       stats: {
         acceleration: 'none',
@@ -56,6 +57,10 @@ export const useModelStore = create<ModelState>()(
           llmService.updateOpenAIConfig(next);
           return { openAIConfig: next };
         });
+      },
+
+      setGeminiApiKey: (key: string) => {
+        set({ geminiApiKey: key.trim() });
       },
 
       testOpenAIConnection: async () => {
@@ -184,6 +189,7 @@ export const useModelStore = create<ModelState>()(
         currentModel: state.currentModel,
         provider: state.provider,
         openAIConfig: state.openAIConfig,
+        geminiApiKey: state.geminiApiKey,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

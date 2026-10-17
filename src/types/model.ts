@@ -32,6 +32,7 @@ export interface OpenAICompatibleConfig {
   baseUrl: string;
   apiKey: string;
   modelName: string;
+  geminiApiKey?: string;
 }
 
 export interface ModelState {
@@ -40,10 +41,12 @@ export interface ModelState {
   downloadProgress: number; // 0 to 100
   provider: LLMProviderType;
   openAIConfig: OpenAICompatibleConfig;
+  geminiApiKey: string;
   stats: ModelHardwareStats;
   errorMessage: string | null;
   setProvider: (provider: LLMProviderType) => void;
   updateOpenAIConfig: (config: Partial<OpenAICompatibleConfig>) => void;
+  setGeminiApiKey: (key: string) => void;
   testOpenAIConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
   downloadModel: () => Promise<void>;
   loadModel: () => Promise<void>;

@@ -6,11 +6,13 @@ import {
   StyleSheet,
   Platform,
   Keyboard,
+  AppState,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useModelStore } from '@/store/useModelStore';
+import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -39,7 +41,25 @@ export default function App() {
   useEffect(() => {
     // Automatically download and load Gemma 2 into RAM on native devices
     useModelStore.getState().autoInitOnDeviceModel();
-  }, []);
+
+    // Automatically sync telemetry from Android Health / HealthKit when onboarded
+    if (hasCompletedOnboarding) {
+      useTelemetryStore.getState().syncTelemetry();
+    }
+  }, [hasCompletedOnboarding]);
+
+  useEffect(() => {
+    if (!hasCompletedOnboarding) return;
+
+    // Automatically sync fresh biometrics when returning to foreground
+    const sub = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        useTelemetryStore.getState().syncTelemetry();
+      }
+    });
+
+    return () => sub.remove();
+  }, [hasCompletedOnboarding]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';

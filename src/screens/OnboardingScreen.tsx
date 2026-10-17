@@ -302,6 +302,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     }
 
     completeOnboarding(profile, selectedMode);
+
+    // Automatically sync live biometrics from Android Health Connect / Apple Health
+    useTelemetryStore.getState().syncTelemetry();
+
     onComplete();
   };
 

@@ -308,11 +308,20 @@ export const useTelemetryStore = create<TelemetryState>()(
         set({ syncing: true, syncError: null });
         try {
           const fresh = await fitnessBridge.fetchLiveBiometrics();
+          const coachStore = useCoachStore.getState();
+          const currentProfile = coachStore.userProfile;
+
+          // Preserve manually entered profile weight/height if Health Connect does not provide them
+          if (!fresh.weightKg && currentProfile?.weightKg) {
+            fresh.weightKg = currentProfile.weightKg;
+          }
+          if (!fresh.heightCm && currentProfile?.heightCm) {
+            fresh.heightCm = currentProfile.heightCm;
+          }
+
           set({ metrics: fresh, syncing: false, syncError: null });
 
           // Auto-update weight & height and recalculate smart nutrition targets
-          const coachStore = useCoachStore.getState();
-          const currentProfile = coachStore.userProfile;
           const profileUpdates: any = {};
 
           if (fresh.weightKg && fresh.weightKg > 0 && currentProfile?.weightKg !== fresh.weightKg) {

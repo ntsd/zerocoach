@@ -29,6 +29,7 @@ import {
   SkipForward,
   RotateCcw,
   RefreshCw,
+  Minus,
   Plus,
   Trash2,
   Trophy,
@@ -109,7 +110,8 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     todayCompletedSession?.startedAt || activeDraft?.startedAt || Date.now()
   );
 
-  const [selectedExerciseForModal, setSelectedExerciseForModal] = useState<ExerciseItem | null>(null);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const selectedExerciseForModal = exercises.find((ex) => ex.id === selectedExerciseId) || null;
 
   // RepDB Modal states (for adding or swapping)
   const [isRepDBModalVisible, setIsRepDBModalVisible] = useState(false);
@@ -240,6 +242,33 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       delete copy[id];
       return copy;
     });
+  };
+
+  const handleUpdateSets = (exerciseId: string, deltaOrValue: number, isAbsolute: boolean = false) => {
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.id !== exerciseId) return ex;
+        const newSets = isAbsolute
+          ? Math.max(1, Math.min(15, deltaOrValue))
+          : Math.max(1, Math.min(15, ex.targetSets + deltaOrValue));
+        return {
+          ...ex,
+          targetSets: newSets,
+        };
+      })
+    );
+  };
+
+  const handleUpdateReps = (exerciseId: string, newReps: string) => {
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.id !== exerciseId) return ex;
+        return {
+          ...ex,
+          targetReps: newReps,
+        };
+      })
+    );
   };
 
   const handleAskCoachForExercise = (exerciseName: string) => {
@@ -461,11 +490,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                   isSkipped && styles.exerciseItemSkipped,
                 ]}
               >
-                <TouchableOpacity
-                  onPress={() => setSelectedExerciseForModal(item)}
-                  activeOpacity={0.8}
-                  style={styles.exerciseItemTop}
-                >
+                <View style={styles.exerciseItemTop}>
                   {/* Checkbox (independent touch target) */}
                   <TouchableOpacity
                     style={styles.checkboxWrapper}
@@ -484,106 +509,162 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                     )}
                   </TouchableOpacity>
 
-                  {/* Thumbnail Image from RepDB */}
+                  {/* Thumbnail Image from RepDB (clickable preview) */}
                   {item.imageUrl ? (
-                    <View style={[styles.thumbnailWrapper, isSkipped && styles.thumbnailSkipped]}>
+                    <TouchableOpacity
+                      onPress={() => setSelectedExerciseId(item.id)}
+                      activeOpacity={0.8}
+                      style={[styles.thumbnailWrapper, isSkipped && styles.thumbnailSkipped]}
+                    >
                       <Image
                         source={{ uri: item.imageUrl }}
                         style={styles.thumbnailImage}
                         resizeMode="contain"
                       />
-                    </View>
+                    </TouchableOpacity>
                   ) : null}
 
-                  {/* Title & Category */}
+                  {/* Title & Category & Controls */}
                   <View style={styles.exerciseDetails}>
-                    <View style={styles.catBadgeRow}>
-                      <View style={styles.catBadgeLeft}>
-                        <View
-                          style={[
-                            styles.catBadge,
-                            { borderColor: `${catColor}50`, backgroundColor: `${catColor}15` },
-                          ]}
-                        >
-                          <Text style={[styles.catBadgeText, { color: catColor }]}>
-                            {item.category.toUpperCase()}
-                          </Text>
-                        </View>
-
-                        {item.isCustomAdded && (
-                          <View style={styles.customBadge}>
-                            <Text style={styles.customBadgeText}>ADDED</Text>
-                          </View>
-                        )}
-
-                        {isSkipped && (
-                          <View style={styles.skippedBadge}>
-                            <Text style={styles.skippedBadgeText}>SKIPPED</Text>
-                          </View>
-                        )}
-
-                        {!isSkipped && (
-                          <Text style={styles.intensityTag} numberOfLines={1}>
-                            {item.intensityNote}
-                          </Text>
-                        )}
-                      </View>
-
-                      <View style={styles.previewHintBadge}>
-                        <Eye size={10} color={COLORS.textMuted} />
-                        <Text style={styles.previewHintText}>Preview</Text>
-                      </View>
-                    </View>
-
-                    <Text
-                      style={[
-                        styles.exerciseName,
-                        isDone && styles.exerciseNameDone,
-                        isSkipped && styles.exerciseNameSkipped,
-                      ]}
+                    <TouchableOpacity
+                      onPress={() => setSelectedExerciseId(item.id)}
+                      activeOpacity={0.75}
+                      style={styles.exerciseHeaderClickable}
                     >
-                      {item.name}
-                    </Text>
-
-                    {/* RepDB Biomechanical Specs Row */}
-                    {!isSkipped && (
-                      <View style={styles.badgeTagsRow}>
-                        {item.equipment && (
-                          <View style={styles.tagBadge}>
-                            <Dumbbell size={9} color={COLORS.textMuted} />
-                            <Text style={styles.tagBadgeText}>{formatEquipment(item.equipment)}</Text>
-                          </View>
-                        )}
-
-                        {item.mechanic && (
-                          <View style={styles.tagBadge}>
-                            <Layers size={9} color={COLORS.textMuted} />
-                            <Text style={styles.tagBadgeText}>
-                              {item.mechanic.charAt(0).toUpperCase() + item.mechanic.slice(1)}
+                      <View style={styles.catBadgeRow}>
+                        <View style={styles.catBadgeLeft}>
+                          <View
+                            style={[
+                              styles.catBadge,
+                              { borderColor: `${catColor}50`, backgroundColor: `${catColor}15` },
+                            ]}
+                          >
+                            <Text style={[styles.catBadgeText, { color: catColor }]}>
+                              {item.category.toUpperCase()}
                             </Text>
                           </View>
-                        )}
 
-                        {firstMuscle && (
-                          <View style={styles.tagBadge}>
-                            <Text style={styles.tagBadgeText}>{formatMuscle(firstMuscle)}</Text>
-                          </View>
-                        )}
+                          {item.isCustomAdded && (
+                            <View style={styles.customBadge}>
+                              <Text style={styles.customBadgeText}>ADDED</Text>
+                            </View>
+                          )}
 
-                        {item.met && (
-                          <View style={styles.metTagBadge}>
-                            <Text style={styles.metTagText}>{item.met} MET</Text>
-                          </View>
-                        )}
+                          {isSkipped && (
+                            <View style={styles.skippedBadge}>
+                              <Text style={styles.skippedBadgeText}>SKIPPED</Text>
+                            </View>
+                          )}
+
+                          {!isSkipped && (
+                            <Text style={styles.intensityTag} numberOfLines={1}>
+                              {item.intensityNote}
+                            </Text>
+                          )}
+                        </View>
+
+                        <View style={styles.previewHintBadge}>
+                          <Eye size={10} color={COLORS.textMuted} />
+                          <Text style={styles.previewHintText}>Preview</Text>
+                        </View>
                       </View>
-                    )}
 
-                    {/* Volume (Sets x Reps, Rest) */}
+                      <Text
+                        style={[
+                          styles.exerciseName,
+                          isDone && styles.exerciseNameDone,
+                          isSkipped && styles.exerciseNameSkipped,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+
+                      {/* RepDB Biomechanical Specs Row */}
+                      {!isSkipped && (
+                        <View style={styles.badgeTagsRow}>
+                          {item.equipment && (
+                            <View style={styles.tagBadge}>
+                              <Dumbbell size={9} color={COLORS.textMuted} />
+                              <Text style={styles.tagBadgeText}>{formatEquipment(item.equipment)}</Text>
+                            </View>
+                          )}
+
+                          {item.mechanic && (
+                            <View style={styles.tagBadge}>
+                              <Layers size={9} color={COLORS.textMuted} />
+                              <Text style={styles.tagBadgeText}>
+                                {item.mechanic.charAt(0).toUpperCase() + item.mechanic.slice(1)}
+                              </Text>
+                            </View>
+                          )}
+
+                          {firstMuscle && (
+                            <View style={styles.tagBadge}>
+                              <Text style={styles.tagBadgeText}>{formatMuscle(firstMuscle)}</Text>
+                            </View>
+                          )}
+
+                          {item.met && (
+                            <View style={styles.metTagBadge}>
+                              <Text style={styles.metTagText}>{item.met} MET</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Volume (Interactive Sets Stepper x Reps, Rest) */}
                     {!isSkipped && (
                       <View style={styles.volumeRow}>
-                        <Text style={styles.volumeText}>
-                          <Text style={styles.volumeAccent}>{item.targetSets} sets</Text> × {item.targetReps}
-                        </Text>
+                        <View style={styles.setStepperContainer}>
+                          <TouchableOpacity
+                            onPress={() => handleUpdateSets(item.id, -1)}
+                            disabled={item.targetSets <= 1}
+                            style={[
+                              styles.setStepperBtn,
+                              item.targetSets <= 1 && styles.setStepperBtnDisabled,
+                            ]}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            activeOpacity={0.7}
+                          >
+                            <Minus
+                              size={10}
+                              color={item.targetSets <= 1 ? 'rgba(255, 255, 255, 0.2)' : modeColors.accent}
+                            />
+                          </TouchableOpacity>
+
+                          <View style={styles.setNumberBadge}>
+                            <Text style={[styles.setNumberText, { color: modeColors.accent }]}>
+                              {item.targetSets}
+                            </Text>
+                            <Text style={styles.setNumberLabel}>SETS</Text>
+                          </View>
+
+                          <TouchableOpacity
+                            onPress={() => handleUpdateSets(item.id, 1)}
+                            disabled={item.targetSets >= 15}
+                            style={[
+                              styles.setStepperBtn,
+                              item.targetSets >= 15 && styles.setStepperBtnDisabled,
+                            ]}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            activeOpacity={0.7}
+                          >
+                            <Plus
+                              size={10}
+                              color={item.targetSets >= 15 ? 'rgba(255, 255, 255, 0.2)' : modeColors.accent}
+                            />
+                          </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                          onPress={() => setSelectedExerciseId(item.id)}
+                          hitSlop={{ top: 6, bottom: 6, left: 4, right: 6 }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.volumeRepsText}>× {item.targetReps}</Text>
+                        </TouchableOpacity>
+
                         <View style={styles.restBadge}>
                           <Clock size={9} color={COLORS.textMuted} />
                           <Text style={styles.restText}>{item.restPeriodSeconds}s rest</Text>
@@ -593,13 +674,17 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
                     {/* Coaching Cue Box */}
                     {!isSkipped && (
-                      <View style={styles.cueBox}>
+                      <TouchableOpacity
+                        onPress={() => setSelectedExerciseId(item.id)}
+                        activeOpacity={0.8}
+                        style={styles.cueBox}
+                      >
                         <Text style={styles.cueLabel}>CUE:</Text>
                         <Text style={styles.cueText}>{item.coachingCue}</Text>
-                      </View>
+                      </TouchableOpacity>
                     )}
                   </View>
-                </TouchableOpacity>
+                </View>
 
                 {/* Bottom Actions Bar on each exercise: Skip / Restore, Swap, Delete */}
                 <View style={styles.itemActionsBar}>
@@ -748,7 +833,17 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
             toggleExercise(selectedExerciseForModal.id);
           }
         }}
-        onClose={() => setSelectedExerciseForModal(null)}
+        onUpdateSets={(newSets) => {
+          if (selectedExerciseForModal) {
+            handleUpdateSets(selectedExerciseForModal.id, newSets, true);
+          }
+        }}
+        onUpdateReps={(newReps) => {
+          if (selectedExerciseForModal) {
+            handleUpdateReps(selectedExerciseForModal.id, newReps);
+          }
+        }}
+        onClose={() => setSelectedExerciseId(null)}
         onAskCoach={handleAskCoachForExercise}
         mode={mode}
       />
@@ -1105,18 +1200,60 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: COLORS.warning,
   },
+  exerciseHeaderClickable: {
+    // Interactive header touch target
+  },
   volumeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 3,
+    marginTop: 4,
   },
-  volumeText: {
-    ...TYPOGRAPHY.caption,
+  setStepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 3,
+    paddingVertical: 2,
+    gap: 3,
+  },
+  setStepperBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setStepperBtnDisabled: {
+    opacity: 0.25,
+    backgroundColor: 'transparent',
+  },
+  setNumberBadge: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+    paddingHorizontal: 2,
+  },
+  setNumberText: {
+    ...TYPOGRAPHY.bodyBold,
     fontSize: 12,
+    fontWeight: '800',
+  },
+  setNumberLabel: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 8,
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+  },
+  volumeRepsText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
     color: COLORS.textSecondary,
-    flexShrink: 1,
   },
   volumeAccent: {
     color: COLORS.textPrimary,

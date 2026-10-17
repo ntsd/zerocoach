@@ -26,6 +26,8 @@ import {
   RotateCcw,
   ShieldCheck,
   Flame,
+  Minus,
+  Plus,
 } from 'lucide-react-native';
 
 interface ExerciseDetailModalProps {
@@ -33,6 +35,8 @@ interface ExerciseDetailModalProps {
   exercise: ExerciseItem | null;
   isCompleted?: boolean;
   onToggleComplete?: () => void;
+  onUpdateSets?: (newSets: number) => void;
+  onUpdateReps?: (newReps: string) => void;
   onClose: () => void;
   onAskCoach?: (exerciseName: string) => void;
   mode: CoachingMode;
@@ -43,6 +47,8 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   exercise,
   isCompleted = false,
   onToggleComplete,
+  onUpdateSets,
+  onUpdateReps,
   onClose,
   onAskCoach,
   mode,
@@ -255,7 +261,47 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
         <View style={styles.prescriptionCard}>
           <View style={styles.prescItem}>
             <Text style={styles.prescLabel}>SETS</Text>
-            <Text style={styles.prescValue}>{exercise.targetSets}</Text>
+            {onUpdateSets ? (
+              <View style={styles.modalSetControls}>
+                <TouchableOpacity
+                  onPress={() => onUpdateSets(Math.max(1, exercise.targetSets - 1))}
+                  disabled={exercise.targetSets <= 1}
+                  style={[
+                    styles.modalStepBtn,
+                    exercise.targetSets <= 1 && styles.modalStepBtnDisabled,
+                  ]}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Minus
+                    size={11}
+                    color={exercise.targetSets <= 1 ? 'rgba(255, 255, 255, 0.2)' : modeColors.accent}
+                  />
+                </TouchableOpacity>
+
+                <Text style={[styles.prescValue, { color: modeColors.accent, minWidth: 20, textAlign: 'center' }]}>
+                  {exercise.targetSets}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => onUpdateSets(Math.min(15, exercise.targetSets + 1))}
+                  disabled={exercise.targetSets >= 15}
+                  style={[
+                    styles.modalStepBtn,
+                    exercise.targetSets >= 15 && styles.modalStepBtnDisabled,
+                  ]}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Plus
+                    size={11}
+                    color={exercise.targetSets >= 15 ? 'rgba(255, 255, 255, 0.2)' : modeColors.accent}
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.prescValue}>{exercise.targetSets}</Text>
+            )}
           </View>
           <View style={styles.prescDivider} />
           <View style={styles.prescItem}>
@@ -275,6 +321,59 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
             </Text>
           </View>
         </View>
+
+        {/* Quick Target Reps Preset Selector */}
+        {onUpdateReps && (
+          <View style={styles.repSelectorCard}>
+            <View style={styles.repSelectorHeader}>
+              <Text style={[styles.repSelectorTitle, { color: modeColors.accent }]}>
+                TARGET REP PROTOCOL
+              </Text>
+              <Text style={styles.repSelectorCurrent}>{exercise.targetReps}</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.repPresetsRow}
+            >
+              {[
+                '5 reps (Strength)',
+                '6–8 reps (Hypertrophy)',
+                '8–12 reps (Standard)',
+                '12–15 reps (Endurance)',
+                '15–20 reps (Burnout)',
+                'To Failure',
+              ].map((preset) => {
+                const isSelected =
+                  exercise.targetReps === preset ||
+                  exercise.targetReps.toLowerCase().includes(preset.split(' ')[0].toLowerCase());
+                return (
+                  <TouchableOpacity
+                    key={preset}
+                    onPress={() => onUpdateReps(preset)}
+                    style={[
+                      styles.repPresetPill,
+                      isSelected && {
+                        backgroundColor: `${modeColors.accent}25`,
+                        borderColor: modeColors.accent,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.repPresetText,
+                        isSelected && { color: modeColors.accent, fontWeight: '700' },
+                      ]}
+                    >
+                      {preset}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Biomechanical Tags Row */}
         <View style={styles.tagsContainer}>
@@ -504,6 +603,70 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textPrimary,
     marginTop: 2,
+  },
+  modalSetControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    gap: 3,
+  },
+  modalStepBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalStepBtnDisabled: {
+    opacity: 0.3,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'transparent',
+  },
+  repSelectorCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 10,
+    marginBottom: 12,
+  },
+  repSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  repSelectorTitle: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  repSelectorCurrent: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  repPresetsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  repPresetPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  repPresetText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10.5,
+    color: COLORS.textSecondary,
   },
   prescDivider: {
     width: 1,

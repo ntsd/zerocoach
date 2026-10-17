@@ -32,6 +32,8 @@ export interface ExerciseItem {
   intensityNote: string;
   coachingCue: string;
   completed?: boolean;
+  skipped?: boolean;
+  isCustomAdded?: boolean;
   equipment?: string;
   bodyPart?: string;
   primaryMuscles?: string[];

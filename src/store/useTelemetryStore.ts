@@ -438,6 +438,36 @@ export const useTelemetryStore = create<TelemetryState>()(
         }));
       },
 
+      toggleStageSkipped: (stageId: string) => {
+        set((state) => ({
+          calisthenicsStages: state.calisthenicsStages.map((stage) =>
+            stage.id === stageId
+              ? { ...stage, skipped: !stage.skipped }
+              : stage
+          ),
+        }));
+      },
+
+      addCustomStage: (stageData: Omit<ProgressionStage, 'id' | 'completed' | 'skipped'>) => {
+        const id = `custom-stage-${Date.now()}`;
+        const newStage: ProgressionStage = {
+          ...stageData,
+          id,
+          completed: false,
+          skipped: false,
+          isCustom: true,
+        };
+        set((state) => ({
+          calisthenicsStages: [newStage, ...state.calisthenicsStages],
+        }));
+      },
+
+      deleteStage: (stageId: string) => {
+        set((state) => ({
+          calisthenicsStages: state.calisthenicsStages.filter((stage) => stage.id !== stageId),
+        }));
+      },
+
       updateMetric: (updates: Partial<TelemetryMetrics>) => {
         set((state) => ({
           metrics: { ...state.metrics, ...updates },
@@ -458,18 +488,23 @@ export const useTelemetryStore = create<TelemetryState>()(
       name: 'zerocoach-telemetry-storage',
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
-        if (
-          state &&
-          (!state.calisthenicsStages ||
-            state.calisthenicsStages.length < DEFAULT_PROGRESSION_STAGES.length)
-        ) {
+        if (state && state.calisthenicsStages) {
           const completedMap = new Map(
             (state.calisthenicsStages || []).map((s) => [s.id, s.completed])
           );
-          state.calisthenicsStages = DEFAULT_PROGRESSION_STAGES.map((s) => ({
-            ...s,
-            completed: completedMap.get(s.id) ?? s.completed,
-          }));
+          const skippedMap = new Map(
+            (state.calisthenicsStages || []).map((s) => [s.id, s.skipped])
+          );
+          const customStages = (state.calisthenicsStages || []).filter((s) => s.isCustom);
+          
+          state.calisthenicsStages = [
+            ...customStages,
+            ...DEFAULT_PROGRESSION_STAGES.map((s) => ({
+              ...s,
+              completed: completedMap.get(s.id) ?? s.completed,
+              skipped: skippedMap.get(s.id) ?? s.skipped,
+            })),
+          ];
         }
       },
     }

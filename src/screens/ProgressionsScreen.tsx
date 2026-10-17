@@ -36,6 +36,7 @@ import {
   MessageSquare,
   Sliders,
   Target,
+  Plus,
 } from 'lucide-react-native';
 
 interface ProgressionsScreenProps {
@@ -75,7 +76,12 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   const { mode, userProfile, updateProfile, setSkillLevel } = useCoachStore();
   const defaultMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
-  const { calisthenicsStages, metrics, toggleStageCompletion } = useTelemetryStore();
+  const {
+    calisthenicsStages,
+    metrics,
+    toggleStageCompletion,
+    deleteStage,
+  } = useTelemetryStore();
   const { sendMessage } = useChatStore();
   const modeColors = getModeColors(mode);
 
@@ -146,14 +152,27 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     setSkillLevel(level);
   };
 
-  // Dynamic filter options based on current equipment environment for the progression tree
+  // Dynamic filter options based on current equipment environment + custom user skills
   const filterOptions: ChipItem[] = useMemo(() => {
+    const customSkillItems = Array.from(
+      new Set(
+        calisthenicsStages
+          .filter((s) => s.isCustom && (equipmentMode === 'all' ? true : s.category === 'bodyweight'))
+          .map((s) => s.skillName)
+      )
+    ).map((name) => ({
+      id: name,
+      label: name,
+      icon: Trophy,
+    }));
+
     if (equipmentMode === 'all') {
       return [
         { id: 'All', label: 'All Gym Benchmarks', icon: Dumbbell },
         { id: 'Barbell Bench Press', label: 'Bench Press', icon: Dumbbell },
         { id: 'Barbell Back Squat', label: 'Back Squat', icon: Zap },
         { id: 'Barbell Bent-Over Row', label: 'Barbell Row', icon: ShieldCheck },
+        ...customSkillItems,
         { id: 'bodyweight_all', label: 'Bodyweight Skills', icon: Flame },
       ];
     } else {
@@ -162,10 +181,11 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         { id: 'Push-Up & Dip Mastery', label: 'Push-Up & Dips', icon: Dumbbell },
         { id: 'Pull-Up & Muscle-Up', label: 'Pull-Up & Muscle-Up', icon: Zap },
         { id: 'Core & L-Sit', label: 'Core & L-Sit', icon: ShieldCheck },
+        ...customSkillItems,
         { id: 'gym_all', label: 'Gym Benchmarks', icon: Dumbbell },
       ];
     }
-  }, [equipmentMode]);
+  }, [equipmentMode, calisthenicsStages]);
 
   // Goal chip items
   const goalChipItems: ChipItem[] = useMemo(() => {
@@ -461,10 +481,12 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
 
         {/* Training Progression & Benchmark Section Header */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>
-            {equipmentMode === 'all' ? 'GYM BENCHMARK PROGRESSIONS' : 'BODYWEIGHT & SKILL PROGRESSIONS'}
-          </Text>
-          <Text style={styles.sectionSubtitle}>Milestone Standards & Mastery Tree</Text>
+          <View style={styles.sectionHeaderLeft}>
+            <Text style={styles.sectionTitle}>
+              {equipmentMode === 'all' ? 'GYM BENCHMARK PROGRESSIONS' : 'BODYWEIGHT & SKILL PROGRESSIONS'}
+            </Text>
+            <Text style={styles.sectionSubtitle}>Milestone Standards & Mastery Tree</Text>
+          </View>
         </View>
 
         {/* Overall Mastery Progress Card */}
@@ -506,6 +528,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
               key={stage.id}
               stage={stage}
               onToggle={toggleStageCompletion}
+              onDelete={deleteStage}
               onAskCoach={handleAskCoach}
             />
           ))}
@@ -755,7 +778,28 @@ const styles = StyleSheet.create({
   sectionHeaderRow: {
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  sectionHeaderLeft: {
+    flex: 1,
     gap: 2,
+  },
+  addSkillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+    marginBottom: 2,
+  },
+  addSkillButtonText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    fontWeight: '800',
   },
   sectionTitle: {
     ...TYPOGRAPHY.badge,

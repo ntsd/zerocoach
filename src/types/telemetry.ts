@@ -32,6 +32,8 @@ export interface ProgressionStage {
   stageTitle: string;
   standard: string;
   completed: boolean;
+  skipped?: boolean;
+  isCustom?: boolean;
   notes?: string;
   equipment?: string;
 }
@@ -58,6 +60,9 @@ export interface TelemetryState {
     heightCm?: number;
   }) => void;
   toggleStageCompletion: (stageId: string) => void;
+  toggleStageSkipped: (stageId: string) => void;
+  addCustomStage: (stage: Omit<ProgressionStage, 'id' | 'completed' | 'skipped'>) => void;
+  deleteStage: (stageId: string) => void;
   updateMetric: (updates: Partial<TelemetryMetrics>) => void;
   clearTelemetryData: () => void;
 }

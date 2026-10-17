@@ -26,7 +26,7 @@ export interface WorkoutPlanGenerationParams {
 
 const REPDB_MEDIA_BASE_URL = 'https://raw.githubusercontent.com/RepDB/exercise-dataset/main/';
 
-function getRepDBImageUrl(path?: string): string | undefined {
+export function getRepDBImageUrl(path?: string): string | undefined {
   if (!path) return undefined;
   if (path.startsWith('http')) return path;
   return `${REPDB_MEDIA_BASE_URL}${path.replace(/^\//, '')}`;
@@ -35,13 +35,13 @@ function getRepDBImageUrl(path?: string): string | undefined {
 /**
  * Maps a RepDB exercise item to the UI ExerciseItem model
  */
-function createExerciseItemFromRepDB(
+export function createExerciseItemFromRepDB(
   repDb: RepDBExercise,
-  category: ExerciseItem['category'],
-  targetSets: number,
-  targetReps: string,
-  restPeriodSeconds: number,
-  intensityNote: string,
+  category: ExerciseItem['category'] = 'strength',
+  targetSets: number = 3,
+  targetReps: string = '8–12 reps',
+  restPeriodSeconds: number = 90,
+  intensityNote: string = 'Standard Sets',
   customCue?: string
 ): ExerciseItem {
   const defaultCue =
@@ -368,8 +368,10 @@ export function generateAdaptiveWorkoutPlan(
   // 3. Resolve Target Milestone from Progression Stages
   const wantsCalisthenics = goals.includes('calisthenics_mastery') || !isGym || activeSplit === 'calisthenics_skills';
   const nextStage = wantsCalisthenics
-    ? activeStages.find((s) => !s.completed && s.category === 'bodyweight') || activeStages.find((s) => !s.completed)
-    : activeStages.find((s) => !s.completed && s.category === 'gym') || activeStages.find((s) => !s.completed);
+    ? activeStages.find((s) => !s.completed && !s.skipped && s.category === 'bodyweight') ||
+      activeStages.find((s) => !s.completed && !s.skipped)
+    : activeStages.find((s) => !s.completed && !s.skipped && s.category === 'gym') ||
+      activeStages.find((s) => !s.completed && !s.skipped);
 
   let targetSkillMilestone: string;
   if (nextStage) {

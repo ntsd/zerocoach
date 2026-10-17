@@ -26,6 +26,7 @@ import {
   decomposeMealWithGemma,
   MealDecompositionResult,
 } from '../../services/nutrition/mealDecomposer';
+import { analyzeMealPhoto } from '../../services/nutrition/photoMealAnalyzer';
 import {
   extractNutritionFromLabelPhoto,
 } from '../../services/nutrition/nutritionLabelExtractor';
@@ -93,6 +94,10 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   const [barcodeInput, setBarcodeInput] = useState('');
   const [isLookingUpBarcode, setIsLookingUpBarcode] = useState(false);
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
+
+  // Label Extractor State (in Barcode Tab)
+  const [isExtractingLabel, setIsExtractingLabel] = useState(false);
+  const [labelExtractError, setLabelExtractError] = useState<string | null>(null);
 
   // AI Meal Snap / Decomposer state
   const [nlpInput, setNlpInput] = useState('');
@@ -167,7 +172,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     }
   };
 
-  const processCapturedPhoto = async (
+  // AI Snap Food Plate Photo Handler
+  const processCapturedFoodPhoto = async (
     uri: string,
     base64?: string | null
   ) => {
@@ -175,25 +181,29 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     setPhotoAnalysisError(null);
     try {
       const openAIConfig = useModelStore.getState().openAIConfig;
-      const result = await extractNutritionFromLabelPhoto(uri, base64, openAIConfig);
-      if (result.success && result.asFoodItem) {
+      const analysis = await analyzeMealPhoto(
+        uri,
+        base64,
+        openAIConfig,
+        selectedMealType
+      );
+      if (analysis.canIdentify && analysis.decomposition) {
         setPhotoAnalysisError(null);
-        selectFoodForReview(result.asFoodItem, result.data?.servingSizeGrams || 100);
+        setNlpInput(analysis.ingredientsText || '');
+        setDecompositionResult(analysis.decomposition);
+        selectFoodForReview(analysis.decomposition.asFoodItem, analysis.decomposition.totalGrams);
       } else {
-        setPhotoAnalysisError(
-          result.errorMessage ||
-            "Could not identify nutrition table numbers from image. Make sure the packaging nutrition facts table is well-lit and in focus."
-        );
+        setPhotoAnalysisError("Can't identify food from the image. Please describe the meal above.");
       }
     } catch (err) {
-      console.warn('[FoodSearchModal] Failed to process label photo:', err);
-      setPhotoAnalysisError("Failed to extract nutrition table from photo. Check your connection or enter values below.");
+      console.warn('[FoodSearchModal] Failed to process meal photo:', err);
+      setPhotoAnalysisError("Can't identify food from the image. Please describe the meal above.");
     } finally {
       setIsAnalyzingPhoto(false);
     }
   };
 
-  const handleTakePhoto = async () => {
+  const handleTakeFoodPhoto = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -211,14 +221,14 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         setCapturedImageUri(asset.uri);
-        await processCapturedPhoto(asset.uri, asset.base64);
+        await processCapturedFoodPhoto(asset.uri, asset.base64);
       }
     } catch (err) {
       console.warn('Error launching camera:', err);
     }
   };
 
-  const handlePickImage = async () => {
+  const handlePickFoodPhoto = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -230,10 +240,79 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         setCapturedImageUri(asset.uri);
-        await processCapturedPhoto(asset.uri, asset.base64);
+        await processCapturedFoodPhoto(asset.uri, asset.base64);
       }
     } catch (err) {
       console.warn('Error picking image from library:', err);
+    }
+  };
+
+  // Packaged Nutrition Facts Label Photo Handler (for Barcode Tab)
+  const processCapturedLabelPhoto = async (
+    uri: string,
+    base64?: string | null
+  ) => {
+    setIsExtractingLabel(true);
+    setLabelExtractError(null);
+    try {
+      const openAIConfig = useModelStore.getState().openAIConfig;
+      const result = await extractNutritionFromLabelPhoto(uri, base64, openAIConfig);
+      if (result.success && result.asFoodItem) {
+        setLabelExtractError(null);
+        selectFoodForReview(result.asFoodItem, result.data?.servingSizeGrams || 100);
+      } else {
+        setLabelExtractError(
+          result.errorMessage ||
+            "Could not read nutrition facts table from photo. Ensure the label is clear and well-lit."
+        );
+      }
+    } catch (err) {
+      console.warn('[FoodSearchModal] Failed to process label photo:', err);
+      setLabelExtractError("Failed to extract nutrition table from photo. Try USDA or text search.");
+    } finally {
+      setIsExtractingLabel(false);
+    }
+  };
+
+  const handleTakeLabelPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Camera permission is required to capture photos of nutrition labels.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.85,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        await processCapturedLabelPhoto(asset.uri, asset.base64);
+      }
+    } catch (err) {
+      console.warn('Error launching camera for label:', err);
+    }
+  };
+
+  const handlePickLabelPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.85,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        await processCapturedLabelPhoto(asset.uri, asset.base64);
+      }
+    } catch (err) {
+      console.warn('Error picking label image from library:', err);
     }
   };
 
@@ -645,14 +724,102 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 </TouchableOpacity>
               </View>
 
-              {/* Tab 1: AI Snap (Gemma for text, nutrition-extractor for image) */}
+              {/* Tab 1: AI Snap (Food Plate Recognition + Gemma 2 Text) */}
               {activeTab === 'snap' && (
                 <ScrollView
                   style={styles.tabContent}
                   contentContainerStyle={styles.tabScrollContent}
                   showsVerticalScrollIndicator={false}
                 >
-                  {/* Part 1: Text Description (Gemma 2 AI) */}
+                  {/* Meal Plate Photo Snap */}
+                  <View style={styles.plateSnapCard}>
+                    <View style={styles.plateSnapHeader}>
+                      <View style={styles.plateSnapBadge}>
+                        <Sparkles size={11} color="#00F0FF" />
+                        <Text style={styles.plateSnapBadgeText}>AI VISION</Text>
+                      </View>
+                      <Text style={styles.plateSnapModelName}>Plate Recognition</Text>
+                    </View>
+                    <Text style={styles.plateSnapTitle}>Snap Meal or Food Plate</Text>
+                    <Text style={styles.plateSnapDesc}>
+                      Take a photo of your cooked dish, plate, drink, or snack. AI will identify ingredients and estimate portion sizes.
+                    </Text>
+
+                    {/* Camera & Gallery Action Buttons */}
+                    <View style={styles.photoActionsRow}>
+                      <TouchableOpacity
+                        style={styles.cameraPrimaryBtn}
+                        onPress={handleTakeFoodPhoto}
+                        activeOpacity={0.7}
+                        disabled={isAnalyzingPhoto}
+                      >
+                        <Camera size={18} color="#080B10" />
+                        <Text style={styles.cameraPrimaryBtnText}>Snap Meal Plate</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.gallerySecondaryBtn}
+                        onPress={handlePickFoodPhoto}
+                        activeOpacity={0.7}
+                        disabled={isAnalyzingPhoto}
+                      >
+                        <ImageIcon size={18} color="#00F0FF" />
+                        <Text style={styles.gallerySecondaryBtnText}>Upload Photo</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Captured Food Photo Preview */}
+                  {capturedImageUri && (
+                    <View style={styles.capturedPhotoCard}>
+                      <Image source={{ uri: capturedImageUri }} style={styles.capturedImage} />
+
+                      {isAnalyzingPhoto && (
+                        <View style={styles.photoAnalyzingOverlay}>
+                          <ActivityIndicator size="large" color="#00F0FF" />
+                          <Text style={styles.photoAnalyzingTitle}>Analyzing Meal Photo</Text>
+                          <Text style={styles.photoAnalyzingSub}>
+                            Identifying food items and estimating nutrition with Gemma 2...
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={styles.capturedPhotoHeader}>
+                        <View style={styles.photoBadge}>
+                          <Sparkles size={12} color="#00F0FF" />
+                          <Text style={styles.photoBadgeText}>PHOTO ATTACHED</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.retakeBtn}
+                          onPress={handleTakeFoodPhoto}
+                          activeOpacity={0.7}
+                        >
+                          <RotateCcw size={12} color={COLORS.textMuted} />
+                          <Text style={styles.retakeBtnText}>Retake</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Unidentified Food Alert Banner */}
+                  {photoAnalysisError && (
+                    <View style={styles.photoErrorBanner}>
+                      <AlertCircle size={18} color="#FF6B35" />
+                      <View style={styles.photoErrorTextCol}>
+                        <Text style={styles.photoErrorTitle}>Can't identify food from photo</Text>
+                        <Text style={styles.photoErrorSub}>{photoAnalysisError}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Divider */}
+                  <View style={styles.snapDividerRow}>
+                    <View style={styles.snapDividerLine} />
+                    <Text style={styles.snapDividerText}>OR DESCRIBE IN TEXT</Text>
+                    <View style={styles.snapDividerLine} />
+                  </View>
+
+                  {/* Text Description (Gemma 2 AI) */}
                   <View style={styles.nlpBox}>
                     <View style={styles.nlpHeaderRow}>
                       <Text style={styles.nlpLabel}>Describe meal or ingredients:</Text>
@@ -685,86 +852,6 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       </Text>
                     </TouchableOpacity>
                   </View>
-
-                  {/* Part 2: Image Food Log (nutrition-extractor) */}
-                  <View style={[styles.nutriSightBanner, { marginTop: 14 }]}>
-                    <View style={styles.nutriSightHeader}>
-                      <View style={styles.nutriSightBadge}>
-                        <Sparkles size={11} color="#00F0FF" />
-                        <Text style={styles.nutriSightBadgeText}>nutrition-extractor</Text>
-                      </View>
-                      <Text style={styles.nutriSightModelName}>Open Food Facts NutriSight</Text>
-                    </View>
-                    <Text style={styles.nutriSightDesc}>
-                      Snap or upload a packaging nutrition facts table to extract exact calories, protein, carbs, fat, fiber & sodium into your log.
-                    </Text>
-
-                    {/* Camera Snap Action Buttons */}
-                    <View style={[styles.photoActionsRow, { marginTop: 12, marginBottom: 0 }]}>
-                      <TouchableOpacity
-                        style={styles.cameraPrimaryBtn}
-                        onPress={handleTakePhoto}
-                        activeOpacity={0.7}
-                      >
-                        <Camera size={18} color="#080B10" />
-                        <Text style={styles.cameraPrimaryBtnText}>Scan Label Photo</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.gallerySecondaryBtn}
-                        onPress={handlePickImage}
-                        activeOpacity={0.7}
-                      >
-                        <ImageIcon size={18} color="#00F0FF" />
-                        <Text style={styles.gallerySecondaryBtnText}>Upload Photo</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Captured Photo Preview Card */}
-                  {capturedImageUri && (
-                    <View style={styles.capturedPhotoCard}>
-                      <Image source={{ uri: capturedImageUri }} style={styles.capturedImage} />
-
-                      {isAnalyzingPhoto && (
-                        <View style={styles.photoAnalyzingOverlay}>
-                          <ActivityIndicator size="large" color="#00F0FF" />
-                          <Text style={styles.photoAnalyzingTitle}>Open Food Facts NutriSight</Text>
-                          <Text style={styles.photoAnalyzingSub}>
-                            Extracting nutrition facts with LayoutLMv3 nutrition-extractor...
-                          </Text>
-                        </View>
-                      )}
-
-                      <View style={styles.capturedPhotoHeader}>
-                        <View style={styles.photoBadge}>
-                          <Sparkles size={12} color="#00F0FF" />
-                          <Text style={styles.photoBadgeText}>PHOTO ATTACHED</Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.retakeBtn}
-                          onPress={handleTakePhoto}
-                          activeOpacity={0.7}
-                        >
-                          <RotateCcw size={12} color={COLORS.textMuted} />
-                          <Text style={styles.retakeBtnText}>Retake</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Unidentified Food Alert Banner */}
-                  {photoAnalysisError && (
-                    <View style={styles.photoErrorBanner}>
-                      <AlertCircle size={18} color="#FF6B35" />
-                      <View style={styles.photoErrorTextCol}>
-                        <Text style={styles.photoErrorTitle}>Can't read food or label</Text>
-                        <Text style={styles.photoErrorSub}>
-                          {photoAnalysisError}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
                 </ScrollView>
               )}
 
@@ -1063,8 +1150,78 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   </View>
 
                   {barcodeError && (
-                    <Text style={styles.barcodeErrorText}>{barcodeError}</Text>
+                    <View style={styles.barcodeErrorCard}>
+                      <View style={styles.barcodeErrorHeader}>
+                        <AlertCircle size={16} color="#FF6B35" />
+                        <Text style={styles.barcodeErrorTitle}>Barcode Not Found</Text>
+                      </View>
+                      <Text style={styles.barcodeErrorCardText}>{barcodeError}</Text>
+                      <TouchableOpacity
+                        style={styles.quickScanLabelBtn}
+                        onPress={handleTakeLabelPhoto}
+                        activeOpacity={0.8}
+                      >
+                        <Camera size={15} color="#080B10" />
+                        <Text style={styles.quickScanLabelBtnText}>
+                          Scan Nutrition Table with Camera
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
+
+                  {/* Persistent No Barcode? Scan Nutrition Table Card */}
+                  <View style={styles.labelScanCard}>
+                    <View style={styles.labelScanHeader}>
+                      <View style={styles.labelScanBadge}>
+                        <Sparkles size={11} color="#00F0FF" />
+                        <Text style={styles.labelScanBadgeText}>nutrition-extractor</Text>
+                      </View>
+                      <Text style={styles.labelScanCardSubTitle}>LayoutLMv3 AI</Text>
+                    </View>
+
+                    <Text style={styles.labelScanCardTitle}>No Barcode? Scan Nutrition Table</Text>
+                    <Text style={styles.labelScanCardSub}>
+                      Snap or upload a photo of the printed nutrition facts table on the package to extract exact calories, protein, carbs, fat, fiber & sodium directly.
+                    </Text>
+
+                    <View style={styles.labelScanBtnRow}>
+                      <TouchableOpacity
+                        style={styles.labelCameraBtn}
+                        onPress={handleTakeLabelPhoto}
+                        activeOpacity={0.7}
+                        disabled={isExtractingLabel}
+                      >
+                        <Camera size={16} color="#080B10" />
+                        <Text style={styles.labelCameraBtnText}>Scan Label Photo</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.labelGalleryBtn}
+                        onPress={handlePickLabelPhoto}
+                        activeOpacity={0.7}
+                        disabled={isExtractingLabel}
+                      >
+                        <ImageIcon size={16} color="#00F0FF" />
+                        <Text style={styles.labelGalleryBtnText}>Upload Label</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {isExtractingLabel && (
+                      <View style={styles.labelExtractingBox}>
+                        <ActivityIndicator size="small" color="#00F0FF" />
+                        <Text style={styles.labelExtractingText}>
+                          Extracting nutrition table with Open Food Facts AI...
+                        </Text>
+                      </View>
+                    )}
+
+                    {labelExtractError && (
+                      <View style={styles.labelErrorBox}>
+                        <AlertCircle size={15} color="#FF6B35" />
+                        <Text style={styles.labelErrorText}>{labelExtractError}</Text>
+                      </View>
+                    )}
+                  </View>
                 </ScrollView>
               )}
             </>
@@ -1947,21 +2104,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
-  nutriSightBanner: {
-    backgroundColor: 'rgba(0, 240, 255, 0.05)',
-    borderRadius: 12,
-    padding: 12,
+  // Plate Snap Styles (AI Snap Tab)
+  plateSnapCard: {
+    backgroundColor: 'rgba(0, 240, 255, 0.04)',
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: 'rgba(0, 240, 255, 0.2)',
+    borderColor: 'rgba(0, 240, 255, 0.18)',
   },
-  nutriSightHeader: {
+  plateSnapHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  nutriSightBadge: {
+  plateSnapBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 240, 255, 0.15)',
@@ -1970,20 +2128,204 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     gap: 4,
   },
-  nutriSightBadgeText: {
+  plateSnapBadgeText: {
     color: '#00F0FF',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
   },
-  nutriSightModelName: {
+  plateSnapModelName: {
     color: '#E0E7FF',
     fontSize: 11,
     fontWeight: '700',
   },
-  nutriSightDesc: {
+  plateSnapTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  plateSnapDesc: {
     color: COLORS.textSecondary,
     fontSize: 12,
     lineHeight: 17,
+    marginBottom: 12,
+  },
+  snapDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    gap: 10,
+  },
+  snapDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  snapDividerText: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+
+  // Barcode Error & Quick Fallback
+  barcodeErrorCard: {
+    backgroundColor: 'rgba(255, 107, 53, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 14,
+    gap: 8,
+  },
+  barcodeErrorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  barcodeErrorTitle: {
+    color: '#FF6B35',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  barcodeErrorCardText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  quickScanLabelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#00F0FF',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  quickScanLabelBtnText: {
+    color: '#080B10',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+
+  // Persistent Nutrition Label Scan Card (Barcode Tab)
+  labelScanCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 14,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  labelScanHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  labelScanBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  labelScanBadgeText: {
+    color: '#00F0FF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  labelScanCardSubTitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  labelScanCardTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  labelScanCardSub: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  labelScanBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  labelCameraBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#00F0FF',
+    paddingVertical: 11,
+    borderRadius: 10,
+  },
+  labelCameraBtnText: {
+    color: '#080B10',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  labelGalleryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+    paddingVertical: 11,
+    borderRadius: 10,
+  },
+  labelGalleryBtnText: {
+    color: '#00F0FF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  labelExtractingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+    borderRadius: 8,
+  },
+  labelExtractingText: {
+    color: '#00F0FF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  labelErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    borderRadius: 8,
+  },
+  labelErrorText: {
+    color: '#FF6B35',
+    fontSize: 11,
+    flex: 1,
+    lineHeight: 15,
   },
 });

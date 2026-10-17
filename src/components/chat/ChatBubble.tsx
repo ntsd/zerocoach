@@ -4,7 +4,8 @@ import { ChatMessage } from '@/types/chat';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
-import { Cpu, User } from 'lucide-react-native';
+import { User } from 'lucide-react-native';
+import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -85,7 +86,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
       {!isUser && (
         <View style={styles.assistantHeader}>
           <View style={styles.badgeRow}>
-            <Cpu size={12} color={modeColors.accent} />
+            <ZeroCoachLogo size={13} mode={message.modeAtCreation} />
             <Text style={[styles.coachBadge, { color: modeColors.accent }]}>
               {message.modeAtCreation.toUpperCase()} COACH
             </Text>

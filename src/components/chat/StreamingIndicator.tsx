@@ -4,7 +4,7 @@ import { useCoachStore } from '@/store/useCoachStore';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { RADIUS, SPACING } from '@/theme/spacing';
-import { Cpu } from 'lucide-react-native';
+import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
 
 interface StreamingIndicatorProps {
   tokenCount?: number;
@@ -34,7 +34,7 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
           },
         ]}
       />
-      <Cpu size={12} color={modeColors.accent} />
+      <ZeroCoachLogo size={13} mode={mode} />
       <Text style={[styles.text, { color: modeColors.accent }]}>
         ON-DEVICE INFERENCE STREAMING (~38 tok/s)
       </Text>

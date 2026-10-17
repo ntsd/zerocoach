@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432" width="432" height="432">
+  <g transform="translate(216, 216)">
+    <!-- Upper Right Arc -->
+    <path d="M 0 -98 C 55 -98 94 -55 94 0 C 94 30 79 58 53 77" 
+          fill="none" stroke="#FFFFFF" stroke-width="25" stroke-linecap="round"/>
+    <!-- Lower Left Arc -->
+    <path d="M 0 98 C -55 98 -94 55 -94 0 C -94 -30 -79 -58 -53 -77" 
+          fill="none" stroke="#FFFFFF" stroke-width="25" stroke-linecap="round"/>
+    <!-- 45-degree Forward Velocity Blade -->
+    <line x1="-72" y1="72" x2="72" y2="-72" 
+          stroke="#FFFFFF" stroke-width="25" stroke-linecap="round"/>
+  </g>
+</svg>

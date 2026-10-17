@@ -22,7 +22,8 @@ import { TelemetryBanner } from '@/components/chat/TelemetryBanner';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
-import { Send, Square, Trash2, Cpu } from 'lucide-react-native';
+import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
+import { Send, Square, Trash2 } from 'lucide-react-native';
 
 interface CoachChatScreenProps {
   onNavigateToWorkout?: () => void;
@@ -125,7 +126,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = () => {
         <View style={styles.header}>
           <View style={styles.brandContainer}>
             <View style={styles.brandRow}>
-              <Cpu size={18} color={modeColors.accent} />
+              <ZeroCoachLogo size={20} mode={mode} />
               <Text style={styles.brandTitle}>ZEROCOACH</Text>
             </View>
             <Text style={styles.brandSub} numberOfLines={1} ellipsizeMode="tail">

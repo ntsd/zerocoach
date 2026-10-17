@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="zc-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="zc-blade" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="50%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#00F0FF"/>
+    </linearGradient>
+  </defs>
+  <!-- Dynamic Upper Right Arc -->
+  <path d="M 256 72 C 358 72 430 148 430 256 C 430 312 404 363 358 399" 
+        fill="none" stroke="url(#zc-ring)" stroke-width="42" stroke-linecap="round"/>
+  <!-- Dynamic Lower Left Arc -->
+  <path d="M 256 440 C 154 440 82 364 82 256 C 82 200 108 149 154 113" 
+        fill="none" stroke="url(#zc-ring)" stroke-width="42" stroke-linecap="round"/>
+  <!-- 45-degree Forward Velocity Blade -->
+  <line x1="123" y1="389" x2="389" y2="123" 
+        stroke="url(#zc-blade)" stroke-width="42" stroke-linecap="round"/>
+</svg>

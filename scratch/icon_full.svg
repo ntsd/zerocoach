@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Dark obsidian gradient background -->
+    <radialGradient id="bg-glow" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#131A26"/>
+      <stop offset="60%" stop-color="#0B0E14"/>
+      <stop offset="100%" stop-color="#06080C"/>
+    </radialGradient>
+    <!-- Subtle cyan aura behind the logo -->
+    <radialGradient id="center-aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.18"/>
+      <stop offset="50%" stop-color="#10B981" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Ring Gradient (Cyan to Royal Blue) -->
+    <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <!-- Blade Gradient (Emerald to Cyan) -->
+    <linearGradient id="blade-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="55%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bg-glow)"/>
+  <circle cx="512" cy="512" r="420" fill="url(#center-aura)"/>
+
+  <!-- Logo Group centered -->
+  <g transform="translate(512, 512)">
+    <!-- Upper Right Arc -->
+    <path d="M 0 -230 C 130 -230 220 -130 220 0 C 220 70 185 135 125 180" 
+          fill="none" stroke="url(#ring-grad)" stroke-width="58" stroke-linecap="round"/>
+    <!-- Lower Left Arc -->
+    <path d="M 0 230 C -130 230 -220 130 -220 0 C -220 -70 -185 -135 -125 -180" 
+          fill="none" stroke="url(#ring-grad)" stroke-width="58" stroke-linecap="round"/>
+    <!-- 45-degree Forward Velocity Blade -->
+    <line x1="-170" y1="170" x2="170" y2="-170" 
+          stroke="url(#blade-grad)" stroke-width="58" stroke-linecap="round"/>
+  </g>
+</svg>

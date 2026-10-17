@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="blade-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="55%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <!-- Centered in 512x512, radius ~115 (diameter 230), within 264px safe circle -->
+  <g transform="translate(256, 256)">
+    <!-- Upper Right Arc -->
+    <path d="M 0 -115 C 65 -115 110 -65 110 0 C 110 35 92 68 62 90" 
+          fill="none" stroke="url(#ring-grad)" stroke-width="29" stroke-linecap="round"/>
+    <!-- Lower Left Arc -->
+    <path d="M 0 115 C -65 115 -110 65 -110 0 C -110 -35 -92 -68 -62 -90" 
+          fill="none" stroke="url(#ring-grad)" stroke-width="29" stroke-linecap="round"/>
+    <!-- 45-degree Forward Velocity Blade -->
+    <line x1="-85" y1="85" x2="85" y2="-85" 
+          stroke="url(#blade-grad)" stroke-width="29" stroke-linecap="round"/>
+  </g>
+</svg>

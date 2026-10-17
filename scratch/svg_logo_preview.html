@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ZeroCoach SVG Logo Concepts</title>
+<style>
+  body {
+    background: #080B10;
+    color: #F8FAFC;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 40px;
+    margin: 0;
+  }
+  h1 {
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #00F0FF;
+    margin-bottom: 8px;
+  }
+  p.subtitle {
+    color: #94A3B8;
+    margin-bottom: 32px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .card {
+    background: #0F141C;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.2s ease;
+  }
+  .card:hover {
+    border-color: rgba(0, 240, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 240, 255, 0.1);
+  }
+  .logo-box {
+    width: 140px;
+    height: 140px;
+    background: #080B10;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .logo-box-app-preview {
+    width: 64px;
+    height: 64px;
+    background: #080B10;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .badge-recommended {
+    background: rgba(0, 240, 255, 0.15);
+    color: #00F0FF;
+    border: 1px solid rgba(0, 240, 255, 0.3);
+  }
+  .badge-concept {
+    background: rgba(255, 255, 255, 0.06);
+    color: #94A3B8;
+  }
+  .title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #F8FAFC;
+    margin-bottom: 6px;
+  }
+  .desc {
+    font-size: 13px;
+    color: #94A3B8;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .header-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    padding: 8px 14px;
+    border-radius: 8px;
+    margin-top: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .header-brand {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #F8FAFC;
+  }
+</style>
+</head>
+<body>
+
+<h1>ZeroCoach &bull; Lightweight SVG Logos</h1>
+<p class="subtitle">Curated vector logo marks &mdash; zero bloat, pure SVG paths, ultra crisp on dark obsidian backgrounds.</p>
+
+<div class="grid">
+
+  <!-- Concept 1: The Quantum Zero Pulse (Recommended) -->
+  <div class="card">
+    <span class="badge badge-recommended">RECOMMENDED</span>
+    <div class="logo-box">
+      <!-- SVG 1: Quantum Zero Pulse -->
+      <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad1" x1="10%" y1="10%" x2="90%" y2="90%">
+            <stop offset="0%" stop-color="#00F0FF"/>
+            <stop offset="100%" stop-color="#10B981"/>
+          </linearGradient>
+          <filter id="glow1" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+          </filter>
+        </defs>
+        <!-- Outer Track Zero -->
+        <rect x="18" y="14" width="64" height="72" rx="32" stroke="url(#grad1)" stroke-width="8" stroke-linecap="round"/>
+        <!-- Central Energy Pulse / Bolt -->
+        <path d="M 53 28 L 41 49 L 51 49 L 47 72 L 61 47 L 50 47 Z" fill="url(#grad1)" filter="url(#glow1)"/>
+      </svg>
+    </div>
+    <div class="title">1. Quantum Zero Pulse</div>
+    <div class="desc">A stadium '0' enclosing an athletic telemetry pulse bolt. Represents on-device intelligence, lightning responsiveness, and athletic recovery.</div>
+    <div class="header-preview">
+      <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+        <rect x="18" y="14" width="64" height="72" rx="32" stroke="#00F0FF" stroke-width="12"/>
+        <path d="M 53 28 L 41 49 L 51 49 L 47 72 L 61 47 L 50 47 Z" fill="#00F0FF"/>
+      </svg>
+      <span class="header-brand">ZEROCOACH</span>
+    </div>
+  </div>
+
+  <!-- Concept 2: The Slashed Velocity Zero (Ø) -->
+  <div class="card">
+    <span class="badge badge-concept">CONCEPT 2</span>
+    <div class="logo-box">
+      <!-- SVG 2: Velocity Slashed Zero -->
+      <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00F0FF"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+          </linearGradient>
+          <linearGradient id="grad2-bolt" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#10B981"/>
+            <stop offset="100%" stop-color="#00F0FF"/>
+          </linearGradient>
+        </defs>
+        <!-- Dynamic Broken Zero Rings -->
+        <path d="M 50 14 C 70 14 84 29 84 50 C 84 61 79 71 70 78" stroke="url(#grad2)" stroke-width="8" stroke-linecap="round"/>
+        <path d="M 50 86 C 30 86 16 71 16 50 C 16 39 21 29 30 22" stroke="url(#grad2)" stroke-width="8" stroke-linecap="round"/>
+        <!-- 45-degree Forward Slash / Blade -->
+        <line x1="24" y1="76" x2="76" y2="24" stroke="url(#grad2-bolt)" stroke-width="8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="title">2. Velocity Slashed Zero (Ø)</div>
+    <div class="desc">A sliced athletic ring with dual dynamic arcs and a 45° forward blade. Expresses speed, cutting-edge telemetry, and zero compromise.</div>
+    <div class="header-preview">
+      <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+        <path d="M 50 14 C 70 14 84 29 84 50 C 84 61 79 71 70 78" stroke="#00F0FF" stroke-width="12" stroke-linecap="round"/>
+        <path d="M 50 86 C 30 86 16 71 16 50 C 16 39 21 29 30 22" stroke="#00F0FF" stroke-width="12" stroke-linecap="round"/>
+        <line x1="24" y1="76" x2="76" y2="24" stroke="#10B981" stroke-width="12" stroke-linecap="round"/>
+      </svg>
+      <span class="header-brand">ZEROCOACH</span>
+    </div>
+  </div>
+
+  <!-- Concept 3: Hexagonal Shield & Zero Core -->
+  <div class="card">
+    <span class="badge badge-concept">CONCEPT 3</span>
+    <div class="logo-box">
+      <!-- SVG 3: Hex Shield + Zero Core -->
+      <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00F0FF"/>
+            <stop offset="50%" stop-color="#10B981"/>
+            <stop offset="100%" stop-color="#00F0FF"/>
+          </linearGradient>
+        </defs>
+        <!-- Isometric Rounded Hexagon -->
+        <path d="M 50 12 L 82 30 L 82 70 L 50 88 L 18 70 L 18 30 Z" stroke="url(#grad3)" stroke-width="7" stroke-linejoin="round"/>
+        <!-- Inner Concentric Zero Ring -->
+        <circle cx="50" cy="50" r="18" stroke="url(#grad3)" stroke-width="6"/>
+        <!-- Center Core Dot -->
+        <circle cx="50" cy="50" r="5" fill="#00F0FF"/>
+      </svg>
+    </div>
+    <div class="title">3. Cyber Shield & Core</div>
+    <div class="desc">A high-tech hexagonal fortress guarding an inner concentric zero and telemetry nucleus. Symbolizes 100% on-device biometric privacy and structural strength.</div>
+    <div class="header-preview">
+      <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+        <path d="M 50 12 L 82 30 L 82 70 L 50 88 L 18 70 L 18 30 Z" stroke="#00F0FF" stroke-width="10" stroke-linejoin="round"/>
+        <circle cx="50" cy="50" r="16" stroke="#00F0FF" stroke-width="8"/>
+        <circle cx="50" cy="50" r="5" fill="#10B981"/>
+      </svg>
+      <span class="header-brand">ZEROCOACH</span>
+    </div>
+  </div>
+
+  <!-- Concept 4: Interlocking Z-Zero Ribbon -->
+  <div class="card">
+    <span class="badge badge-concept">CONCEPT 4</span>
+    <div class="logo-box">
+      <!-- SVG 4: Continuous Ribbon Z-Zero -->
+      <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00F0FF"/>
+            <stop offset="100%" stop-color="#10B981"/>
+          </linearGradient>
+        </defs>
+        <!-- Interlocking Z into Zero loop -->
+        <path d="M 28 26 L 72 26 L 36 74 L 72 74" stroke="url(#grad4)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="50" cy="50" r="36" stroke="rgba(255,255,255,0.12)" stroke-width="3" stroke-dasharray="4 6"/>
+      </svg>
+    </div>
+    <div class="title">4. Geometric 'Z' Monogram</div>
+    <div class="desc">Sharp geometric lightning 'Z' monogram surrounded by subtle telemetry circular calibration dashes. Minimalist, modern, and instantly recognizable.</div>
+    <div class="header-preview">
+      <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+        <path d="M 28 26 L 72 26 L 36 74 L 72 74" stroke="#00F0FF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="header-brand">ZEROCOACH</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

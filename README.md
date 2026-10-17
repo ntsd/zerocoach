@@ -4,6 +4,22 @@ ZeroCoach is an open-source, privacy-first mobile fitness and AI coaching applic
 
 ---
 
+## 📸 App Preview
+
+| 💬 Coach Chat | 🥗 Nutrition Tracker | 🏋️ Adaptive Workout |
+|:---:|:---:|:---:|
+| <img src="assets/screenshots/coach_chat.png" width="270" alt="Coach Chat" /> | <img src="assets/screenshots/nutrition_tracker.png" width="270" alt="Nutrition Tracker" /> | <img src="assets/screenshots/adaptive_workout.png" width="270" alt="Adaptive Workout" /> |
+| **Gemma 2 On-Device Coach**<br>Real-time athletic guidance & dual persona | **Smart Nutrition & Macros**<br>Lab micronutrients & barcode scanning | **Adaptive Workout Hub**<br>RepDB exercises & personalized splits |
+
+<br/>
+
+| 📈 Performance & Trends | ⚙️ On-Device Engine |
+|:---:|:---:|
+| <img src="assets/screenshots/performance_analyze.png" width="270" alt="Performance & Trends" /> | <img src="assets/screenshots/model_settings.png" width="270" alt="On-Device Engine Settings" /> |
+| **Multi-Domain Analytics**<br>Readiness, volume progression & composite score | **Hardware Acceleration**<br>Quantized GGUF execution & local endpoints |
+
+---
+
 ## ✨ Key Features
 
 - 📱 **100% On-Device AI Inference**: Runs quantized LLM models (e.g. Gemma 2) locally with hardware acceleration—zero cloud latency, zero API costs, and absolute data privacy.
@@ -12,9 +28,9 @@ ZeroCoach is an open-source, privacy-first mobile fitness and AI coaching applic
 - 🏋️ **Goal-Driven Adaptive Training**: Automatically generates personalized workout splits based on readiness scores, equipment (Gym vs. Bodyweight), and athlete skill level.
 - 📚 **RepDB Exercise Library**: Integrated catalog of 643 science-backed exercises with start/peak pose previews, customizable movement swapping, and skipping.
 - 🥗 **Smart Nutrition & Macro Tracking**: Dynamic calorie and macronutrient targets with whole food search, barcode scanning, and natural-language composite meal decomposition.
+- 📈 **Unified Athletic Analytics**: Multi-domain bio-history tracking recovery, workout volume, and nutrition with composite scoring and SVG trendline charts.
 - ⌚ **Universal Wearable & Health Sync**: Direct on-device sync with Android Health Connect and Apple HealthKit to aggregate sleep, HRV, heart rate, and steps across Garmin, Apple Watch, Whoop, Oura, Samsung, and more.
 - 🎨 **Privacy-First Obsidian Interface**: Dark-mode glassmorphic aesthetic optimized for fluid mobile interactions and system safe insets.
-
 ---
 
 ## 🏗️ Architecture & Tech Stack
@@ -67,13 +83,13 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution:
   - **Add Skill / Exercise from RepDB**: Search and select from 643 exercises (with quick filters for Pull-ups, Dips, Squats, etc.).
   - **Kinetic Pose Previews**: Exercise detail modal showing start and peak pose images.
 
-### 4. ⚡ Telemetry (`TelemetryScreen`)
-- **Dynamic 0–100 Readiness Gauge**: Visualizes Central Nervous System (CNS) recovery and neuromuscular adaptation based on HRV, resting heart rate, sleep duration, and deep sleep architecture.
-- **Native OS Health Hub Bridge**: Connects locally to Android Health Connect or Apple HealthKit to read biometrics from all paired wearables (Garmin, Apple Watch, Samsung, Whoop, Oura, Pixel, Xiaomi, Strava) with zero remote API latency and zero cloud logins.
-- **Fitness App Sync Guide**: Interactive modal providing native health provider status, permissions management, supported companion app guides, and quick biometric sync.
-- **Smart Scale Weight Auto-Sync**: Automatically updates your athlete weight and recalibrates daily nutrition/macro targets whenever a new weigh-in is detected.
-- **Biometric Tracking Grid**: Live cards for Sleep Architecture (total + deep sleep), Cardiac Autonomic (RHR + HRV), Active Energy Burned, and Daily Movement steps.
-- **Privacy & Storage Controls**: Complete local management with one-tap selective wiping for AI conversations, biometrics, or complete application resets.
+### 4. 📈 Analyze & Telemetry (`AnalyzeScreen`)
+- **Unified Athletic Performance Score**: Daily 0–100 composite score combining Central Nervous System (CNS) recovery (35%), workout adherence (35%), and nutrition target accuracy (30%).
+- **Interactive Multi-Domain Bio-History**: Filter across 7-day, 14-day, and 30-day time ranges with smooth SVG trendline charts and volume bar charts.
+- **Dynamic CNS Readiness Gauge**: Evaluates recovery status based on HRV, resting heart rate, sleep duration, and deep sleep architecture.
+- **Native OS Health Hub Bridge**: Connects locally to Android Health Connect or Apple HealthKit to read biometrics from paired wearables (Garmin, Apple Watch, Samsung, Whoop, Oura, Pixel, Xiaomi, Strava) with zero remote API latency.
+- **Domain Breakdown**: Dedicated trend tabs for *Workout* (sessions, active burn, set volume), *Nutrition* (calorie compliance, macro balance), and *Recovery* (sleep quality, HRV).
+- **Smart Scale Auto-Sync**: Automatically updates athlete body weight and recalibrates daily nutrition targets whenever a new weigh-in is detected.
 
 ### 5. ⚙️ Settings & Engine (`ModelManagerScreen`)
 - **Inference Provider Configuration**:

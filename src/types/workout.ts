@@ -19,6 +19,13 @@ export interface ExerciseItem {
   difficulty?: string;
   isBodyweight?: boolean;
   met?: number;
+  imageUrl?: string;
+  imageStartUrl?: string;
+  imagePeakUrl?: string;
+  instructions?: string[];
+  secondaryMuscles?: string[];
+  forceType?: string;
+  tips?: string[];
 }
 
 export type WorkoutIntensityTier = 'peak' | 'optimal' | 'deload' | 'baseline';

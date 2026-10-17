@@ -16,6 +16,14 @@ export interface WorkoutPlanGenerationParams {
   sex?: Sex;
 }
 
+const REPDB_MEDIA_BASE_URL = 'https://raw.githubusercontent.com/RepDB/exercise-dataset/main/';
+
+function getRepDBImageUrl(path?: string): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith('http')) return path;
+  return `${REPDB_MEDIA_BASE_URL}${path.replace(/^\//, '')}`;
+}
+
 /**
  * Maps a RepDB exercise item to the UI ExerciseItem model
  */
@@ -32,6 +40,12 @@ function createExerciseItemFromRepDB(
     ? repDb.tips_en[0]
     : 'Maintain crisp cadence and full range of motion.';
 
+  const imagesFlat = repDb.images?.flat;
+  const imageStartUrl = getRepDBImageUrl(imagesFlat?.start);
+  const imagePeakUrl = getRepDBImageUrl(imagesFlat?.peak);
+  const imageMainUrl = getRepDBImageUrl(imagesFlat?.main);
+  const primaryImageUrl = imagePeakUrl || imageMainUrl || imageStartUrl;
+
   return {
     id: repDb.id,
     name: repDb.name_en,
@@ -44,10 +58,17 @@ function createExerciseItemFromRepDB(
     equipment: repDb.equipment || (repDb.is_bodyweight ? 'bodyweight' : 'equipment'),
     bodyPart: repDb.body_part,
     primaryMuscles: repDb.primary_muscles,
+    secondaryMuscles: repDb.secondary_muscles,
     mechanic: repDb.mechanic,
     difficulty: repDb.difficulty,
     isBodyweight: repDb.is_bodyweight,
     met: repDb.met || 5.0,
+    imageUrl: primaryImageUrl,
+    imageStartUrl,
+    imagePeakUrl: imagePeakUrl || imageMainUrl,
+    instructions: repDb.instructions_en || [],
+    forceType: repDb.force_type,
+    tips: repDb.tips_en || [],
   };
 }
 

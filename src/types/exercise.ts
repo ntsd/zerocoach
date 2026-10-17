@@ -21,8 +21,9 @@ export interface RepDBExercise {
   met: number;
   images?: {
     flat?: {
-      start: string;
+      start?: string;
       peak?: string;
+      main?: string;
     };
   };
 }

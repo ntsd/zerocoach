@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { GeneratedWorkoutPlan, ExerciseItem } from '@/types/workout';
 import { CoachingMode } from '@/types/coach';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
+import { ExerciseDetailModal } from './ExerciseDetailModal';
 import {
   Dumbbell,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
   Activity,
   Database,
   Layers,
+  Eye,
 } from 'lucide-react-native';
 
 interface AdaptiveWorkoutCardProps {
@@ -50,12 +52,20 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 }) => {
   const modeColors = getModeColors(mode);
   const [completedExercises, setCompletedExercises] = useState<Record<string, boolean>>({});
+  const [selectedExerciseForModal, setSelectedExerciseForModal] = useState<ExerciseItem | null>(null);
 
   const toggleExercise = (id: string) => {
     setCompletedExercises((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
+  };
+
+  const handleAskCoachForExercise = (exerciseName: string) => {
+    onAskCoach({
+      ...plan,
+      coachingNotes: `Coach, guide me through optimal biomechanics, kinetic alignment, and set/rep execution for "${exerciseName}" based on my readiness.`,
+    });
   };
 
   const completedCount = plan.exercises.filter((ex) => completedExercises[ex.id]).length;
@@ -95,7 +105,8 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const tierColor = getTierColor();
 
   return (
-    <GlassCard glowColor={`${tierColor}30`} borderColor={`${tierColor}40`} style={styles.card}>
+    <>
+      <GlassCard glowColor={`${tierColor}30`} borderColor={`${tierColor}40`} style={styles.card}>
       {/* Header Badge Row */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
@@ -189,34 +200,59 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           return (
             <TouchableOpacity
               key={item.id}
-              onPress={() => toggleExercise(item.id)}
+              onPress={() => setSelectedExerciseForModal(item)}
               style={[styles.exerciseItem, isDone && styles.exerciseItemDone]}
-              activeOpacity={0.8}
+              activeOpacity={0.75}
             >
               <View style={styles.exerciseItemTop}>
-                {/* Checkbox */}
-                <View style={styles.checkboxWrapper}>
+                {/* Checkbox (independent touch target) */}
+                <TouchableOpacity
+                  style={styles.checkboxWrapper}
+                  onPress={() => toggleExercise(item.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.7}
+                >
                   {isDone ? (
                     <CheckCircle2 size={18} color={COLORS.success} />
                   ) : (
                     <Circle size={18} color={COLORS.textMuted} />
                   )}
-                </View>
+                </TouchableOpacity>
+
+                {/* Thumbnail Image from RepDB */}
+                {item.imageUrl ? (
+                  <View style={styles.thumbnailWrapper}>
+                    <Image
+                      source={{ uri: item.imageUrl }}
+                      style={styles.thumbnailImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : null}
 
                 {/* Title & Category */}
                 <View style={styles.exerciseDetails}>
                   <View style={styles.catBadgeRow}>
-                    <View
-                      style={[
-                        styles.catBadge,
-                        { borderColor: `${catColor}50`, backgroundColor: `${catColor}15` },
-                      ]}
-                    >
-                      <Text style={[styles.catBadgeText, { color: catColor }]}>
-                        {item.category.toUpperCase()}
+                    <View style={styles.catBadgeLeft}>
+                      <View
+                        style={[
+                          styles.catBadge,
+                          { borderColor: `${catColor}50`, backgroundColor: `${catColor}15` },
+                        ]}
+                      >
+                        <Text style={[styles.catBadgeText, { color: catColor }]}>
+                          {item.category.toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.intensityTag} numberOfLines={1}>
+                        {item.intensityNote}
                       </Text>
                     </View>
-                    <Text style={styles.intensityTag}>{item.intensityNote}</Text>
+
+                    <View style={styles.previewHintBadge}>
+                      <Eye size={10} color={COLORS.textMuted} />
+                      <Text style={styles.previewHintText}>Preview</Text>
+                    </View>
                   </View>
 
                   <Text
@@ -301,6 +337,26 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         <ArrowRight size={14} color={COLORS.textDark} />
       </TouchableOpacity>
     </GlassCard>
+
+    {/* Exercise Detail & Start/Peak Pose Preview Modal */}
+    <ExerciseDetailModal
+      visible={Boolean(selectedExerciseForModal)}
+      exercise={selectedExerciseForModal}
+      isCompleted={
+        selectedExerciseForModal
+          ? Boolean(completedExercises[selectedExerciseForModal.id])
+          : false
+      }
+      onToggleComplete={() => {
+        if (selectedExerciseForModal) {
+          toggleExercise(selectedExerciseForModal.id);
+        }
+      }}
+      onClose={() => setSelectedExerciseForModal(null)}
+      onAskCoach={handleAskCoachForExercise}
+      mode={mode}
+    />
+  </>
   );
 };
 
@@ -481,6 +537,22 @@ const styles = StyleSheet.create({
   checkboxWrapper: {
     paddingTop: 2,
   },
+  thumbnailWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.xs,
+    backgroundColor: '#0A0E14',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
   exerciseDetails: {
     flex: 1,
     gap: 4,
@@ -488,7 +560,29 @@ const styles = StyleSheet.create({
   catBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 6,
+  },
+  catBadgeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  previewHintBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: RADIUS.xs,
+  },
+  previewHintText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 8.5,
+    color: COLORS.textMuted,
+    letterSpacing: 0.3,
   },
   catBadge: {
     paddingHorizontal: 6,
@@ -505,6 +599,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 10,
     color: COLORS.textMuted,
+    flexShrink: 1,
   },
   exerciseName: {
     ...TYPOGRAPHY.bodyBold,

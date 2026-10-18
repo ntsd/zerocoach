@@ -6,9 +6,6 @@ services:
     rootDir: web
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    customDomains:
-      - zerocoach.tech
-      - www.zerocoach.tech
     headers:
       - path: /*
         name: X-Content-Type-Options

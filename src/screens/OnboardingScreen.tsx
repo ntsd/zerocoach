@@ -229,13 +229,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     }
   };
 
-  const toggleGoal = (goalId: TrainingGoal) => {
-    setSelectedGoals((prev) => {
-      if (prev.includes(goalId)) {
-        return prev.filter((g) => g !== goalId);
-      }
-      return [...prev, goalId];
-    });
+  const selectGoal = (goalId: TrainingGoal) => {
+    setSelectedGoals([goalId]);
   };
 
   const resetToAutoCalculated = () => {
@@ -253,7 +248,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       return isBodyMetricsValid;
     }
     if (currentStep === 3) {
-      return selectedGoals.length > 0;
+      return selectedGoals.length === 1;
     }
     return true;
   }, [currentStep, isBodyMetricsValid, selectedGoals]);
@@ -883,12 +878,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   </View>
                 </View>
 
-                {/* Primary Training Goals */}
+                {/* Primary Training Goal */}
                 <View style={styles.goalsHeaderRow}>
-                  <Text style={styles.inputLabel}>PRIMARY TRAINING GOALS (MULTI-SELECT)</Text>
-                  <Text style={[styles.goalsCountBadge, { color: modeColors.accent }]}>
-                    {selectedGoals.length} SELECTED
-                  </Text>
+                  <Text style={styles.inputLabel}>PRIMARY TRAINING GOAL</Text>
+                  {selectedGoals.length > 0 && (
+                    <Text style={[styles.goalsCountBadge, { color: modeColors.accent }]}>
+                      1 SELECTED
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.goalsWrap}>
@@ -897,7 +894,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     return (
                       <TouchableOpacity
                         key={goal.id}
-                        onPress={() => toggleGoal(goal.id)}
+                        onPress={() => selectGoal(goal.id)}
                         style={[
                           styles.goalCard,
                           isSelected && styles.goalCardSelected,
@@ -946,7 +943,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               <View style={styles.titleBox}>
                 <Text style={styles.mainTitle}>Daily Nutrition & Smart Macros</Text>
                 <Text style={styles.subtitle}>
-                  Dynamically calculated from your Profile ({weightKg}kg, {heightCm}cm), Training Goals ({selectedGoals.length} selected), and Fitness Telemetry:
+                  Dynamically calculated from your Profile ({weightKg}kg, {heightCm}cm), Primary Goal (
+                  {COMMON_TRAINING_GOALS.find((g) => g.id === selectedGoals[0])?.label || 'General Fitness'}
+                  ), and Fitness Telemetry:
                 </Text>
               </View>
 
@@ -1159,7 +1158,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   {currentStep === 1 && !isBodyMetricsValid
                     ? 'Enter Weight & Height'
                     : currentStep === 3 && selectedGoals.length === 0
-                    ? 'Select At Least 1 Goal'
+                    ? 'Select a Training Goal'
                     : 'Continue'}
                 </Text>
                 <ArrowRight size={16} color={!canProceed ? COLORS.textMuted : COLORS.textDark} />

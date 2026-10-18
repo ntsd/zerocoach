@@ -51,3 +51,10 @@ ml/output/zerocoach_gguf/
 venv/
 __pycache__/
 *.pyc
+
+.env
+scripts/demo/audio/
+scripts/demo/output/
+scripts/demo/*.mp4
+scripts/demo/*.png
+scripts/demo/scenes/

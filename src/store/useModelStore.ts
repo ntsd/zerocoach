@@ -12,13 +12,13 @@ import {
 import { llmService } from '@/services/llm/llmService';
 
 export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
-  id: 'zerocoach-athletic-q4_k_m',
+  id: 'zerocoach-athletic-q4_0',
   name: 'ZeroCoach Athletic Intelligence (Fine-Tuned)',
-  sizeBytes: 105800000,
-  sizeFormatted: '101 MB',
-  quantization: 'Q4_K_M',
+  sizeBytes: 91726592,
+  sizeFormatted: '91.7 MB',
+  quantization: 'Q4_0',
   downloadUrl:
-    'https://zerocoach.tech/models/zerocoach-athletic-q4_k_m.gguf',
+    'https://zerocoach.tech/models/zerocoach-athletic-q4_0.gguf',
   isFineTuned: true,
   contextLength: 2048,
 };

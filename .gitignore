@@ -45,8 +45,8 @@ ml/venv/
 ml/llama.cpp/
 ml/output/zerocoach_merged/
 ml/output/zerocoach_gguf/
-web/public/models/*.gguf
 *.gguf
+!web/public/models/*.gguf
 .venv/
 venv/
 __pycache__/

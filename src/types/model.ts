@@ -37,6 +37,7 @@ export interface OpenAICompatibleConfig {
 
 export interface ModelState {
   currentModel: ModelMetadata;
+  availableModels: ModelMetadata[];
   status: ModelStatus;
   downloadProgress: number; // 0 to 100
   provider: LLMProviderType;
@@ -44,6 +45,7 @@ export interface ModelState {
   geminiApiKey: string;
   stats: ModelHardwareStats;
   errorMessage: string | null;
+  selectModel: (model: ModelMetadata) => Promise<void>;
   setProvider: (provider: LLMProviderType) => void;
   updateOpenAIConfig: (config: Partial<OpenAICompatibleConfig>) => void;
   setGeminiApiKey: (key: string) => void;

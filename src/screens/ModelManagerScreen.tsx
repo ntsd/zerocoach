@@ -54,12 +54,14 @@ const PRESETS = [
 export const ModelManagerScreen: React.FC = () => {
   const {
     currentModel,
+    availableModels,
     status,
     downloadProgress,
     provider,
     openAIConfig,
     geminiApiKey,
     setGeminiApiKey,
+    selectModel,
     downloadModel,
     loadModel,
     unloadModel,
@@ -235,9 +237,47 @@ export const ModelManagerScreen: React.FC = () => {
                 </Text>
               </View>
 
-              {/* Gemma 2 On-Device Model Controls */}
+              {/* Model Selector Tabs */}
+              <View style={{ marginBottom: SPACING.md }}>
+                <Text style={styles.fieldSectionLabel}>SELECT ON-DEVICE MODEL</Text>
+                <View style={{ flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' }}>
+                  {(availableModels || []).map((m) => {
+                    const isSelected = currentModel.id === m.id;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        onPress={() => selectModel(m)}
+                        style={[
+                          styles.presetChip,
+                          { flex: 1, minWidth: 140, paddingVertical: 10 },
+                          isSelected && {
+                            borderColor: modeColors.accent,
+                            backgroundColor: `${modeColors.accent}20`,
+                          },
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.presetChipText,
+                            isSelected && { color: modeColors.accent, fontWeight: '700' },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {m.isFineTuned ? '⭐ ' : ''}{m.name.split(' (')[0]}
+                        </Text>
+                        <Text style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 2 }}>
+                          {m.sizeFormatted} • {m.quantization}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Active On-Device Model Controls */}
               <View style={styles.modelHeader}>
-                <View>
+                <View style={{ flex: 1, paddingRight: SPACING.sm }}>
                   <Text style={styles.modelName}>{currentModel.name}</Text>
                   <Text style={styles.quantBadge}>
                     QUANTIZATION: {currentModel.quantization} (Low Memory)

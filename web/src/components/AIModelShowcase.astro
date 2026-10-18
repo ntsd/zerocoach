@@ -1,0 +1,124 @@
+---
+---
+
+<section id="models" class="py-24 relative overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 mb-4">
+        <span>OPEN WEIGHTS & DATASETS</span>
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
+        Open Athletic AI Models & Vector Weights.
+      </h2>
+      <p class="mt-4 text-base sm:text-lg text-slate-400">
+        We believe athletic intelligence belongs on your personal device. Download our fine-tuning datasets, LoRA adapters, and dense vector embeddings for 100% offline coaching.
+      </p>
+    </div>
+
+    <!-- 3-Column Asset Showcase -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-12">
+      <!-- Card 1: On-Device GGUF Weights -->
+      <div class="glass-panel p-8 rounded-3xl border border-cyan-500/30 bg-cyan-500/5 glass-panel-hover flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-2xl mb-6">
+            ⚡
+          </div>
+          <span class="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">On-Device GGUF</span>
+          <h3 class="text-xl font-black text-white mt-1 mb-3">ZeroCoach Athletic v1.0</h3>
+          <p class="text-sm text-slate-400 leading-relaxed mb-6">
+            Quantized 4-bit and full FP16 GGUF weights fine-tuned on kinetic exercise mechanics, HRV autoregulation, and leucine macros. Executes at 100+ tok/s on-device via llama.rn.
+          </p>
+        </div>
+
+        <div class="pt-6 border-t border-white/5 space-y-2">
+          <a
+            href="/models/zerocoach-athletic-q4_k_m.gguf"
+            download
+            class="flex items-center justify-between p-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-mono text-cyan-300 transition-colors"
+          >
+            <span>Download Q4_K_M GGUF</span>
+            <span class="text-[10px] text-cyan-400 font-bold">101 MB (Mobile)</span>
+          </a>
+          <a
+            href="/models/zerocoach-athletic-f16.gguf"
+            download
+            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
+          >
+            <span>Download FP16 GGUF</span>
+            <span class="text-[10px] text-slate-400">258 MB (Desktop)</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Card 2: Fine-Tuning Dataset (/ml/data) -->
+      <div class="glass-panel p-8 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-2xl mb-6">
+            📚
+          </div>
+          <span class="text-xs font-mono font-bold tracking-widest text-emerald-400 uppercase">Dataset (/ml/data)</span>
+          <h3 class="text-xl font-black text-white mt-1 mb-3">Athletic SFT Dataset</h3>
+          <p class="text-sm text-slate-400 leading-relaxed mb-6">
+            1,075 verified training pairs across 8 core athletic domains: strict kinetic mechanics, calisthenics progressions, deload/overload readiness rules, and leucine thresholds.
+          </p>
+        </div>
+
+        <div class="pt-6 border-t border-white/5 space-y-2">
+          <a
+            href="https://github.com/ntsd/zerocoach/blob/main/ml/data/zerocoach_dataset.jsonl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-emerald-300 transition-colors"
+          >
+            <span>View JSONL Dataset</span>
+            <span class="text-[10px] text-slate-400">1,075 samples</span>
+          </a>
+          <a
+            href="https://github.com/ntsd/zerocoach/blob/main/ml/data/zerocoach_alpaca.json"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
+          >
+            <span>Alpaca Format JSON</span>
+            <span class="text-[10px] text-slate-400">Universal SFT</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Card 3: Embeddings & Training Scripts (/ml) -->
+      <div class="glass-panel p-8 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-2xl mb-6">
+            🧠
+          </div>
+          <span class="text-xs font-mono font-bold tracking-widest text-indigo-400 uppercase">Embeddings & Pipeline</span>
+          <h3 class="text-xl font-black text-white mt-1 mb-3">RepDB Vector Store</h3>
+          <p class="text-sm text-slate-400 leading-relaxed mb-6">
+            384-dimensional normalized dense vectors for all 643 RepDB exercises & whole foods. Complete LoRA fine-tuning and GGUF quantization scripts in the repo.
+          </p>
+        </div>
+
+        <div class="pt-6 border-t border-white/5 space-y-2">
+          <a
+            href="https://github.com/ntsd/zerocoach/tree/main/ml/embeddings"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-indigo-300 transition-colors"
+          >
+            <span>Vector Store (/ml/embeddings)</span>
+            <span class="text-[10px] text-slate-400">643 exercises</span>
+          </a>
+          <a
+            href="https://github.com/ntsd/zerocoach/tree/main/ml/scripts"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
+          >
+            <span>Training & Merge Scripts</span>
+            <span class="text-[10px] text-slate-400">PyTorch MPS</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

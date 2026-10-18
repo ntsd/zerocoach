@@ -1,0 +1,34 @@
+[
+  {
+    "scenario": "Scenario A: High Readiness (94/100) - Heavy Compound Overload",
+    "query": "Readiness is 94 today. How should I approach my heavy barbell back squat session?",
+    "response": "### \ud83c\udfcb\ufe0f LIVER AND BONE (104/100)\n\nYour first priority is your liver, which is responsible for removing toxins and maintaining electrolyte balance. To ensure a safe and efficient workout, follow these guidelines:\n\n1. **Choose a safe weight:** The ideal weight for a liver is 5-6 lbs (2.3-2.7 kg) for a functional core workout. This will help your liver function optimally.\n2. **Set your target heart rate:** A lower heart rate (around 120-130 bpm) will help reduce heart rate variability (HRV) and improve blood flow. You can find this in the workout section of the exercise wheel or by using a heart rate monitoring device.\n3. **Take a 10-15 minute rest:** Allow your liver to rest for at least 10-15 minutes to allow your liver to recover and replenish its energy stores.\n4. **Keep your core engaged:** Keep your core muscles engaged to maintain a stable",
+    "tokens_generated": 220,
+    "duration_seconds": 3.66,
+    "tokens_per_second": 60.2
+  },
+  {
+    "scenario": "Scenario B: Depressed Readiness (42/100) - Fatigue Deload",
+    "query": "I feel fatigued and slept poorly. Can I still push heavy deadlifts today?",
+    "response": "### \ud83c\udfcb\ufe0f LIVE BIOMETRIC TELEMETRY: \ud83e\udd29\n\nYou are ZeroCoach in STRICT ATHLETE MODE: ALEKS, a data-driven sports scientist, strength & conditioning coach, and movement specialist.\n\n### \u26a0\ufe0f NEUTRAL TELEMETRY: \ud83e\udd14\n\nThe ideal daily brain for a heavy lifter is the one with a strong, stable RT (Relaxed Heart Rate) and a sharp rhythm. Your brain will prioritize the following:\n\n1. **Deep Sleep (100/100):** Your brain is ready to focus on your target muscle group. A 42/100 RT is ideal.\n2. **Restricted Heart Rate (72 BPM):** A healthy heart rate is essential for effective muscle recruitment. A slow, gentle rhythm will help you focus on the target muscle.\n3. **Stable Rhythm (26 ms):** A consistent rhythm is critical for muscle recruitment and endurance.",
+    "tokens_generated": 220,
+    "duration_seconds": 3.89,
+    "tokens_per_second": 56.6
+  },
+  {
+    "scenario": "Scenario C: Precision Nutrition & Leucine Threshold",
+    "query": "Suggest food for dinner. I have 650 calories and 48g protein remaining.",
+    "response": "### \ud83e\udd55 WINTER NUTRITION (750-1,000 kcal)\n\n**Calories Remaining:** 650 kcal\n**Protein Remaining:** 48g (650kcal/g)\n\n### \ud83e\udd55 BALANCED MEAL STRATEGY: **NUTRIENT-BASED MEAL WITH LESS ENERGY FASTING:**\n\nFor optimal nutrition and energy levels, focus on:\n\n* **Protein:** 48g of protein (650kcal/g)\n* **Carbohydrates:** 25g of carbs (550kcal/g)\n* **Fiber:** 15g of fiber (150kcal/g)\n* **Hydration:** 250ml of water (150kcal/mL)\n\n### \ud83e\udd55 HYGINAKIC MICROBIAL ADJUSTMENT: **LEUCINE MAXIMIZATION",
+    "tokens_generated": 220,
+    "duration_seconds": 3.33,
+    "tokens_per_second": 66.0
+  },
+  {
+    "scenario": "Scenario D: Comfortable Sustainable Health Check-In",
+    "query": "I have 20 minutes and feel a bit stiff. What is a gentle routine I can do right now?",
+    "response": "### \u2605 LIVER DIGITAL TECHNIQUE: LIVER PRESSURE MOTION (BENEFICIARILY FOR SUSTAINABLE HEALTH) ===\n\n\u2022 Gentle Pushing (5.1 Hrs.)\n\u2022 Gentle Movement (7.1 Hrs.)\n\n### MEDIUM TIMING: BALANCED TIMING ===\n\n\u2022 Daily Readiness Score: 68/100\n\u2022 Sleep Duration: 7.1 Hrs\n\u2022 Gentle Movement: Gentle Pushing (5.1 Hrs.)\n\n### TYPES TO KEEPS (Abandoned) ===\n\n\u2022 SUSPECTED TIMES: (BAD TIMES):\n\u2022 Heavy Movement: (5.1 Hrs.)\n\u2022 Gentle Pushing (7.1 Hrs.)\n\n### TYPES TO BALANCED (Abandoned) ===\n\u2022 SUSPECTED TIMES: (B",
+    "tokens_generated": 220,
+    "duration_seconds": 3.2,
+    "tokens_per_second": 68.7
+  }
+]

@@ -11,28 +11,46 @@ import {
 } from '@/types/model';
 import { llmService } from '@/services/llm/llmService';
 
-const GEMMA_2_MODEL: ModelMetadata = {
+export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
+  id: 'zerocoach-athletic-q4_k_m',
+  name: 'ZeroCoach Athletic Intelligence (Fine-Tuned)',
+  sizeBytes: 105800000,
+  sizeFormatted: '101 MB',
+  quantization: 'Q4_K_M',
+  downloadUrl:
+    'https://zerocoach.tech/models/zerocoach-athletic-q4_k_m.gguf',
+  isFineTuned: true,
+  contextLength: 2048,
+};
+
+export const GEMMA_2_MODEL: ModelMetadata = {
   id: 'gemma-2-2b-it-q4_k_m',
-  name: 'Gemma 2 (2B Instruct)',
+  name: 'Gemma 2 (2B Instruct Baseline)',
   sizeBytes: 1640000000,
   sizeFormatted: '1.64 GB',
   quantization: 'Q4_K_M',
   downloadUrl:
     'https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf',
-  isFineTuned: true,
+  isFineTuned: false,
   contextLength: 2048,
 };
+
+export const AVAILABLE_MODELS: ModelMetadata[] = [
+  ZEROCOACH_ATHLETIC_MODEL,
+  GEMMA_2_MODEL,
+];
 
 const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
   baseUrl: 'http://localhost:11434/v1',
   apiKey: '',
-  modelName: 'llama3.2',
+  modelName: 'zerocoach',
 };
 
 export const useModelStore = create<ModelState>()(
   persist(
     (set, get) => ({
-      currentModel: GEMMA_2_MODEL,
+      currentModel: ZEROCOACH_ATHLETIC_MODEL,
+      availableModels: AVAILABLE_MODELS,
       status: 'unloaded',
       downloadProgress: 0,
       provider: 'on_device',
@@ -44,6 +62,20 @@ export const useModelStore = create<ModelState>()(
         memoryUsageMb: 0,
         gpuLayersOffloaded: 0,
         tokensPerSec: 0,
+      },
+
+      selectModel: async (model: ModelMetadata) => {
+        if (get().currentModel.id === model.id) return;
+        await get().unloadModel();
+        set({ currentModel: model, status: 'unloaded', downloadProgress: 0, errorMessage: null });
+
+        if (Platform.OS !== 'web' && Paths.document) {
+          const destinationFile = new File(Paths.document, `${model.id}.gguf`);
+          if (destinationFile.exists) {
+            set({ status: 'ready' });
+            await get().loadModel();
+          }
+        }
       },
 
       setProvider: (provider: LLMProviderType) => {
@@ -70,6 +102,7 @@ export const useModelStore = create<ModelState>()(
       },
 
       downloadModel: async () => {
+        const model = get().currentModel;
         set({ status: 'downloading', downloadProgress: 0, errorMessage: null });
         try {
           if (!Paths.document) {
@@ -77,11 +110,11 @@ export const useModelStore = create<ModelState>()(
               'Local filesystem storage is not accessible in this environment. Native device required for local GGUF weights.'
             );
           }
-          const destinationFile = new File(Paths.document, `${GEMMA_2_MODEL.id}.gguf`);
-          console.log(`[useModelStore] Downloading Gemma 2 to: ${destinationFile.uri}`);
+          const destinationFile = new File(Paths.document, `${model.id}.gguf`);
+          console.log(`[useModelStore] Downloading ${model.name} to: ${destinationFile.uri}`);
 
           const downloaded = await File.downloadFileAsync(
-            GEMMA_2_MODEL.downloadUrl,
+            model.downloadUrl,
             destinationFile,
             {
               idempotent: true,
@@ -95,7 +128,7 @@ export const useModelStore = create<ModelState>()(
                 } else if (progress.bytesWritten > 0) {
                   const pct = Math.min(
                     99,
-                    Math.round((progress.bytesWritten / GEMMA_2_MODEL.sizeBytes) * 100)
+                    Math.round((progress.bytesWritten / model.sizeBytes) * 100)
                   );
                   set({ downloadProgress: pct });
                 }
@@ -104,7 +137,7 @@ export const useModelStore = create<ModelState>()(
           );
 
           if (downloaded && (downloaded.exists || downloaded.uri)) {
-            console.log('[useModelStore] Download complete! Auto-loading Gemma 2 into memory...');
+            console.log(`[useModelStore] Download complete! Auto-loading ${model.name} into memory...`);
             set({ status: 'ready', downloadProgress: 100 });
             await get().loadModel();
           } else {
@@ -117,25 +150,26 @@ export const useModelStore = create<ModelState>()(
       },
 
       loadModel: async () => {
+        const model = get().currentModel;
         set({ status: 'loading', errorMessage: null });
         try {
           if (!Paths.document) {
             throw new Error('Paths.document not accessible');
           }
-          const destinationFile = new File(Paths.document, `${GEMMA_2_MODEL.id}.gguf`);
+          const destinationFile = new File(Paths.document, `${model.id}.gguf`);
           if (!destinationFile.exists) {
-            throw new Error('Gemma 2 weights not downloaded yet. Please tap "DOWNLOAD MODEL" first.');
+            throw new Error(`${model.name} weights not downloaded yet. Please tap "DOWNLOAD MODEL" first.`);
           }
           const nativePath = destinationFile.uri.replace(/^file:\/\//, '');
           console.log(`[useModelStore] Initializing llama.rn with: ${nativePath}`);
           const success = await llmService.initialize(nativePath);
           if (success) {
-            console.log('[useModelStore] Gemma 2 loaded successfully into llama.rn memory!');
+            console.log(`[useModelStore] ${model.name} loaded successfully into llama.rn memory!`);
             set({ status: 'loaded', errorMessage: null });
           } else {
             set({
               status: 'ready',
-              errorMessage: 'Native llama.rn failed to initialize Gemma 2 context.',
+              errorMessage: `Native llama.rn failed to initialize ${model.name} context.`,
             });
           }
         } catch (err: any) {
@@ -156,7 +190,7 @@ export const useModelStore = create<ModelState>()(
 
         // If native llama context is already initialized in this process memory
         if (llmService.isNativeReady()) {
-          console.log('[useModelStore] Gemma 2 context is already active in RAM.');
+          console.log(`[useModelStore] ${state.currentModel.name} context is already active in RAM.`);
           if (state.status !== 'loaded') {
             set({ status: 'loaded' });
           }
@@ -169,12 +203,12 @@ export const useModelStore = create<ModelState>()(
 
         try {
           if (!Paths.document) return;
-          const destinationFile = new File(Paths.document, `${GEMMA_2_MODEL.id}.gguf`);
+          const destinationFile = new File(Paths.document, `${state.currentModel.id}.gguf`);
           if (destinationFile.exists) {
-            console.log('[useModelStore] Gemma 2 file exists on disk. Automatically loading into RAM...');
+            console.log(`[useModelStore] ${state.currentModel.name} file exists on disk. Automatically loading into RAM...`);
             await get().loadModel();
           } else {
-            console.log('[useModelStore] Gemma 2 not on disk. Automatically starting download & load...');
+            console.log(`[useModelStore] ${state.currentModel.name} not on disk. Automatically starting download & load...`);
             await get().downloadModel();
           }
         } catch (err) {

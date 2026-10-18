@@ -1,0 +1,107 @@
+---
+const comparisons = [
+  {
+    feature: "Model Execution",
+    zerocoach: "100% On-Device (llama.rn & GGUF)",
+    cloudApps: "Remote Cloud Servers (OpenAI/AWS)",
+    winner: true
+  },
+  {
+    feature: "Inference Latency",
+    zerocoach: "0ms Network Latency (Immediate)",
+    cloudApps: "800ms – 2,500ms Cloud Round-trips",
+    winner: true
+  },
+  {
+    feature: "Offline Usability",
+    zerocoach: "100% Functional Without Internet",
+    cloudApps: "Fails Without Live Internet Connection",
+    winner: true
+  },
+  {
+    feature: "Biometric Data Ownership",
+    zerocoach: "Stored Locally On Your Device",
+    cloudApps: "Monetized or Stored on Cloud Datacenters",
+    winner: true
+  },
+  {
+    feature: "Subscription Cost",
+    zerocoach: "$0 / Lifetime Free (Apache 2.0)",
+    cloudApps: "$15 – $35 / Month Recurring",
+    winner: true
+  },
+  {
+    feature: "Custom LLM Choice",
+    zerocoach: "Any Quantized GGUF or Local LAN Server",
+    cloudApps: "Locked to Provider's Proprietary Model",
+    winner: true
+  },
+  {
+    feature: "Wearable Integration",
+    zerocoach: "Direct OS Health Connect & HealthKit",
+    cloudApps: "Third-party Cloud API Integrations",
+    winner: true
+  }
+];
+---
+
+<section id="compare" class="py-20 relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 mb-4">
+        <span>ARCHITECTURAL COMPARISON</span>
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
+        ZeroCoach vs. The Cloud Paradigm.
+      </h2>
+      <p class="mt-4 text-base sm:text-lg text-slate-400">
+        Why running AI models on your mobile silicon changes the game for athletic training and personal health privacy.
+      </p>
+    </div>
+
+    <!-- Comparison Table in Glass Container -->
+    <div class="glass-panel rounded-3xl border border-white/5 overflow-hidden max-w-5xl mx-auto">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-white/10 bg-slate-900/60 font-mono text-xs uppercase tracking-wider text-slate-400">
+              <th class="py-5 px-6 sm:px-8">Capability</th>
+              <th class="py-5 px-6 sm:px-8 text-cyan-400 font-bold bg-cyan-950/20 border-x border-cyan-500/20">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  <span>ZEROCOACH (On-Device)</span>
+                </div>
+              </th>
+              <th class="py-5 px-6 sm:px-8 text-slate-400">Typical Cloud Fitness Apps</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5 text-sm sm:text-base">
+            {comparisons.map((row) => (
+              <tr class="hover:bg-white/[0.02] transition-colors">
+                <td class="py-4 px-6 sm:px-8 font-semibold text-white">
+                  {row.feature}
+                </td>
+                <td class="py-4 px-6 sm:px-8 font-mono text-sm text-cyan-300 bg-cyan-950/10 border-x border-cyan-500/10 font-medium">
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{row.zerocoach}</span>
+                  </div>
+                </td>
+                <td class="py-4 px-6 sm:px-8 text-slate-400 font-mono text-sm">
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>{row.cloudApps}</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

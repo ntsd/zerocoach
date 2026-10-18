@@ -1,0 +1,19 @@
+{
+  "dataset_name": "ZeroCoach-Gemma2-FineTune-v1",
+  "total_samples": 1075,
+  "train_samples": 913,
+  "validation_samples": 162,
+  "target_model": "Google Gemma 2 (2B / 9B) & Llama / SmolLM",
+  "chat_template": "gemma2",
+  "license": "Apache-2.0",
+  "category_distribution": {
+    "readiness_high_overload": 150,
+    "compound_lifts_comfort": 125,
+    "compound_lifts_strict": 150,
+    "readiness_low_deload": 150,
+    "macro_nutrition_strict": 125,
+    "calisthenics_progressions": 125,
+    "macro_nutrition_comfort": 125,
+    "movement_swapping": 125
+  }
+}

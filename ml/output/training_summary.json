@@ -1,0 +1,26 @@
+{
+  "model_name": "ZeroCoach-Athletic-Intelligence-v1",
+  "base_model": "HuggingFaceTB/SmolLM-135M-Instruct",
+  "adapter_type": "LoRA (PEFT)",
+  "target_architecture": "Gemma 2 / Llama compatible",
+  "chat_template": "gemma2",
+  "trainable_parameters": 1843200,
+  "total_parameters": 136358208,
+  "epochs": 2,
+  "total_training_duration_seconds": 372.0,
+  "device": "mps",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 2.8414,
+      "val_loss": 2.0695,
+      "duration_seconds": 159.4
+    },
+    {
+      "epoch": 2,
+      "train_loss": 1.8777,
+      "val_loss": 1.7383,
+      "duration_seconds": 212.6
+    }
+  ]
+}

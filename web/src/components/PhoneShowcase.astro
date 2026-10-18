@@ -1,0 +1,246 @@
+---
+const screens = [
+  {
+    id: "coach",
+    name: "Coach Chat",
+    icon: "💬",
+    screenshot: "/screenshots/coach_chat.png",
+    tagline: "Gemma 2 On-Device Athletic Coach",
+    description: "Private conversational AI delivering biomechanical form cues, nutritional adjustments, and CNS recovery guidance. Runs 100% locally with live token streaming.",
+    metrics: [
+      { label: "Inference", value: "Local GGUF" },
+      { label: "Latency", value: "0ms Cloud" },
+      { label: "Sync", value: "Live Health Telemetry" }
+    ]
+  },
+  {
+    id: "nutrition",
+    name: "Smart Nutrition",
+    icon: "🥗",
+    screenshot: "/screenshots/nutrition_tracker.png",
+    tagline: "Gemini Vision & NutriSight Label Scanner",
+    description: "Multimodal food plate decomposition, Open Food Facts barcode search, and RDA micronutrient scorecard tracking Vitamins A-B12 and essential minerals.",
+    metrics: [
+      { label: "Vision AI", value: "Gemini 3.8 Flash" },
+      { label: "Extractor", value: "NutriSight LayoutLM" },
+      { label: "Micronutrients", value: "11 Essential RDAs" }
+    ]
+  },
+  {
+    id: "workout",
+    name: "Adaptive Workout",
+    icon: "🏋️",
+    screenshot: "/screenshots/adaptive_workout.png",
+    tagline: "Adaptive Splits with RepDB & Date Navigation",
+    description: "Access 643 science-backed exercises with kinetic pose start/peak animations. Swap or skip movements seamlessly and browse workouts across any calendar date.",
+    metrics: [
+      { label: "Catalog", value: "643 Movements" },
+      { label: "Kinematics", value: "Verified Pose Visuals" },
+      { label: "History", value: "Full Date Navigation" }
+    ]
+  },
+  {
+    id: "analyze",
+    name: "Performance",
+    icon: "📈",
+    screenshot: "/screenshots/performance_analyze.png",
+    tagline: "Unified Multi-Domain Bio-History",
+    description: "Holistic 0–100 composite athletic score balancing CNS recovery (35%), workout volume (35%), and nutrition target accuracy (30%) with 7D/14D/30D SVG trends.",
+    metrics: [
+      { label: "Health Hub", value: "Health Connect / HealthKit" },
+      { label: "Biometrics", value: "HRV, RHR, Deep Sleep" },
+      { label: "Smart Scale", value: "Auto-Recalibration" }
+    ]
+  },
+  {
+    id: "settings",
+    name: "Local Engine",
+    icon: "⚙️",
+    screenshot: "/screenshots/model_settings.png",
+    tagline: "Hardware Acceleration & GGUF Manager",
+    description: "Direct quantized GGUF execution via llama.rn with GPU acceleration, or link to local LAN endpoints (Ollama, LM Studio) with zero telemetry leaks.",
+    metrics: [
+      { label: "Engine", value: "llama.rn / llama.cpp" },
+      { label: "Quantization", value: "Q4_K_M / Q4_0" },
+      { label: "Privacy", value: "Zero Cloud Telemetry" }
+    ]
+  }
+];
+---
+
+<section id="showcase" class="py-20 relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-12">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 mb-4">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        <span>INTERACTIVE APP EXPERIENCE</span>
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
+        Engineered for Pure Performance.
+      </h2>
+      <p class="mt-4 text-base sm:text-lg text-slate-400">
+        Tap between screens below to explore ZeroCoach's obsidian glass interface, biometric feeds, and on-device athletic tools.
+      </p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex items-center justify-center gap-2 sm:gap-3 flex-wrap mb-10">
+      {screens.map((screen, idx) => (
+        <button
+          type="button"
+          data-screen-btn={screen.id}
+          class={`tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 flex items-center gap-2 border ${
+            idx === 0 
+              ? 'bg-cyan-500/15 text-cyan-300 border-cyan-400/50 cyan-glow-subtle' 
+              : 'bg-slate-900/60 text-slate-400 border-white/5 hover:bg-slate-800/80 hover:text-white hover:border-slate-700'
+          }`}
+        >
+          <span class="text-base">{screen.icon}</span>
+          <span class="font-semibold tracking-wide">{screen.name}</span>
+        </button>
+      ))}
+    </div>
+
+    <!-- Main Showcase Grid: Phone + Live Details -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <!-- Phone Mockup Frame (Center/Left) -->
+      <div class="lg:col-span-6 flex justify-center">
+        <div class="relative w-[300px] sm:w-[340px] p-3 rounded-[46px] bg-gradient-to-b from-slate-700 via-slate-900 to-black border-2 border-slate-700/60 shadow-2xl cyan-glow">
+          <!-- Outer Phone Border & Glass Glare -->
+          <div class="absolute inset-0 rounded-[46px] pointer-events-none border border-white/10"></div>
+          <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-32 h-4 bg-slate-900 rounded-b-xl z-30 flex items-center justify-center">
+            <!-- Speaker grille -->
+            <div class="w-12 h-1 bg-slate-700 rounded-full"></div>
+            <!-- Camera punch-hole -->
+            <div class="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-800 ml-2"></div>
+          </div>
+
+          <!-- Screen Container -->
+          <div class="relative w-full aspect-[9/19.5] overflow-hidden rounded-[36px] bg-[#080B10]">
+            {screens.map((screen, idx) => (
+              <img
+                id={`screen-img-${screen.id}`}
+                src={screen.screenshot}
+                alt={`${screen.name} Screenshot`}
+                class={`screen-image absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-out ${
+                  idx === 0 ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-98 pointer-events-none z-0'
+                }`}
+                loading={idx === 0 ? 'eager' : 'lazy'}
+              />
+            ))}
+            <!-- Subtle screen reflection overlay -->
+            <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.03] to-white/[0.08] pointer-events-none z-20"></div>
+          </div>
+
+          <!-- Bottom Home Indicator Bar -->
+          <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-600/70 rounded-full z-30"></div>
+        </div>
+      </div>
+
+      <!-- Feature Details Card (Right) -->
+      <div class="lg:col-span-6">
+        {screens.map((screen, idx) => (
+          <div
+            id={`screen-card-${screen.id}`}
+            class={`screen-card transition-all duration-500 ${
+              idx === 0 ? 'block opacity-100 translate-y-0' : 'hidden opacity-0 translate-y-4'
+            }`}
+          >
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-cyan-500/20 relative overflow-hidden">
+              <div class="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+              <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">{screen.icon}</span>
+                <div>
+                  <span class="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">Module {idx + 1} of 5</span>
+                  <h3 class="text-2xl sm:text-3xl font-black text-white">{screen.name}</h3>
+                </div>
+              </div>
+
+              <p class="text-lg font-semibold text-cyan-200/90 mb-3 font-mono">
+                {screen.tagline}
+              </p>
+
+              <p class="text-slate-300 text-sm sm:text-base leading-relaxed mb-8">
+                {screen.description}
+              </p>
+
+              <!-- Metrics / Spec Badges -->
+              <div class="grid grid-cols-3 gap-3 mb-8">
+                {screen.metrics.map(m => (
+                  <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-white/5">
+                    <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400">{m.label}</div>
+                    <div class="text-sm font-bold text-white mt-1 font-mono text-cyan-300">{m.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div class="flex items-center gap-4 pt-4 border-t border-white/10">
+                <a
+                  href="#download"
+                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#080B10] bg-cyan-400 hover:bg-cyan-300 transition-colors cyan-glow"
+                >
+                  <span>Experience this in v1.0</span>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                  </svg>
+                </a>
+                <span class="text-xs text-slate-400 font-mono">No login required</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function setupShowcase() {
+    const buttons = document.querySelectorAll('[data-screen-btn]');
+    const images = document.querySelectorAll('.screen-image');
+    const cards = document.querySelectorAll('.screen-card');
+
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-screen-btn');
+        if (!targetId) return;
+
+        // Update button active states
+        buttons.forEach((b) => {
+          b.classList.remove('bg-cyan-500/15', 'text-cyan-300', 'border-cyan-400/50', 'cyan-glow-subtle');
+          b.classList.add('bg-slate-900/60', 'text-slate-400', 'border-white/5');
+        });
+        btn.classList.add('bg-cyan-500/15', 'text-cyan-300', 'border-cyan-400/50', 'cyan-glow-subtle');
+        btn.classList.remove('bg-slate-900/60', 'text-slate-400', 'border-white/5');
+
+        // Update Phone Screen Image
+        images.forEach((img) => {
+          if (img.id === `screen-img-${targetId}`) {
+            img.classList.remove('opacity-0', 'scale-98', 'pointer-events-none', 'z-0');
+            img.classList.add('opacity-100', 'scale-100', 'z-10');
+          } else {
+            img.classList.remove('opacity-100', 'scale-100', 'z-10');
+            img.classList.add('opacity-0', 'scale-98', 'pointer-events-none', 'z-0');
+          }
+        });
+
+        // Update Card Details
+        cards.forEach((card) => {
+          if (card.id === `screen-card-${targetId}`) {
+            card.classList.remove('hidden', 'opacity-0', 'translate-y-4');
+            card.classList.add('block', 'opacity-100', 'translate-y-0');
+          } else {
+            card.classList.add('hidden', 'opacity-0', 'translate-y-4');
+            card.classList.remove('block', 'opacity-100', 'translate-y-0');
+          }
+        });
+      });
+    });
+  }
+
+  // Run on first load
+  setupShowcase();
+  // Support Astro view transitions if enabled
+  document.addEventListener('astro:page-load', setupShowcase);
+</script>

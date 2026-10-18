@@ -1,0 +1,29 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Hero from '../components/Hero.astro';
+import PhoneShowcase from '../components/PhoneShowcase.astro';
+import BentoGrid from '../components/BentoGrid.astro';
+import ComparisonMatrix from '../components/ComparisonMatrix.astro';
+import Architecture from '../components/Architecture.astro';
+import AIModelShowcase from '../components/AIModelShowcase.astro';
+import DownloadSection from '../components/DownloadSection.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout 
+  title="ZeroCoach — 100% On-Device AI Fitness & Athletic Intelligence"
+  description="Open-source athletic AI coach running on-device with Gemma 2. Science-backed RepDB workout splits, Gemini food vision analysis, and unified wearable biometric telemetry with zero cloud latency."
+>
+  <Navbar />
+  <main>
+    <Hero />
+    <PhoneShowcase />
+    <BentoGrid />
+    <ComparisonMatrix />
+    <Architecture />
+    <AIModelShowcase />
+    <DownloadSection />
+  </main>
+  <Footer />
+</Layout>

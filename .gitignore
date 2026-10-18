@@ -39,3 +39,15 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Python ML virtual environment & caches
+ml/venv/
+ml/llama.cpp/
+ml/output/zerocoach_merged/
+ml/output/zerocoach_gguf/
+web/public/models/*.gguf
+*.gguf
+.venv/
+venv/
+__pycache__/
+*.pyc

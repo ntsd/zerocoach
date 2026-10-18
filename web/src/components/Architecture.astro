@@ -1,0 +1,72 @@
+---
+const stackLayers = [
+  {
+    layer: "01. Application & Mobile UX",
+    tech: "React Native + Expo",
+    description: "Built with TypeScript for smooth 60fps performance on iOS and Android. Obsidian theme tokens, glassmorphism, and responsive safe insets.",
+    tag: "Mobile Framework"
+  },
+  {
+    layer: "02. Neural Inference Engine",
+    tech: "llama.rn & llama.cpp",
+    description: "Native C++ execution on device silicon with ARM64 NEON & Apple Metal acceleration. Runs quantized Q4_K_M GGUF models with streaming tokens.",
+    tag: "On-Device AI"
+  },
+  {
+    layer: "03. Exercise Intelligence",
+    tech: "RepDB Verified Repository",
+    description: "643 science-backed movements with start and peak pose kinematics, dynamic warmup builders, and CNS readiness load auto-regulation.",
+    tag: "Biomechanics"
+  },
+  {
+    layer: "04. Multimodal Nutrition",
+    tech: "Gemini Vision & NutriSight",
+    description: "Plate meal decomposition via Gemini 3.8 Flash, Open Food Facts barcode lookup, and NutriSight label extraction for 11 micronutrients.",
+    tag: "Computer Vision"
+  },
+  {
+    layer: "05. Biometric Bridge",
+    tech: "Health Connect & HealthKit",
+    description: "OS-level health aggregators reading resting heart rate, HRV, and sleep stages across Garmin, Apple Watch, Whoop, Oura, and Samsung.",
+    tag: "Telemetry"
+  },
+  {
+    layer: "06. Local Persistence",
+    tech: "Zustand & AsyncStorage",
+    description: "All athlete logs, nutrition diaries, and model configs stay encrypted in local sandbox storage. 1-tap instant data wipe anytime.",
+    tag: "Privacy"
+  }
+];
+---
+
+<section id="architecture" class="py-20 relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 mb-4">
+        <span>ENGINEERING DEEP DIVE</span>
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
+        Built on Open Science & Modern Systems.
+      </h2>
+      <p class="mt-4 text-base sm:text-lg text-slate-400">
+        A resilient, fully open-source architecture designed to run independent of centralized servers.
+      </p>
+    </div>
+
+    <!-- Tech Stack Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+      {stackLayers.map((layer) => (
+        <div class="glass-panel p-6 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">{layer.layer}</span>
+              <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">{layer.tag}</span>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 font-mono">{layer.tech}</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">{layer.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

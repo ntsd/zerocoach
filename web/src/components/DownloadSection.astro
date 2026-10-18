@@ -1,0 +1,69 @@
+---
+---
+
+<section id="download" class="py-24 relative overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    <div class="glass-panel p-8 sm:p-14 rounded-3xl border border-cyan-500/30 max-w-5xl mx-auto cyan-glow relative overflow-hidden">
+      <!-- Glow effect -->
+      <div class="absolute -top-32 -left-32 w-80 h-80 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-32 -right-32 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="text-center max-w-3xl mx-auto mb-10">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 mb-4">
+          <span>GET STARTED IN SECONDS</span>
+        </span>
+        <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white mb-4">
+          Start Coaching With Zero Privacy Compromise.
+        </h2>
+        <p class="text-slate-300 text-base sm:text-lg leading-relaxed font-light">
+          Install the pre-compiled signed release APK on your Android phone, or clone the repository to run on iOS or local emulators.
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+        <a 
+          href="https://github.com/ntsd/zerocoach/releases/latest/download/ZeroCoach-v1.0.0.apk"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl text-base font-bold text-[#080B10] bg-cyan-400 hover:bg-cyan-300 transition-all duration-300 cyan-glow transform hover:-translate-y-0.5"
+        >
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-1.0001s.4482-.9998.9993-.9998c.5516 0 .9996.4483.9996.9998s-.448 1.0001-.9996 1.0001m-11.046 0c-.5511 0-.9993-.4486-.9993-1.0001s.4482-.9998.9993-.9998c.5516 0 .9996.4483.9996.9998s-.448 1.0001-.9996 1.0001m11.4045-6.02l1.996-3.4566a.4158.4158 0 0 0-.1521-.5676.416.416 0 0 0-.568.1523l-2.0223 3.503C15.5898 8.423 13.849 8.1215 12 8.1215c-1.849 0-3.5898.3015-5.1352.831L4.8425 5.4495a.4162.4162 0 0 0-.568-.1523.4156.4156 0 0 0-.1521.5676l1.996 3.4566C2.688 11.087.348 14.654.024 18.8785h23.952c-.324-4.2245-2.664-7.7915-6.0955-9.5571"/>
+          </svg>
+          <span>Download Android APK</span>
+          <span class="px-2 py-0.5 text-xs font-mono font-bold bg-[#080B10]/20 rounded-md">Direct APK</span>
+        </a>
+
+        <a 
+          href="https://github.com/ntsd/zerocoach/releases"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl text-base font-semibold text-white bg-slate-900/90 hover:bg-slate-800 border border-white/10 hover:border-slate-500 transition-all duration-300"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+          </svg>
+          <span>GitHub Releases</span>
+        </a>
+      </div>
+
+      <!-- Quick Sideload & OTA Box -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-8 border-t border-white/10">
+        <div class="p-4 rounded-2xl bg-slate-950/70 border border-white/5 font-mono text-xs">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span>Terminal Sideload (ADB)</span>
+            <span class="text-cyan-400">Android</span>
+          </div>
+          <code class="text-cyan-300 block select-all break-all">adb install -r ZeroCoach-v1.0.0.apk</code>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-slate-950/70 border border-white/5 font-mono text-xs">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span>Over-The-Air (OTA) Channel</span>
+            <span class="text-emerald-400">Instant Hotfix</span>
+          </div>
+          <div class="text-slate-300">Settings → Check for OTA Updates to receive the latest model prompts and features instantly.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

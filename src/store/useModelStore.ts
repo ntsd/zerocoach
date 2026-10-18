@@ -11,20 +11,6 @@ import {
 } from '@/types/model';
 import { llmService } from '@/services/llm/llmService';
 
-export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
-  id: 'zerocoach-athletic-q4_0',
-  name: 'ZeroCoach Athletic Intelligence (Fine-Tuned)',
-  sizeBytes: 91726592,
-  sizeFormatted: '91.7 MB',
-  quantization: 'Q4_0',
-  downloadUrl:
-    'https://raw.githubusercontent.com/ntsd/zerocoach/main/web/public/models/zerocoach-athletic-q4_0.gguf',
-  fallbackDownloadUrl:
-    'https://zerocoach.tech/models/zerocoach-athletic-q4_0.gguf',
-  isFineTuned: true,
-  contextLength: 2048,
-};
-
 export const GEMMA_2_MODEL: ModelMetadata = {
   id: 'gemma-2-2b-it-q4_k_m',
   name: 'Gemma 2 (2B Instruct Baseline)',
@@ -37,9 +23,23 @@ export const GEMMA_2_MODEL: ModelMetadata = {
   contextLength: 2048,
 };
 
+export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
+  id: 'zerocoach-athletic-q4_0',
+  name: 'ZeroCoach Athletic (Experimental 135M)',
+  sizeBytes: 91726592,
+  sizeFormatted: '91.7 MB',
+  quantization: 'Q4_0',
+  downloadUrl:
+    'https://raw.githubusercontent.com/ntsd/zerocoach/main/web/public/models/zerocoach-athletic-q4_0.gguf',
+  fallbackDownloadUrl:
+    'https://zerocoach.tech/models/zerocoach-athletic-q4_0.gguf',
+  isFineTuned: true,
+  contextLength: 2048,
+};
+
 export const AVAILABLE_MODELS: ModelMetadata[] = [
-  ZEROCOACH_ATHLETIC_MODEL,
   GEMMA_2_MODEL,
+  ZEROCOACH_ATHLETIC_MODEL,
 ];
 
 const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
@@ -51,7 +51,7 @@ const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
 export const useModelStore = create<ModelState>()(
   persist(
     (set, get) => ({
-      currentModel: ZEROCOACH_ATHLETIC_MODEL,
+      currentModel: GEMMA_2_MODEL,
       availableModels: AVAILABLE_MODELS,
       userSelectedModelId: undefined,
       status: 'unloaded',
@@ -260,15 +260,16 @@ export const useModelStore = create<ModelState>()(
             updates.provider = 'on_device';
           }
 
-          // Default on-device model to ZeroCoach Athletic Intelligence if not explicitly overridden by user
+          // Default on-device model to Gemma 2 (recommended baseline)
           if (
             !hydratedState.userSelectedModelId ||
-            (hydratedState.currentModel?.id === 'gemma-2-2b-it-q4_k_m' && !hydratedState.userSelectedModelId)
+            hydratedState.currentModel?.id === 'zerocoach-athletic-q4_0'
           ) {
-            updates.currentModel = ZEROCOACH_ATHLETIC_MODEL;
+            updates.currentModel = GEMMA_2_MODEL;
+            updates.userSelectedModelId = GEMMA_2_MODEL.id;
           } else {
             const matched = AVAILABLE_MODELS.find((m) => m.id === hydratedState.currentModel?.id);
-            updates.currentModel = matched || ZEROCOACH_ATHLETIC_MODEL;
+            updates.currentModel = matched || GEMMA_2_MODEL;
           }
 
           useModelStore.setState(updates);

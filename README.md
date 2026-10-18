@@ -212,8 +212,9 @@ Users can also tap **"CHECK FOR OTA UPDATES"** anytime in **Settings → Over-Th
 ## 🧠 Model Configuration & GGUF Support
 
 When using on-device inference on physical devices:
-1. Supported model formats: Quantized `.gguf` files (recommended: `Q4_K_M` or `Q4_0` 2B-3B parameter models such as Google Gemma 2 2B, Qwen 2.5 1.5B/3B, or Llama 3.2 1B/3B).
-2. For local network inference, configure your desktop runner (e.g. `ollama run gemma2:2b` or LM Studio local server) and enter your local network IP in **Settings → OpenAI-Compatible Provider**.
+1. **Primary Recommended Baseline**: **Google Gemma 2 2B Instruct** (`gemma-2-2b-it-Q4_K_M.gguf`, ~1.64 GB). The official default on-device engine for robust multi-turn coaching, biomechanical cues, and structured nutrition planning.
+2. **Experimental Compact Model**: **ZeroCoach Athletic Intelligence** (`zerocoach-athletic-q4_0.gguf`, 91.7 MB). An experimental 135M parameter fine-tune quantized to Q4_0, built for ultra-lightweight offline mobile tests within GitHub's 100 MB push limit.
+3. **Desktop / LAN Serving**: For zero mobile RAM consumption, run `ollama run gemma2:2b` or LM Studio on your local network and point **Settings → OpenAI-Compatible Provider** to your host IP.
 
 ---
 

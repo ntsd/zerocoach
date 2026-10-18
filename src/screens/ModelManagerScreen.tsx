@@ -275,9 +275,13 @@ export const ModelManagerScreen: React.FC = () => {
                           <Text style={styles.modelRectangleMeta}>
                             {m.sizeFormatted} • {m.quantization}
                           </Text>
-                          {m.isFineTuned && (
+                          {m.isFineTuned ? (
+                            <View style={[styles.modelTag, { backgroundColor: `${COLORS.warning}22` }]}>
+                              <Text style={[styles.modelTagText, { color: COLORS.warning }]}>EXPERIMENTAL</Text>
+                            </View>
+                          ) : (
                             <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
-                              <Text style={[styles.modelTagText, { color: modeColors.accent }]}>ATHLETIC</Text>
+                              <Text style={[styles.modelTagText, { color: modeColors.accent }]}>RECOMMENDED</Text>
                             </View>
                           )}
                         </View>

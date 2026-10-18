@@ -104,7 +104,7 @@ def get_font(size, bold=False):
                 continue
     return ImageFont.load_default()
 
-def render_scene_frame(scene_id, progress=0.0):
+def render_scene_frame(scene_id, progress=0.0, omit_screen=False):
     img = Image.new("RGB", (WIDTH, HEIGHT), BG_DARK)
     draw = ImageDraw.Draw(img)
 
@@ -115,7 +115,7 @@ def render_scene_frame(scene_id, progress=0.0):
         draw.line([(x, 0), (x, HEIGHT)], fill=(15, 23, 42), width=1)
 
     # Radial ambient glow near phone mockup
-    # Left side phone mockup placement: x=140, y=60, w=432, h=960
+    # Left side phone mockup placement: x=130, y=60, w=440, h=960
     phone_x = 130
     phone_y = 60
     phone_w = 440
@@ -138,18 +138,26 @@ def render_scene_frame(scene_id, progress=0.0):
         width=2
     )
 
-    # 2. Paste Screen Image
-    scene_img_path = SCENES_DIR / f"scene_{scene_id}.png"
-    if scene_img_path.exists():
-        screen = Image.open(scene_img_path).convert("RGBA")
-        screen = screen.resize((phone_w, phone_h), Image.Resampling.LANCZOS)
-        
-        # Round the corners of screen
-        mask = Image.new("L", (phone_w, phone_h), 0)
-        mask_draw = ImageDraw.Draw(mask)
-        mask_draw.rounded_rectangle([0, 0, phone_w, phone_h], radius=32, fill=255)
-        
-        img.paste(screen, (phone_x, phone_y), mask)
+    # Inner Screen Area
+    draw.rounded_rectangle(
+        [phone_x, phone_y, phone_x + phone_w, phone_y + phone_h],
+        radius=32,
+        fill=(0, 0, 0)
+    )
+
+    # 2. Paste Screen Image if not omitting for video overlay
+    if not omit_screen:
+        scene_img_path = SCENES_DIR / f"scene_{scene_id}.png"
+        if scene_img_path.exists():
+            screen = Image.open(scene_img_path).convert("RGBA")
+            screen = screen.resize((phone_w, phone_h), Image.Resampling.LANCZOS)
+            
+            # Round the corners of screen
+            mask = Image.new("L", (phone_w, phone_h), 0)
+            mask_draw = ImageDraw.Draw(mask)
+            mask_draw.rounded_rectangle([0, 0, phone_w, phone_h], radius=32, fill=255)
+            
+            img.paste(screen, (phone_x, phone_y), mask)
 
     # Speaker notch at top
     draw.rounded_rectangle(
@@ -260,6 +268,11 @@ def render_scene_frame(scene_id, progress=0.0):
     return img
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video", type=str, default=None, help="Path to raw video recorded by Argent")
+    args = parser.parse_args()
+
     timeline_path = AUDIO_DIR / "timeline.json"
     if not timeline_path.exists():
         print("Error: timeline.json not found. Run generate_audio.py first.")
@@ -268,13 +281,17 @@ def main():
     with open(timeline_path) as f:
         timeline = json.load(f)
 
+    use_live_video = args.video is not None and os.path.exists(args.video)
+    if use_live_video:
+        print(f"🎬 Incorporating Live Argent Screen Recording: {args.video}")
+
     print("🚀 Rendering High-Resolution 1080p Canvas Frames for each scene...")
 
     scene_clips = []
     for item in timeline:
         s_id = item["scene"]
         dur = item["duration"] + 1.2 # include pause
-        frame_img = render_scene_frame(s_id, progress=1.0)
+        frame_img = render_scene_frame(s_id, progress=1.0, omit_screen=use_live_video)
         frame_path = OUTPUT_DIR / f"frame_scene_{s_id}.png"
         frame_img.save(frame_path)
         print(f"   🖼️  Rendered Frame Scene {s_id} -> {frame_path}")
@@ -307,21 +324,44 @@ def main():
         "-i", str(concat_list), "-c", "copy", str(video_only)
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    # Merge with Master Narration Audio Track
+    # Merge with Master Narration Audio Track and Live Video Overlay
     print("🎵 Merging video track with full narration audio track...")
     audio_track = AUDIO_DIR / "full_narration.mp3"
     final_output = DEMO_DIR / "zerocoach_pitch_demo.mp4"
 
-    cmd_final = [
-        "ffmpeg", "-y",
-        "-i", str(video_only),
-        "-i", str(audio_track),
-        "-c:v", "copy",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        "-shortest",
-        str(final_output)
-    ]
+    if use_live_video:
+        # Scale and pad live video to 440:960, and overlay at (130, 60)
+        filter_complex = (
+            "[1:v]scale=440:960:force_original_aspect_ratio=decrease,"
+            "pad=440:960:(ow-iw)/2:(oh-ih)/2:color=black[screen];"
+            "[0:v][screen]overlay=130:60[v]"
+        )
+        cmd_final = [
+            "ffmpeg", "-y",
+            "-i", str(video_only),
+            "-i", str(args.video),
+            "-i", str(audio_track),
+            "-filter_complex", filter_complex,
+            "-map", "[v]",
+            "-map", "2:a",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-shortest",
+            str(final_output)
+        ]
+    else:
+        cmd_final = [
+            "ffmpeg", "-y",
+            "-i", str(video_only),
+            "-i", str(audio_track),
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-shortest",
+            str(final_output)
+        ]
     subprocess.run(cmd_final, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # Get final file details

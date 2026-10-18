@@ -2,12 +2,22 @@
 
 [![Website](https://img.shields.io/badge/Website-zerocoach.tech-00F0FF?style=flat&logo=astro)](https://zerocoach.tech)
 [![GitHub Release](https://img.shields.io/github/v/release/ntsd/zerocoach?color=00F0FF&label=Latest%20Release)](https://github.com/ntsd/zerocoach/releases/latest)
-[![Download APK](https://img.shields.io/badge/Download-Android%20APK-00F0FF?style=flat&logo=android)](https://github.com/ntsd/zerocoach/releases/latest/download/ZeroCoach-v1.0.0.apk)
+[![Download APK](https://img.shields.io/badge/Download-Android%20APK%20v1.1.0-00F0FF?style=flat&logo=android)](https://github.com/ntsd/zerocoach/releases/latest/download/ZeroCoach-v1.1.0.apk)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ZeroCoach is an open-source, privacy-first mobile fitness and athletic AI coaching application powered entirely by on-device and local AI models. Built with React Native and Expo, it delivers science-backed workout programming, adaptive nutrition targets, and real-time coaching—with zero cloud latency and absolute data privacy.
 
 Visit the official website at [**zerocoach.tech**](https://zerocoach.tech).
+
+---
+
+## 🎬 Demo Video
+
+[![ZeroCoach Video Demo](https://img.youtube.com/vi/Ns-7ikl16K0/maxresdefault.jpg)](https://youtu.be/Ns-7ikl16K0)
+
+▶️ **Watch the Full HD Demo on YouTube**: [**https://youtu.be/Ns-7ikl16K0**](https://youtu.be/Ns-7ikl16K0)
+
+*Featuring on-device Gemma 2 GGUF inference streaming at ~38 tok/s, multimodal food plate vision decomposition & micronutrient analysis, RepDB adaptive workout engine, and unified 7-day athletic telemetry.*
 
 ---
 

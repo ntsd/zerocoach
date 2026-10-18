@@ -23,7 +23,7 @@ export const updateService = {
       isEnabled: Updates.isEnabled,
       channel: Updates.channel || 'production',
       updateId: Updates.updateId || 'embedded-bundle',
-      runtimeVersion: Updates.runtimeVersion || '1.0.0',
+      runtimeVersion: Updates.runtimeVersion || '1.1.0',
       createdAt: Updates.createdAt ? new Date(Updates.createdAt).toLocaleDateString() : 'Initial Release',
     };
   },
@@ -62,7 +62,7 @@ export const updateService = {
       if (msg.includes('project') || msg.includes('EAS') || msg.includes('URL') || msg.includes('404')) {
         return {
           isAvailable: false,
-          statusMessage: 'ZeroCoach is running latest local production bundle (v1.0.0).',
+          statusMessage: 'ZeroCoach is running latest local production bundle (v1.1.0).',
         };
       }
       return {

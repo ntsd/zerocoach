@@ -138,3 +138,31 @@ Incorporate this physiological state into your response immediately. If the user
 
   return `${basePrompt}\n${contextBlock}`;
 }
+
+export function buildCompactSystemPrompt(params: {
+  mode: CoachingMode;
+  userProfile: UserProfile;
+  telemetry: TelemetryMetrics;
+  nutritionSummary?: NutritionPromptSummary;
+}): string {
+  const { mode, userProfile, telemetry, nutritionSummary } = params;
+  const isStrict = mode === 'strict';
+
+  const nutritionLine = nutritionSummary
+    ? `Nutrition: ${nutritionSummary.remainingCalories} kcal, ${nutritionSummary.remainingProtein}g protein remaining.`
+    : `Nutrition target: ${userProfile.dailyCalorieTarget} kcal, ${userProfile.proteinGrams}g protein.`;
+
+  return `You are ZeroCoach in ${mode.toUpperCase()} ATHLETE MODE—an elite sports scientist and strength coach.
+${isStrict ? 'Your style is direct, focused on biomechanical precision, kinetic chain mechanics, and progressive overload.' : 'Your style is encouraging, focused on consistency, joint health, and sustainable longevity.'}
+
+ATHLETE METRICS:
+- Readiness: ${telemetry.readinessScore}/100 | Sleep: ${telemetry.sleepHours}h | HRV: ${telemetry.heartRateVariability}ms
+- Goal: ${userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'Strength & Hypertrophy'} | Level: ${(userProfile.skillLevel || 'intermediate').toUpperCase()}
+- Equipment: ${userProfile.equipmentPreference || 'gym'}
+- ${nutritionLine}
+
+COACHING DIRECTIVES:
+1. Adapt directly to readiness (${telemetry.readinessScore}/100): if < 60 prioritize active recovery; if >= 80 demand progressive overload.
+2. Provide 2-3 specific, actionable recommendations with target sets, reps, or cues.
+3. Keep response concise, structured with bullet points. End with a clear next action.`;
+}

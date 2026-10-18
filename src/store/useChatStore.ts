@@ -5,8 +5,9 @@ import { ChatMessage, ChatState } from '@/types/chat';
 import { useCoachStore } from './useCoachStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { useNutritionStore } from './useNutritionStore';
-import { buildSystemPrompt } from '@/services/prompts/systemPromptBuilder';
+import { buildSystemPrompt, buildCompactSystemPrompt } from '@/services/prompts/systemPromptBuilder';
 import { llmService } from '@/services/llm/llmService';
+import { useModelStore } from './useModelStore';
 
 const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
@@ -54,28 +55,43 @@ export const useChatStore = create<ChatState>()(
           error: null,
         });
 
-        // Dynamic system prompt construction
-        const systemPrompt = buildSystemPrompt({
-          mode: coachState.mode,
-          userProfile: coachState.userProfile,
-          telemetry: telemetryState.metrics,
-          activeStages: telemetryState.calisthenicsStages,
-          nutritionSummary: {
-            totalCalories: currentNutritionSummary.totalCalories,
-            targetCalories: currentNutritionLog.targetCalories,
-            totalProtein: currentNutritionSummary.totalProtein,
-            targetProtein: currentNutritionLog.targetProtein,
-            totalCarbs: currentNutritionSummary.totalCarbs,
-            totalFat: currentNutritionSummary.totalFat,
-            totalFiber: currentNutritionSummary.totalFiber,
-            remainingCalories: currentNutritionSummary.remainingCalories,
-            remainingProtein: currentNutritionSummary.remainingProtein,
-            loggedMealsCount: currentNutritionLog.foods.length,
-          },
-        });
+        // Dynamic system prompt construction tailored to model parameter capacity
+        const modelState = useModelStore.getState();
+        const isCompactModel =
+          modelState.provider === 'on_device' &&
+          (modelState.currentModel.id === 'zerocoach-athletic-q4_0' ||
+            modelState.currentModel.sizeBytes < 500000000);
 
-        // Limit context to last 8 messages to protect mobile memory budget
-        const contextMessages = updatedMessages.slice(-8).map((m) => ({
+        const nutritionSummary = {
+          totalCalories: currentNutritionSummary.totalCalories,
+          targetCalories: currentNutritionLog.targetCalories,
+          totalProtein: currentNutritionSummary.totalProtein,
+          targetProtein: currentNutritionLog.targetProtein,
+          totalCarbs: currentNutritionSummary.totalCarbs,
+          totalFat: currentNutritionSummary.totalFat,
+          totalFiber: currentNutritionSummary.totalFiber,
+          remainingCalories: currentNutritionSummary.remainingCalories,
+          remainingProtein: currentNutritionSummary.remainingProtein,
+          loggedMealsCount: currentNutritionLog.foods.length,
+        };
+
+        const systemPrompt = isCompactModel
+          ? buildCompactSystemPrompt({
+              mode: coachState.mode,
+              userProfile: coachState.userProfile,
+              telemetry: telemetryState.metrics,
+              nutritionSummary,
+            })
+          : buildSystemPrompt({
+              mode: coachState.mode,
+              userProfile: coachState.userProfile,
+              telemetry: telemetryState.metrics,
+              activeStages: telemetryState.calisthenicsStages,
+              nutritionSummary,
+            });
+
+        // Limit context to last 6 messages to protect mobile memory budget
+        const contextMessages = updatedMessages.slice(-6).map((m) => ({
           role: m.role,
           content: m.content,
         }));

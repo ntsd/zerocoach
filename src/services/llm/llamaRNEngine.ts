@@ -104,11 +104,37 @@ export class LlamaRNEngine implements LLMEngine {
       {
         prompt: fullPrompt,
         n_predict: request.maxTokens || 512,
-        temperature: request.temperature || 0.7,
-        stop: ['<start_of_turn>', '<end_of_turn>', '<eos>', '</s>', 'User:', 'Assistant:'],
+        temperature: request.temperature || 0.6,
+        top_p: 0.9,
+        top_k: 40,
+        penalty_repeat: 1.18,
+        penalty_freq: 0.5,
+        penalty_present: 0.4,
+        stop: [
+          '<start_of_turn>',
+          '<end_of_turn>',
+          '<|im_end|>',
+          '<|endoftext|>',
+          '<eos>',
+          '</s>',
+          'User:',
+          'user:',
+          'Assistant:',
+          'assistant:',
+          'Athlete:',
+        ],
       },
       (data: { token: string }) => {
         if (!this.abortRequested && data.token) {
+          // Filter special tokens or turn markers that might leak into user stream
+          if (
+            data.token.includes('<start_of_turn>') ||
+            data.token.includes('<end_of_turn>') ||
+            data.token.includes('<|im_end|>') ||
+            data.token.includes('<|endoftext|>')
+          ) {
+            return;
+          }
           tokenCount++;
           accumulatedText += data.token;
           onToken(data.token);

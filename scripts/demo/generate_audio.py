@@ -10,42 +10,44 @@ DEMO_DIR = Path(__file__).resolve().parent
 AUDIO_DIR = DEMO_DIR / "audio"
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
-# Scene Script Definitions from Blueprint
+# Scene Script Definitions for Hacktoberfest Week 2: Side Hustle Challenge
 SCENES = [
     {
         "id": 1,
         "name": "scene_1_privacy",
-        "title": "The Hook & Zero-Cloud Privacy",
-        "text": "Every modern fitness tracker sends your most personal health, nutrition, and workout data straight into the cloud, locking insights behind paywalls and data harvesting. We built ZeroCoach: the world's first completely private, on-device AI athletic intelligence that runs 100% locally on your phone.",
+        "title": "Commercial Disruption & 0-Cloud Privacy",
+        "text": "Personal trainers and fitness apps cost hundreds of dollars every year, locking your health insights behind monthly paywalls while harvesting your private biometric data. ZeroCoach changes the game. Built for the open-source community, ZeroCoach is a commercial-grade athletic coach that runs one hundred percent on your device. Powered by local GGUF models on your phone's neural processor, it eliminates cloud subscriptions, keeps your data completely sovereign, and works entirely offline.",
     },
     {
         "id": 2,
         "name": "scene_2_coach_chat",
-        "title": "On-Device Coach Chat & Streaming",
-        "text": "Meet your personal coach. Powered by quantized Gemma 2 running directly on your phone's neural processor, ZeroCoach streams responses at thirty-eight tokens per second. It factors in your live Health Connect sleep and recovery metrics to give you biomechanically sound, personalized coaching—even in airplane mode.",
+        "title": "On-Device Athletic Intelligence & Streaming",
+        "text": "Meet your on-device athletic coach. Powered by quantized Gemma 2 running directly on your phone, ZeroCoach streams adaptive advice at thirty-eight tokens per second. It factors in your sleep, recovery scores, and fatigue telemetry to deliver personalized coaching—without sending a single byte of your life to an external server.",
     },
     {
         "id": 3,
         "name": "scene_3_food_snap",
-        "title": "Multimodal AI Food Snap & Macros",
-        "text": "Forget tedious manual food logging. With AI Food Snap, simply snap a picture of any meal. Our multimodal vision pipeline instantly decomposes each ingredient, estimates precise portion weights, and logs exact macros to keep your daily nutritional targets perfectly dialed in.",
+        "title": "Multimodal Food Log: AI Snap, Search & Barcode",
+        "text": "Logging food has never been this effortless. With multimodal AI Plate Snap, upload or snap any meal. Our vision pipeline instantly identifies ingredients, calculates portion sizes, and decomposes exact macronutrients and micronutrients down to the gram. Need packaged items? ZeroCoach integrates instant USDA search and barcode scanning to make tracking automatic.",
     },
     {
         "id": 4,
         "name": "scene_4_workout",
         "title": "Adaptive Workout & Progressive Overload",
-        "text": "When you're ready to train, ZeroCoach provides dynamic, session-by-session progression. Log weights and reps with zero friction, track your estimated one-rep maximums, and let the smart rest timer keep your training intensity right where it belongs.",
+        "text": "In the gym, ZeroCoach replaces expensive personal trainers with dynamic, session-by-session progressive overload. Log weights and reps with zero friction, track your estimated one-rep max benchmarks, and let smart rest timers keep your training intensity primed for maximum strength gains.",
     },
     {
         "id": 5,
         "name": "scene_5_outro",
-        "title": "Tech Architecture & Visionary Outro",
-        "text": "ZeroCoach proves that elite AI coaching doesn't require cloud servers or monthly subscriptions. Completely private, lightning fast, and always with you. Experience the future of athletic coaching at zerocoach.tech.",
+        "title": "Unified Athletic Telemetry & Open Source",
+        "text": "Under the Analyze tab, ZeroCoach correlates your training volume, recovery scores, and daily nutrition into a single unified performance telemetry score. An enterprise-grade AI coach you would gladly pay for—built completely open source. Experience zero subscriptions and total data freedom at zerocoach.tech.",
     },
 ]
 
-# High-energy, crisp tech narrator voice
-NEURAL_VOICE = "en-US-ChristopherNeural"
+# Epic, resonant, movie-trailer pitch voice
+NEURAL_VOICE = "en-US-GuyNeural"
+VOICE_PITCH = "-4Hz"
+VOICE_RATE = "+5%"
 
 def synthesize_scene(scene):
     out_file = AUDIO_DIR / f"{scene['name']}.mp3"
@@ -54,7 +56,8 @@ def synthesize_scene(scene):
     cmd = [
         str(ROOT_DIR / "ml/venv/bin/edge-tts"),
         "--voice", NEURAL_VOICE,
-        "--rate=+6%",  # Slightly punchy, upbeat tech pitch pace
+        f"--rate={VOICE_RATE}",
+        f"--pitch={VOICE_PITCH}",
         "--text", scene["text"],
         "--write-media", str(out_file),
     ]
@@ -106,9 +109,8 @@ def main():
                 "endTime": round(cumulative_time + r["duration"], 2),
             })
             cumulative_time += r["duration"]
-            if i < len(results) - 1:
-                f.write(f"file '{silence_file}'\n")
-                cumulative_time += 1.2
+            f.write(f"file '{silence_file}'\n")
+            cumulative_time += 1.2
 
     full_audio = AUDIO_DIR / "full_narration.mp3"
     subprocess.run([

@@ -32,43 +32,43 @@ TEXT_SECONDARY = (203, 213, 225)# #CBD5E1
 
 SCENE_METADATA = {
     1: {
-        "tag": "PHASE 01: ZERO-CLOUD PRIVACY",
+        "tag": "PHASE 01: COMMERCIAL DISRUPTION & 0-CLOUD PRIVACY",
         "tag_color": CYAN,
-        "title": "Local GGUF Weights via llama.rn",
-        "subtitle": "No subscriptions. No trackers. 100% on-device AI.",
+        "title": "Zero Subscriptions. 100% On-Device AI.",
+        "subtitle": "Replacing $100-$200/mo fitness coaching fees with sovereign local intelligence.",
         "bullets": [
-            ("LOCAL INTELLIGENCE", "Health, nutrition, and chat data never leave your phone"),
-            ("GPU ACCELERATED", "Quantized GGUF runs on Metal & OpenCL with 0 cloud calls"),
-            ("MULTI-MODEL ARCHITECTURE", "Gemma 2 (2B Instruct) & Fine-Tuned ZeroCoach Athletic"),
+            ("NO SUBSCRIPTIONS", "Completely open-source athletic coaching with 0 cloud inference fees"),
+            ("ABSOLUTE PRIVACY", "Health, nutrition, and biometric telemetry never leave your phone"),
+            ("ON-DEVICE GGUF", "Quantized Gemma 2 runs directly on device GPU/NPU with 0 cloud calls"),
         ]
     },
     2: {
-        "tag": "PHASE 02: REAL-TIME STREAMING",
+        "tag": "PHASE 02: ON-DEVICE ATHLETIC INTELLIGENCE",
         "tag_color": EMERALD,
-        "title": "On-Device Inference (~38 Tok/s)",
-        "subtitle": "Blazing conversational intelligence directly in your pocket.",
+        "title": "Gemma 2 Streaming at ~38 Tokens / Sec",
+        "subtitle": "Low-latency conversational athletic intelligence directly in your pocket.",
         "bullets": [
-            ("INSTANT STREAMING", "Low-latency generation powered by local mobile hardware"),
-            ("HEALTH CONNECT SYNC", "Live sleep, heart rate, and fatigue readiness scoring"),
-            ("STRICT VS COMFORT", "Switchable coach personas for discipline or encouragement"),
+            ("REAL-TIME STREAMING", "Instant token generation powered by local mobile hardware"),
+            ("HEALTH CONNECT SYNC", "Live sleep, heart rate, and fatigue readiness biometric scoring"),
+            ("STRICT VS COMFORT", "Personalized coaching personas tailored to your discipline level"),
         ]
     },
     3: {
-        "tag": "PHASE 03: MULTIMODAL COMPUTER VISION",
+        "tag": "PHASE 03: MULTIMODAL NUTRITION & FOOD LOG",
         "tag_color": AMBER,
-        "title": "AI Food Snap & Macro Decomposition",
-        "subtitle": "Multimodal visual intelligence meets precision nutrition.",
+        "title": "AI Plate Snap, USDA Search & Barcode",
+        "subtitle": "Multimodal visual plate recognition and automated macro logging.",
         "bullets": [
-            ("SINGLE PHOTO SNAP", "Recognizes meals, ingredients, and estimates portion weights"),
-            ("EXACT MACRO BREAKDOWN", "Calculates protein, carbs, fats, and calories instantly"),
-            ("AUTOMATIC BUDGET SYNC", "Real-time daily remaining nutrition target updates"),
+            ("AI PLATE SNAP", "Upload or snap any dish to estimate ingredients and portion weights"),
+            ("MACRO DECOMPOSITION", "Calculates protein, carbs, fats, calories, and micronutrients"),
+            ("SEARCH & BARCODE SCAN", "Instant USDA Whole Foods database and live barcode scanning"),
         ]
     },
     4: {
-        "tag": "PHASE 04: ADAPTIVE WORKOUT",
+        "tag": "PHASE 04: ADAPTIVE WORKOUT ENGINE",
         "tag_color": CYAN,
         "title": "Progressive Overload & Live Sets",
-        "subtitle": "Science-backed resistance training that adapts to your recovery.",
+        "subtitle": "Science-backed resistance training that adapts to your daily recovery.",
         "bullets": [
             ("DYNAMIC PROGRESSION", "Personalized volume and weight progression curves"),
             ("SMART REST TIMERS", "Haptic countdown timers to keep intensity calibrated"),
@@ -76,14 +76,14 @@ SCENE_METADATA = {
         ]
     },
     5: {
-        "tag": "PHASE 05: OPEN SOURCE & LOCAL FUTURE",
+        "tag": "PHASE 05: UNIFIED ATHLETIC TELEMETRY",
         "tag_color": EMERALD,
-        "title": "The Future of Athletic Intelligence",
+        "title": "7D Performance Scoring & Open Source",
         "subtitle": "Enterprise-grade intelligence with zero cloud dependency.",
         "bullets": [
-            ("MODERN TECH STACK", "React Native + llama.rn + Gemma 2 + Gemini Vision"),
-            ("100% OFFLINE CAPABLE", "Train in the gym, on the trail, or in airplane mode"),
-            ("OPEN SOURCE REPOSITORY", "Available on GitHub: github.com/ntsd/zerocoach"),
+            ("UNIFIED TELEMETRY", "Correlates training volume, recovery scores, and daily nutrition"),
+            ("100% OFFLINE CAPABLE", "Train anywhere without network connection or cloud servers"),
+            ("OPEN SOURCE REPOSITORY", "Available on GitHub: github.com/ntsd/zerocoach • zerocoach.tech"),
         ]
     }
 }
@@ -332,9 +332,9 @@ def main():
     if use_live_video:
         # Scale and pad live video to 440:960, and overlay at (130, 60)
         filter_complex = (
-            "[1:v]scale=440:960:force_original_aspect_ratio=decrease,"
+            "[1:v]fps=30,scale=440:960:force_original_aspect_ratio=decrease,"
             "pad=440:960:(ow-iw)/2:(oh-ih)/2:color=black[screen];"
-            "[0:v][screen]overlay=130:60[v]"
+            "[0:v][screen]overlay=130:60:eof_action=repeat[v]"
         )
         cmd_final = [
             "ffmpeg", "-y",

@@ -1,8 +1,7 @@
 services:
   - type: web
     name: zerocoach-web
-    env: static
-    plan: free
+    runtime: static
     rootDir: web
     buildCommand: npm install && npm run build
     staticPublishPath: dist

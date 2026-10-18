@@ -1,8 +1,18 @@
 {
-  "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "allowJs": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "lib": ["DOM", "ESNext"],
+    "module": "preserve",
+    "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "customConditions": ["react-native"],
+    "noEmit": true,
+    "resolveJsonModule": true,
     "strict": true,
     "skipLibCheck": true,
+    "target": "ESNext",
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
@@ -14,6 +24,8 @@
     "dist",
     ".expo",
     "ml",
-    "web"
+    "web",
+    "android",
+    "ios"
   ]
 }

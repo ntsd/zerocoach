@@ -257,8 +257,8 @@ export const ModelManagerScreen: React.FC = () => {
                         activeOpacity={0.8}
                       >
                         <View style={styles.modelRectangleTop}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                            <Cpu size={13} color={isSelected ? modeColors.accent : COLORS.textMuted} />
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1, minWidth: 0 }}>
+                            <Cpu size={14} color={isSelected ? modeColors.accent : COLORS.textMuted} />
                             <Text
                               style={[
                                 styles.modelRectangleTitle,
@@ -269,21 +269,23 @@ export const ModelManagerScreen: React.FC = () => {
                               {m.name.split(' (')[0]}
                             </Text>
                           </View>
-                          {isSelected && <CheckCircle2 size={13} color={modeColors.accent} />}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {m.isFineTuned ? (
+                              <View style={[styles.modelTag, { backgroundColor: `${COLORS.warning}22` }]}>
+                                <Text style={[styles.modelTagText, { color: COLORS.warning }]}>EXPERIMENTAL</Text>
+                              </View>
+                            ) : (
+                              <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
+                                <Text style={[styles.modelTagText, { color: modeColors.accent }]}>RECOMMENDED</Text>
+                              </View>
+                            )}
+                            {isSelected && <CheckCircle2 size={14} color={modeColors.accent} />}
+                          </View>
                         </View>
                         <View style={styles.modelRectangleBottom}>
-                          <Text style={styles.modelRectangleMeta}>
-                            {m.sizeFormatted} • {m.quantization}
+                          <Text style={styles.modelRectangleMeta} numberOfLines={1}>
+                            {m.sizeFormatted} • {m.quantization} • {m.isFineTuned ? 'Custom Fine-Tuned Weights' : 'Baseline 2B Instruct Weights'}
                           </Text>
-                          {m.isFineTuned ? (
-                            <View style={[styles.modelTag, { backgroundColor: `${COLORS.warning}22` }]}>
-                              <Text style={[styles.modelTagText, { color: COLORS.warning }]}>EXPERIMENTAL</Text>
-                            </View>
-                          ) : (
-                            <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
-                              <Text style={[styles.modelTagText, { color: modeColors.accent }]}>RECOMMENDED</Text>
-                            </View>
-                          )}
                         </View>
                       </TouchableOpacity>
                     );
@@ -1358,51 +1360,51 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   modelCardGrid: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
+    flexDirection: 'column',
+    gap: SPACING.xs,
     marginTop: 4,
   },
   modelRectangleCard: {
-    flex: 1,
-    minHeight: 58,
+    width: '100%',
+    minHeight: 52,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: RADIUS.sm,
     backgroundColor: COLORS.cardSecondary,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
   modelRectangleTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 8,
   },
   modelRectangleTitle: {
     ...TYPOGRAPHY.bodyBold,
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textPrimary,
   },
   modelRectangleBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
-    gap: 4,
+    marginTop: 3,
+    gap: 6,
   },
   modelRectangleMeta: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   modelTag: {
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: RADIUS.xs,
   },
   modelTagText: {
-    fontSize: 8,
+    fontSize: 8.5,
     fontWeight: '800',
     letterSpacing: 0.5,
   },

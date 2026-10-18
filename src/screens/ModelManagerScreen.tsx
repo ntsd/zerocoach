@@ -237,10 +237,10 @@ export const ModelManagerScreen: React.FC = () => {
                 </Text>
               </View>
 
-              {/* Model Selector Tabs */}
+              {/* Rectangular Model Selector Cards */}
               <View style={{ marginBottom: SPACING.md }}>
                 <Text style={styles.fieldSectionLabel}>SELECT ON-DEVICE MODEL</Text>
-                <View style={{ flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' }}>
+                <View style={styles.modelCardGrid}>
                   {(availableModels || []).map((m) => {
                     const isSelected = currentModel.id === m.id;
                     return (
@@ -248,27 +248,39 @@ export const ModelManagerScreen: React.FC = () => {
                         key={m.id}
                         onPress={() => selectModel(m)}
                         style={[
-                          styles.presetChip,
-                          { flex: 1, minWidth: 140, paddingVertical: 10 },
+                          styles.modelRectangleCard,
                           isSelected && {
                             borderColor: modeColors.accent,
-                            backgroundColor: `${modeColors.accent}20`,
+                            backgroundColor: `${modeColors.accent}14`,
                           },
                         ]}
                         activeOpacity={0.8}
                       >
-                        <Text
-                          style={[
-                            styles.presetChipText,
-                            isSelected && { color: modeColors.accent, fontWeight: '700' },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {m.isFineTuned ? '⭐ ' : ''}{m.name.split(' (')[0]}
-                        </Text>
-                        <Text style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 2 }}>
-                          {m.sizeFormatted} • {m.quantization}
-                        </Text>
+                        <View style={styles.modelRectangleTop}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                            <Cpu size={13} color={isSelected ? modeColors.accent : COLORS.textMuted} />
+                            <Text
+                              style={[
+                                styles.modelRectangleTitle,
+                                isSelected && { color: modeColors.accent, fontWeight: '700' },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {m.name.split(' (')[0]}
+                            </Text>
+                          </View>
+                          {isSelected && <CheckCircle2 size={13} color={modeColors.accent} />}
+                        </View>
+                        <View style={styles.modelRectangleBottom}>
+                          <Text style={styles.modelRectangleMeta}>
+                            {m.sizeFormatted} • {m.quantization}
+                          </Text>
+                          {m.isFineTuned && (
+                            <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
+                              <Text style={[styles.modelTagText, { color: modeColors.accent }]}>ATHLETIC</Text>
+                            </View>
+                          )}
+                        </View>
                       </TouchableOpacity>
                     );
                   })}
@@ -536,7 +548,7 @@ export const ModelManagerScreen: React.FC = () => {
             <Text style={styles.cardTitle}>AI FOOD SNAP & VISION</Text>
           </View>
           <Text style={styles.otaDesc}>
-            Gemma 2 is an on-device text model. Google Gemini 3.8 Flash provides multimodal vision to recognize food dishes and portion weights from photos (1,500 snaps/day free, no credit card).
+            ZeroCoach Athletic Intelligence is an on-device model. Google Gemini provides multimodal vision to recognize food dishes and portion weights from photos (1,500 snaps/day free, no credit card).
           </Text>
 
           <Text style={[styles.fieldSectionLabel, { marginTop: 12 }]}>GOOGLE GEMINI API KEY</Text>
@@ -1340,6 +1352,55 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
     marginBottom: SPACING.xs,
+  },
+  modelCardGrid: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: 4,
+  },
+  modelRectangleCard: {
+    flex: 1,
+    minHeight: 58,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    justifyContent: 'space-between',
+  },
+  modelRectangleTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  modelRectangleTitle: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 12,
+    color: COLORS.textPrimary,
+  },
+  modelRectangleBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    gap: 4,
+  },
+  modelRectangleMeta: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
+  },
+  modelTag: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: RADIUS.xs,
+  },
+  modelTagText: {
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   presetChip: {
     paddingHorizontal: 10,

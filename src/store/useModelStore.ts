@@ -18,6 +18,8 @@ export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
   sizeFormatted: '91.7 MB',
   quantization: 'Q4_0',
   downloadUrl:
+    'https://raw.githubusercontent.com/ntsd/zerocoach/main/web/public/models/zerocoach-athletic-q4_0.gguf',
+  fallbackDownloadUrl:
     'https://zerocoach.tech/models/zerocoach-athletic-q4_0.gguf',
   isFineTuned: true,
   contextLength: 2048,
@@ -51,6 +53,7 @@ export const useModelStore = create<ModelState>()(
     (set, get) => ({
       currentModel: ZEROCOACH_ATHLETIC_MODEL,
       availableModels: AVAILABLE_MODELS,
+      userSelectedModelId: undefined,
       status: 'unloaded',
       downloadProgress: 0,
       provider: 'on_device',
@@ -65,9 +68,15 @@ export const useModelStore = create<ModelState>()(
       },
 
       selectModel: async (model: ModelMetadata) => {
-        if (get().currentModel.id === model.id) return;
+        if (get().currentModel.id === model.id && get().status === 'loaded') return;
         await get().unloadModel();
-        set({ currentModel: model, status: 'unloaded', downloadProgress: 0, errorMessage: null });
+        set({
+          currentModel: model,
+          userSelectedModelId: model.id,
+          status: 'unloaded',
+          downloadProgress: 0,
+          errorMessage: null,
+        });
 
         if (Platform.OS !== 'web' && Paths.document) {
           const destinationFile = new File(Paths.document, `${model.id}.gguf`);
@@ -113,10 +122,8 @@ export const useModelStore = create<ModelState>()(
           const destinationFile = new File(Paths.document, `${model.id}.gguf`);
           console.log(`[useModelStore] Downloading ${model.name} to: ${destinationFile.uri}`);
 
-          const downloaded = await File.downloadFileAsync(
-            model.downloadUrl,
-            destinationFile,
-            {
+          const downloadWithUrl = async (url: string) => {
+            return await File.downloadFileAsync(url, destinationFile, {
               idempotent: true,
               onProgress: (progress) => {
                 if (progress.totalBytes > 0) {
@@ -133,8 +140,22 @@ export const useModelStore = create<ModelState>()(
                   set({ downloadProgress: pct });
                 }
               },
+            });
+          };
+
+          let downloaded: any = null;
+          try {
+            downloaded = await downloadWithUrl(model.downloadUrl);
+          } catch (primaryErr: any) {
+            if (model.fallbackDownloadUrl) {
+              console.warn(
+                `[useModelStore] Primary download failed (${primaryErr?.message || primaryErr}), trying fallback: ${model.fallbackDownloadUrl}`
+              );
+              downloaded = await downloadWithUrl(model.fallbackDownloadUrl);
+            } else {
+              throw primaryErr;
             }
-          );
+          }
 
           if (downloaded && (downloaded.exists || downloaded.uri)) {
             console.log(`[useModelStore] Download complete! Auto-loading ${model.name} into memory...`);
@@ -188,22 +209,24 @@ export const useModelStore = create<ModelState>()(
         const state = get();
         if (state.provider !== 'on_device') return;
 
-        // If native llama context is already initialized in this process memory
-        if (llmService.isNativeReady()) {
-          console.log(`[useModelStore] ${state.currentModel.name} context is already active in RAM.`);
-          if (state.status !== 'loaded') {
-            set({ status: 'loaded' });
-          }
-          return;
-        }
-
-        if (state.status === 'downloading' || state.status === 'loading') {
-          return;
-        }
-
         try {
           if (!Paths.document) return;
           const destinationFile = new File(Paths.document, `${state.currentModel.id}.gguf`);
+          const nativePath = destinationFile.uri.replace(/^file:\/\//, '');
+
+          // If native llama context is already initialized with THIS model in this process memory
+          if (llmService.isNativeReady() && llmService.getLoadedModelPath() === nativePath) {
+            console.log(`[useModelStore] ${state.currentModel.name} context is already active in RAM.`);
+            if (state.status !== 'loaded') {
+              set({ status: 'loaded' });
+            }
+            return;
+          }
+
+          if (state.status === 'downloading' || state.status === 'loading') {
+            return;
+          }
+
           if (destinationFile.exists) {
             console.log(`[useModelStore] ${state.currentModel.name} file exists on disk. Automatically loading into RAM...`);
             await get().loadModel();
@@ -221,25 +244,42 @@ export const useModelStore = create<ModelState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         currentModel: state.currentModel,
+        userSelectedModelId: state.userSelectedModelId,
         provider: state.provider,
         openAIConfig: state.openAIConfig,
         geminiApiKey: state.geminiApiKey,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          if ((state.provider as string) === 'simulator') {
-            state.provider = 'on_device';
+      onRehydrateStorage: () => (hydratedState) => {
+        if (hydratedState) {
+          const updates: Partial<ModelState> = {
+            status: 'unloaded',
+            downloadProgress: 0,
+          };
+
+          if ((hydratedState.provider as string) === 'simulator') {
+            updates.provider = 'on_device';
           }
-          llmService.setProvider(state.provider);
-          llmService.updateOpenAIConfig(state.openAIConfig);
 
-          // Reset transient in-memory status on fresh process launch
-          state.status = 'unloaded';
-          state.downloadProgress = 0;
+          // Default on-device model to ZeroCoach Athletic Intelligence if not explicitly overridden by user
+          if (
+            !hydratedState.userSelectedModelId ||
+            (hydratedState.currentModel?.id === 'gemma-2-2b-it-q4_k_m' && !hydratedState.userSelectedModelId)
+          ) {
+            updates.currentModel = ZEROCOACH_ATHLETIC_MODEL;
+          } else {
+            const matched = AVAILABLE_MODELS.find((m) => m.id === hydratedState.currentModel?.id);
+            updates.currentModel = matched || ZEROCOACH_ATHLETIC_MODEL;
+          }
 
-          // Automatically ensure Gemma 2 is on disk and loaded into RAM on native devices
+          useModelStore.setState(updates);
+
+          const finalState = useModelStore.getState();
+          llmService.setProvider(finalState.provider);
+          llmService.updateOpenAIConfig(finalState.openAIConfig);
+
+          // Automatically ensure on-device model is on disk and loaded into RAM on native devices
           setTimeout(() => {
-            state.autoInitOnDeviceModel();
+            useModelStore.getState().autoInitOnDeviceModel();
           }, 400);
         }
       },

@@ -764,13 +764,13 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   contentContainerStyle={styles.tabScrollContent}
                   showsVerticalScrollIndicator={false}
                 >
-                  {/* Part 1: Text Description (Gemma 2 AI) */}
+                  {/* Part 1: Text Description (ZeroCoach On-Device AI) */}
                   <View style={styles.nlpBox}>
                     <View style={styles.nlpHeaderRow}>
                       <Text style={styles.nlpLabel}>Describe meal or ingredients:</Text>
                       <View style={styles.gemmaPill}>
                         <Sparkles size={11} color="#00F0FF" />
-                        <Text style={styles.gemmaPillText}>GEMMA 2</Text>
+                        <Text style={styles.gemmaPillText}>ZEROCOACH AI</Text>
                       </View>
                     </View>
                     <TextInput
@@ -793,7 +793,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         <Sparkles size={16} color="#080B10" />
                       )}
                       <Text style={styles.decomposeBtnText}>
-                        {isAnalyzingText ? 'Analyzing with Gemma 2...' : 'Analyze Meal with Gemma 2'}
+                        {isAnalyzingText ? 'Analyzing with ZeroCoach AI...' : 'Analyze Meal with ZeroCoach AI'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -819,7 +819,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         </View>
                         <Text style={styles.plateSnapTitle}>Snap Meal or Food Plate</Text>
                         <Text style={styles.plateSnapDesc}>
-                          Take a photo of your cooked dish, plate, drink, or snack. Gemini Vision will identify ingredients and Gemma 2 computes portion macros.
+                          Take a photo of your cooked dish, plate, drink, or snack. Gemini Vision will identify ingredients and ZeroCoach AI computes portion macros.
                         </Text>
 
                         {/* Camera & Gallery Action Buttons */}
@@ -856,7 +856,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                               <ActivityIndicator size="large" color="#00F0FF" />
                               <Text style={styles.photoAnalyzingTitle}>Analyzing Meal Photo</Text>
                               <Text style={styles.photoAnalyzingSub}>
-                                Identifying food with Gemini Vision & estimating macros with Gemma 2...
+                                Identifying food with Gemini Vision & estimating macros with ZeroCoach AI...
                               </Text>
                             </View>
                           )}

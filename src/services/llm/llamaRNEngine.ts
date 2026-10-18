@@ -9,6 +9,7 @@ export class LlamaRNEngine implements LLMEngine {
   private llamaContext: any = null;
   private isModelReady: boolean = false;
   private abortRequested: boolean = false;
+  private loadedModelPath: string | null = null;
 
   public async initialize(modelPath?: string): Promise<boolean> {
     if (!modelPath) {
@@ -39,17 +40,23 @@ export class LlamaRNEngine implements LLMEngine {
       }
 
       this.isModelReady = true;
+      this.loadedModelPath = modelPath;
       console.log('[LlamaRNEngine] llama.rn context initialized successfully.');
       return true;
     } catch (error) {
       console.warn('[LlamaRNEngine] Native llama.rn initialization unavailable:', error);
       this.isModelReady = false;
+      this.loadedModelPath = null;
       return false;
     }
   }
 
   public isReady(): boolean {
     return this.isModelReady && this.llamaContext !== null;
+  }
+
+  public getLoadedModelPath(): string | null {
+    return this.loadedModelPath;
   }
 
   public stopCompletion(): void {
@@ -73,6 +80,7 @@ export class LlamaRNEngine implements LLMEngine {
     }
     this.llamaContext = null;
     this.isModelReady = false;
+    this.loadedModelPath = null;
   }
 
   public async streamCompletion(

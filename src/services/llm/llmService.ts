@@ -45,6 +45,10 @@ export class LLMService {
     return this.nativeEngine.isReady();
   }
 
+  public getLoadedModelPath(): string | null {
+    return this.nativeEngine.getLoadedModelPath();
+  }
+
   public getActiveEngine(): LLMEngine {
     if (this.provider === 'openai_compatible') {
       return this.openAIEngine;

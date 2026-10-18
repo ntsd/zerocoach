@@ -51,7 +51,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
   } = useChatStore();
 
   const { mode } = useCoachStore();
-  const { provider, status, downloadProgress } = useModelStore();
+  const { provider, status, downloadProgress, currentModel } = useModelStore();
   const modeColors = getModeColors(mode);
 
   const handleSend = async (textToSend?: string) => {
@@ -156,7 +156,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           <View style={styles.downloadBanner}>
             <View style={styles.downloadBannerHeader}>
               <Text style={styles.downloadBannerTitle}>
-                Downloading Gemma 2 weights ({downloadProgress}%)
+                Downloading {currentModel?.name || 'ZeroCoach AI'} weights ({downloadProgress}%)
               </Text>
               <Text style={styles.downloadBannerSub}>Auto-loading into RAM upon completion</Text>
             </View>
@@ -177,7 +177,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
         {provider === 'on_device' && Platform.OS !== 'web' && status === 'loading' && (
           <View style={styles.loadingBanner}>
             <Text style={[styles.loadingBannerText, { color: modeColors.accent }]}>
-              ⚡ Allocating Gemma 2 context into device RAM via llama.rn...
+              ⚡ Allocating {currentModel?.name || 'ZeroCoach AI'} context into device RAM via llama.rn...
             </Text>
           </View>
         )}

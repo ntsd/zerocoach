@@ -275,7 +275,7 @@ export async function decomposeMealWithGemma(
   }
 
   try {
-    const prompt = `You are Gemma 2, an on-device sports nutrition AI. Analyze this meal description: "${clean}".
+    const prompt = `You are ZeroCoach, an on-device sports nutrition AI. Analyze this meal description: "${clean}".
 Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Follow this exact structure:
 {
   "dishTitle": "Name of the meal",
@@ -297,7 +297,7 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Fo
     const res = await llmService.streamCompletion(
       {
         systemPrompt:
-          'You are Gemma 2, an athletic coach and nutritionist. Always output valid JSON strictly following the schema without markdown or conversational filler.',
+          'You are ZeroCoach, an athletic coach and nutritionist. Always output valid JSON strictly following the schema without markdown or conversational filler.',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
         maxTokens: 350,

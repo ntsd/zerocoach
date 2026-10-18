@@ -15,6 +15,7 @@ export interface ModelMetadata {
   sizeFormatted: string;
   quantization: string; // e.g. 'Q4_K_M'
   downloadUrl: string;
+  fallbackDownloadUrl?: string;
   isFineTuned: boolean;
   contextLength: number;
 }
@@ -38,6 +39,7 @@ export interface OpenAICompatibleConfig {
 export interface ModelState {
   currentModel: ModelMetadata;
   availableModels: ModelMetadata[];
+  userSelectedModelId?: string;
   status: ModelStatus;
   downloadProgress: number; // 0 to 100
   provider: LLMProviderType;

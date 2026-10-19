@@ -6,6 +6,7 @@
     "@expo/metro-runtime": "~57.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.29",
+    "expo-build-properties": "~57.0.22",
     "expo-camera": "~57.0.6",
     "expo-file-system": "~57.0.7",
     "expo-image-picker": "~57.0.20",
@@ -27,7 +28,8 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "eas-cli": "^25.1.1",
-    "typescript": "~6.0.3"
+    "patch-package": "^8.0.1",
+    "typescript": "~5.9.3"
   },
   "scripts": {
     "start": "expo start",
@@ -37,7 +39,8 @@
     "build:apk": "cd android && ./gradlew assembleRelease",
     "build:apk-debug": "cd android && ./gradlew assembleDebug",
     "update:publish": "eas update --branch production",
-    "update:preview": "eas update --branch preview"
+    "update:preview": "eas update --branch preview",
+    "postinstall": "patch-package"
   },
   "private": true
 }

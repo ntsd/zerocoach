@@ -1,0 +1,81 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout 
+  title="Privacy Policy — ZeroCoach"
+  description="Privacy Policy for ZeroCoach mobile application. Learn how your health, camera, and device data are protected with on-device processing."
+>
+  <Navbar />
+  <main class="min-h-screen pt-32 pb-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-slate-300">
+    <div class="mb-10 border-b border-white/10 pb-8">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-4">
+        Privacy Policy
+      </span>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-tight">ZeroCoach Privacy Policy</h1>
+      <p class="text-sm font-mono text-slate-500 mt-2">Last updated: October 19, 2026</p>
+    </div>
+
+    <div class="prose prose-invert max-w-none space-y-8 leading-relaxed text-slate-300">
+      <p class="text-base text-slate-400">
+        ZeroCoach (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;the app&rdquo;) is committed to protecting your personal privacy. This Privacy Policy details our practices concerning information accessed or processed when you use our mobile application (<strong>ZeroCoach</strong>, <code>tech.zerocoach.app</code>) across iOS and Android.
+      </p>
+
+      <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
+        <h2 class="text-xl font-bold text-white font-mono">1. Privacy-First & On-Device Processing</h2>
+        <p>
+          ZeroCoach is engineered with an on-device architecture. Wherever supported by your hardware, AI coaching, exercise recommendations, and conversational language models (e.g. Gemma 2 via GGUF) run <strong>strictly on your device</strong>. Your conversations and workout telemetry stay on your device and are never sent to external servers for training or surveillance.
+        </p>
+      </section>
+
+      <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
+        <h2 class="text-xl font-bold text-white font-mono">2. Health & Fitness Data (Apple Health & Android Health Connect)</h2>
+        <p>With your explicit opt-in consent, ZeroCoach requests read/write access to platform health repositories:</p>
+        <ul class="list-disc pl-6 space-y-2 text-slate-400">
+          <li><strong>Metrics Accessed:</strong> Steps, active and total calories burned, resting heart rate, heart rate variability (HRV), sleep duration and sleep phases, body weight, and height.</li>
+          <li><strong>Purpose of Processing:</strong> Health data is used solely to calculate athletic recovery readiness scores, detect fatigue, and calibrate workout volume.</li>
+          <li><strong>No Data Monetization:</strong> We do not sell, rent, lease, or monetize your health information. We do not provide health data to third-party data brokers, ad networks, or credit agencies.</li>
+        </ul>
+      </section>
+
+      <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
+        <h2 class="text-xl font-bold text-white font-mono">3. Camera Permission</h2>
+        <p>
+          ZeroCoach requests camera access only when you choose to use features requiring visual input—such as taking a photo of a meal or nutritional label for macronutrient analysis. Captured images are processed for the immediate feature and are not retained or shared for advertising purposes.
+        </p>
+      </section>
+
+      <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
+        <h2 class="text-xl font-bold text-white font-mono">4. Third-Party Integrations & Cloud Fallback</h2>
+        <p>
+          If you optionally enable external AI services (such as ElevenLabs voice synthesis or remote cloud LLM fallback), only the minimal text prompt necessary to generate the response is transmitted securely over TLS encryption. No health identifiers or profiling data are shared.
+        </p>
+      </section>
+
+      <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
+        <h2 class="text-xl font-bold text-white font-mono">5. Data Retention & Control</h2>
+        <p>
+          Workout telemetry and user preferences reside in your local device application sandbox. You retain full control over your data:
+        </p>
+        <ul class="list-disc pl-6 space-y-1 text-slate-400">
+          <li>You can revoke Apple Health or Health Connect permissions at any time through your device system settings.</li>
+          <li>You can purge all application logs and history simply by clearing application storage or uninstalling the app.</li>
+        </ul>
+      </section>
+
+      <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
+        <h2 class="text-xl font-bold text-white font-mono">6. Contact & Inquiries</h2>
+        <p>
+          For any questions, concerns, or inquiries regarding this Privacy Policy, please reach out to:
+        </p>
+        <div class="mt-2 font-mono text-sm space-y-1">
+          <p>Email: <a href="mailto:contact@hotcode.dev" class="text-emerald-400 hover:underline">contact@hotcode.dev</a></p>
+          <p>Website: <a href="https://zerocoach.tech" class="text-cyan-400 hover:underline">https://zerocoach.tech</a></p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <Footer />
+</Layout>

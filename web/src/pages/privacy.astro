@@ -54,15 +54,24 @@ import Footer from '../components/Footer.astro';
         </p>
       </section>
 
-      <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
-        <h2 class="text-xl font-bold text-white font-mono">5. Data Retention & Control</h2>
+      <section id="data-deletion" class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">
+        <h2 class="text-xl font-bold text-white font-mono">5. Data Retention & Deletion Request</h2>
         <p>
-          Workout telemetry and user preferences reside in your local device application sandbox. You retain full control over your data:
+          ZeroCoach is offline-first. Workout telemetry, custom workouts, and AI conversations reside locally in your device application sandbox. We do not store your fitness profiles or conversation logs on external cloud servers.
         </p>
-        <ul class="list-disc pl-6 space-y-1 text-slate-400">
-          <li>You can revoke Apple Health or Health Connect permissions at any time through your device system settings.</li>
-          <li>You can purge all application logs and history simply by clearing application storage or uninstalling the app.</li>
-        </ul>
+        <div class="space-y-2 text-slate-400">
+          <p><strong class="text-white">How to delete your local data:</strong></p>
+          <ul class="list-disc pl-6 space-y-1">
+            <li>You can purge all application logs, history, and cached model weights at any time by going to your phone's <em>Settings &gt; Apps &gt; ZeroCoach &gt; Clear Data / Storage</em> or simply by uninstalling the application.</li>
+            <li>You can revoke Apple Health or Android Health Connect permissions at any time via your device system settings.</li>
+          </ul>
+          <p class="pt-2"><strong class="text-white">Request account or remote data deletion:</strong></p>
+          <p>
+            If you have contacted our team or wish to confirm complete deletion of any support tickets or associated email correspondence, you can submit a deletion request directly to:
+            <br>
+            <a href="mailto:contact@hotcode.dev?subject=ZeroCoach%20Data%20Deletion%20Request" class="text-emerald-400 hover:underline font-mono">contact@hotcode.dev (Subject: ZeroCoach Data Deletion Request)</a>
+          </p>
+        </div>
       </section>
 
       <section class="rounded-xl border border-white/10 bg-[#0B0E14] p-6 space-y-3">

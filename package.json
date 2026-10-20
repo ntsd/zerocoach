@@ -38,6 +38,11 @@
     "web": "expo start --web",
     "build:apk": "cd android && ./gradlew assembleRelease",
     "build:apk-debug": "cd android && ./gradlew assembleDebug",
+    "build:aab": "cd android && ./gradlew bundleRelease",
+    "publish:android": "npm run build:aab && npx eas submit --platform android --path android/app/build/outputs/bundle/release/app-release.aab",
+    "publish:ios": "npx eas build --platform ios --profile production --local --auto-submit",
+    "build:ios": "eas build --platform ios --profile production --auto-submit",
+    "build:android": "eas build --platform android --profile production --auto-submit",
     "update:publish": "eas update --branch production",
     "update:preview": "eas update --branch preview",
     "postinstall": "patch-package"

@@ -23,5 +23,11 @@ services:
         value: public, max-age=31536000, immutable
     routes:
       - type: rewrite
+        source: /privacy
+        destination: /privacy/index.html
+      - type: rewrite
+        source: /privacy/
+        destination: /privacy/index.html
+      - type: rewrite
         source: /*
         destination: /index.html

@@ -76,7 +76,8 @@
           "android": {
             "minSdkVersion": 26,
             "extraGradleProperties": {
-              "reactNativeArchitectures": "arm64-v8a,armeabi-v7a",
+              "reactNativeArchitectures": "arm64-v8a",
+              "rnllamaVariants": "default",
               "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
             }
           }

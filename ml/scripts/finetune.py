@@ -52,9 +52,16 @@ class ZeroCoachDataset(Dataset):
         user_prompt = item.get("user_prompt", "")
         response = item.get("response", "")
 
-        # Format prompt and completion
-        prompt_text = f"<start_of_turn>user\n{sys_prompt}\n\n{user_prompt}<end_of_turn>\n<start_of_turn>model\n"
-        full_text = f"{prompt_text}{response}<end_of_turn>"
+        # Format prompt and completion: ChatML for Qwen, Gemma format for Gemma
+        model_name = getattr(self.tokenizer, "name_or_path", "").lower()
+        if "gemma" in model_name:
+            prompt_text = f"<start_of_turn>user\n{sys_prompt}\n\n{user_prompt}<end_of_turn>\n<start_of_turn>model\n"
+            full_text = f"{prompt_text}{response}<end_of_turn>"
+        else:
+            # Native ChatML template for Qwen 3 / Qwen 2.5
+            sys_block = f"<|im_start|>system\n{sys_prompt}<|im_end|>\n" if sys_prompt else ""
+            prompt_text = f"{sys_block}<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
+            full_text = f"{prompt_text}{response}<|im_end|>\n"
 
         prompt_ids = self.tokenizer.encode(prompt_text, add_special_tokens=True)
         full_ids = self.tokenizer.encode(full_text, add_special_tokens=True)
@@ -103,13 +110,13 @@ def collate_fn(batch, pad_token_id: int):
 
 def main():
     parser = argparse.ArgumentParser(description="ZeroCoach Fine-Tuner")
-    parser.add_argument("--model_id", type=str, default="HuggingFaceTB/SmolLM-135M-Instruct", help="Base model ID (e.g. unsloth/gemma-2-2b-it or SmolLM)")
+    parser.add_argument("--model_id", type=str, default="Qwen/Qwen3-1.7B", help="Base model ID (e.g. Qwen/Qwen3-1.7B or Qwen/Qwen2.5-1.5B-Instruct)")
     parser.add_argument("--epochs", type=int, default=2, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size per step")
     parser.add_argument("--grad_accum", type=int, default=2, help="Gradient accumulation steps")
-    parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
-    parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
-    parser.add_argument("--max_samples", type=int, default=400, help="Max train samples to train on for fast local verification")
+    parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
+    parser.add_argument("--max_length", type=int, default=1024, help="Maximum sequence length")
+    parser.add_argument("--max_samples", type=int, default=None, help="Max train samples to train on (None for all)")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -137,18 +144,22 @@ def main():
     pad_id = tokenizer.pad_token_id
 
     # Load Base Model
-    print(f"Loading base model: {args.model_id}...")
-    torch_dtype = torch.float32 if device.type == "mps" else torch.float32
+    print(f"Loading base model: {args.model_id}...", flush=True)
+    torch_dtype = torch.bfloat16 if (device.type in ("cuda", "mps")) else torch.float32
     model = AutoModelForCausalLM.from_pretrained(
         args.model_id,
         torch_dtype=torch_dtype,
         trust_remote_code=True
     )
+    if hasattr(model, "enable_input_require_grads"):
+        model.enable_input_require_grads()
+    if hasattr(model, "gradient_checkpointing_enable"):
+        model.gradient_checkpointing_enable()
 
     # Configure LoRA
-    print("Setting up PEFT LoRA adapter...")
-    # Find linear modules to adapt
-    target_modules = ["q_proj", "v_proj", "k_proj", "o_proj"]
+    print("Setting up PEFT LoRA adapter...", flush=True)
+    # Find linear modules to adapt across all attention and MLP projections
+    target_modules = ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     lora_config = LoraConfig(
         r=16,
         lora_alpha=32,
@@ -162,7 +173,7 @@ def main():
     model.to(device)
 
     trainable_params, all_params = model.get_nb_trainable_parameters()
-    print(f"Trainable Parameters: {trainable_params:,} / {all_params:,} ({trainable_params / all_params * 100:.2f}%)")
+    print(f"Trainable Parameters: {trainable_params:,} / {all_params:,} ({trainable_params / all_params * 100:.2f}%)", flush=True)
 
     # Load Datasets
     train_dataset = ZeroCoachDataset(DATA_DIR / "zerocoach_train.jsonl", tokenizer, max_length=args.max_length)
@@ -235,7 +246,7 @@ def main():
                 if step_count % 10 == 0:
                     avg_loss = total_loss / (step + 1)
                     current_lr = scheduler.get_last_lr()[0]
-                    print(f"Epoch {epoch}/{args.epochs} | Step {step_count}/{len(train_loader)//args.grad_accum} | Train Loss: {avg_loss:.4f} | LR: {current_lr:.6f}")
+                    print(f"Epoch {epoch}/{args.epochs} | Step {step_count}/{len(train_loader)//args.grad_accum} | Train Loss: {avg_loss:.4f} | LR: {current_lr:.6f}", flush=True)
 
         epoch_train_loss = total_loss / len(train_loader)
 
@@ -280,8 +291,8 @@ def main():
         "model_name": "ZeroCoach-Athletic-Intelligence-v1",
         "base_model": args.model_id,
         "adapter_type": "LoRA (PEFT)",
-        "target_architecture": "Gemma 2 / Llama compatible",
-        "chat_template": "gemma2",
+        "target_architecture": "Qwen 3 (1.7B) / Llama compatible",
+        "chat_template": "chatml",
         "trainable_parameters": trainable_params,
         "total_parameters": all_params,
         "epochs": args.epochs,

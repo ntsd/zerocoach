@@ -28,8 +28,8 @@ def main():
     parser.add_argument(
         "--base_model",
         type=str,
-        default="HuggingFaceTB/SmolLM-135M-Instruct",
-        help="Base model ID used during fine-tuning (e.g. HuggingFaceTB/SmolLM-135M-Instruct or google/gemma-2-2b-it)"
+        default="Qwen/Qwen3-1.7B",
+        help="Base model ID used during fine-tuning (e.g. Qwen/Qwen3-1.7B or google/gemma-2-2b-it)"
     )
     parser.add_argument(
         "--adapter_dir",
@@ -87,22 +87,23 @@ def main():
 
     # 4. Generate Ollama Modelfile
     print("4. Generating Ollama Modelfile for local LAN / desktop serving...")
-    modelfile_content = f"""# ZeroCoach Athletic Intelligence Modelfile
+    modelfile_content = f"""# ZeroCoach Athletic Intelligence Modelfile (Qwen 3 1.7B)
 FROM {merged_path.resolve()}
 
-TEMPLATE \"\"\"<start_of_turn>user
-{{{{ if .System }}}}{{{{ .System }}}}
-
-{{{{ end }}}}{{{{ .Prompt }}}}<end_of_turn>
-<start_of_turn>model
-{{{{ .Response }}}}\"\"\"
+TEMPLATE \"\"\"{{{{ if .System }}}}<|im_start|>system
+{{{{ .System }}}}<|im_end|>
+{{{{ end }}}}{{{{ if .Prompt }}}}<|im_start|>user
+{{{{ .Prompt }}}}<|im_end|>
+{{{{ end }}}}<|im_start|>assistant
+{{{{ .Response }}}}<|im_end|>\"\"\"
 
 SYSTEM \"\"\"You are ZeroCoach, an elite athletic coach operating with dual-mode intelligence: Strict compound mechanics vs. Comfortable sustainable longevity. You autoregulate training based on readiness score (RPE 6-7 deload for <60, progressive overload for >=80).\"\"\"
 
 PARAMETER temperature 0.7
 PARAMETER top_p 0.9
-PARAMETER stop "<start_of_turn>"
-PARAMETER stop "<end_of_turn>"
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"
 PARAMETER stop "<eos>"
 """
     modelfile_path = merged_path / "Modelfile"

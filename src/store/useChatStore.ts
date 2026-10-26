@@ -59,8 +59,8 @@ export const useChatStore = create<ChatState>()(
         const modelState = useModelStore.getState();
         const isCompactModel =
           modelState.provider === 'on_device' &&
-          (modelState.currentModel.id === 'zerocoach-athletic-q4_0' ||
-            modelState.currentModel.sizeBytes < 500000000);
+          (modelState.currentModel.sizeBytes < 500000000 ||
+            modelState.currentModel.id === 'zerocoach-athletic-q4_0');
 
         const nutritionSummary = {
           totalCalories: currentNutritionSummary.totalCalories,

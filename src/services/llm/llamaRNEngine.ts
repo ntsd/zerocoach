@@ -96,9 +96,16 @@ export class LlamaRNEngine implements LLMEngine {
     let accumulatedText = '';
     let tokenCount = 0;
 
-    // Format chat prompt using official Gemma 2 instruction template
+    // Dynamic prompt formatting: ChatML for Qwen 3 / ZeroCoach Athletic, Gemma template for Gemma 2
     const userMessage = request.messages[request.messages.length - 1]?.content || '';
-    const fullPrompt = `<start_of_turn>user\n${request.systemPrompt ? `${request.systemPrompt}\n\n` : ''}${userMessage}<end_of_turn>\n<start_of_turn>model\n`;
+    const isQwenOrChatML =
+      !this.loadedModelPath ||
+      this.loadedModelPath.toLowerCase().includes('qwen') ||
+      this.loadedModelPath.toLowerCase().includes('zerocoach');
+
+    const fullPrompt = isQwenOrChatML
+      ? `<|im_start|>system\n${request.systemPrompt || 'You are ZeroCoach, an elite athletic coach and sports scientist.'}<|im_end|>\n<|im_start|>user\n${userMessage}<|im_end|>\n<|im_start|>assistant\n`
+      : `<start_of_turn>user\n${request.systemPrompt ? `${request.systemPrompt}\n\n` : ''}${userMessage}<end_of_turn>\n<start_of_turn>model\n`;
 
     const result = await this.llamaContext.completion(
       {
@@ -113,6 +120,7 @@ export class LlamaRNEngine implements LLMEngine {
         stop: [
           '<start_of_turn>',
           '<end_of_turn>',
+          '<|im_start|>',
           '<|im_end|>',
           '<|endoftext|>',
           '<eos>',

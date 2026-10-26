@@ -24,22 +24,22 @@ export const GEMMA_2_MODEL: ModelMetadata = {
 };
 
 export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
-  id: 'zerocoach-athletic-q4_0',
-  name: 'ZeroCoach Athletic (Experimental 135M)',
-  sizeBytes: 91726592,
-  sizeFormatted: '91.7 MB',
-  quantization: 'Q4_0',
+  id: 'zerocoach-athletic-qwen3-1.7b-q4_k_m',
+  name: 'ZeroCoach Athletic (Qwen 3 1.7B Fine-Tuned)',
+  sizeBytes: 1050000000,
+  sizeFormatted: '1.05 GB',
+  quantization: 'Q4_K_M',
   downloadUrl:
-    'https://raw.githubusercontent.com/ntsd/zerocoach/main/web/public/models/zerocoach-athletic-q4_0.gguf',
+    'https://huggingface.co/ntsd/zerocoach-athletic-qwen3-1.7b-GGUF/resolve/main/zerocoach-athletic-qwen3-1.7b-q4_k_m.gguf',
   fallbackDownloadUrl:
-    'https://zerocoach.tech/models/zerocoach-athletic-q4_0.gguf',
+    'https://zerocoach.tech/models/zerocoach-athletic-qwen3-1.7b-q4_k_m.gguf',
   isFineTuned: true,
   contextLength: 2048,
 };
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [
-  GEMMA_2_MODEL,
   ZEROCOACH_ATHLETIC_MODEL,
+  GEMMA_2_MODEL,
 ];
 
 const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
@@ -51,9 +51,9 @@ const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
 export const useModelStore = create<ModelState>()(
   persist(
     (set, get) => ({
-      currentModel: GEMMA_2_MODEL,
+      currentModel: ZEROCOACH_ATHLETIC_MODEL,
       availableModels: AVAILABLE_MODELS,
-      userSelectedModelId: undefined,
+      userSelectedModelId: ZEROCOACH_ATHLETIC_MODEL.id,
       status: 'unloaded',
       downloadProgress: 0,
       provider: 'on_device',
@@ -260,16 +260,17 @@ export const useModelStore = create<ModelState>()(
             updates.provider = 'on_device';
           }
 
-          // Default on-device model to Gemma 2 (recommended baseline)
+          // Default on-device model to ZeroCoach Athletic (Qwen 3 1.7B Fine-Tuned)
           if (
             !hydratedState.userSelectedModelId ||
-            hydratedState.currentModel?.id === 'zerocoach-athletic-q4_0'
+            hydratedState.currentModel?.id === 'zerocoach-athletic-q4_0' ||
+            hydratedState.currentModel?.id === 'zerocoach-athletic-qwen3-1.7b-q4_k_m'
           ) {
-            updates.currentModel = GEMMA_2_MODEL;
-            updates.userSelectedModelId = GEMMA_2_MODEL.id;
+            updates.currentModel = ZEROCOACH_ATHLETIC_MODEL;
+            updates.userSelectedModelId = ZEROCOACH_ATHLETIC_MODEL.id;
           } else {
             const matched = AVAILABLE_MODELS.find((m) => m.id === hydratedState.currentModel?.id);
-            updates.currentModel = matched || GEMMA_2_MODEL;
+            updates.currentModel = matched || ZEROCOACH_ATHLETIC_MODEL;
           }
 
           useModelStore.setState(updates);

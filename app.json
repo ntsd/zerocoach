@@ -2,17 +2,18 @@
   "expo": {
     "name": "ZeroCoach",
     "slug": "zerocoach",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0B0E14",
     "newArchEnabled": false,
-    "runtimeVersion": "1.1.0",
+    "runtimeVersion": "1.2.0",
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/5ce2eec9-4f3d-4b0c-ac28-afed84d5d5b6"
     },
     "ios": {
       "supportsTablet": true,

@@ -37,8 +37,23 @@ export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
   contextLength: 2048,
 };
 
+export const QWEN_3_INSTRUCT_MODEL: ModelMetadata = {
+  id: 'qwen3-1.7b-instruct-q4_k_m',
+  name: 'Qwen 3 1.7B Instruct (General + Athletic)',
+  sizeBytes: 1217000000,
+  sizeFormatted: '1.21 GB',
+  quantization: 'Q4_K_M',
+  downloadUrl:
+    'https://huggingface.co/ntsd/zerocoach-athletic-qwen3-1.7b-GGUF/resolve/main/qwen3-1.7b-instruct-q4_k_m.gguf',
+  fallbackDownloadUrl:
+    'https://zerocoach.tech/models/qwen3-1.7b-instruct-q4_k_m.gguf',
+  isFineTuned: false,
+  contextLength: 4096,
+};
+
 export const AVAILABLE_MODELS: ModelMetadata[] = [
   ZEROCOACH_ATHLETIC_MODEL,
+  QWEN_3_INSTRUCT_MODEL,
   GEMMA_2_MODEL,
 ];
 

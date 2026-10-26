@@ -96,22 +96,35 @@ export class LlamaRNEngine implements LLMEngine {
     let accumulatedText = '';
     let tokenCount = 0;
 
-    // Dynamic prompt formatting: ChatML for Qwen 3 / ZeroCoach Athletic, Gemma template for Gemma 2
-    const userMessage = request.messages[request.messages.length - 1]?.content || '';
+    // Dynamic prompt formatting: multi-turn ChatML for Qwen 3 / ZeroCoach Athletic, Gemma template for Gemma 2
     const isQwenOrChatML =
       !this.loadedModelPath ||
       this.loadedModelPath.toLowerCase().includes('qwen') ||
       this.loadedModelPath.toLowerCase().includes('zerocoach');
 
-    const fullPrompt = isQwenOrChatML
-      ? `<|im_start|>system\n${request.systemPrompt || 'You are ZeroCoach, an elite athletic coach and sports scientist.'}<|im_end|>\n<|im_start|>user\n${userMessage}<|im_end|>\n<|im_start|>assistant\n`
-      : `<start_of_turn>user\n${request.systemPrompt ? `${request.systemPrompt}\n\n` : ''}${userMessage}<end_of_turn>\n<start_of_turn>model\n`;
+    let fullPrompt = '';
+    if (isQwenOrChatML) {
+      const sysPrompt = request.systemPrompt || 'You are ZeroCoach, an elite athletic coach and sports scientist.';
+      fullPrompt = `<|im_start|>system\n${sysPrompt}<|im_end|>\n`;
+      for (const msg of request.messages) {
+        fullPrompt += `<|im_start|>${msg.role}\n${msg.content}<|im_end|>\n`;
+      }
+      fullPrompt += `<|im_start|>assistant\n<think>\n\n</think>\n\n`;
+    } else {
+      fullPrompt = request.systemPrompt ? `<start_of_turn>system\n${request.systemPrompt}<end_of_turn>\n` : '';
+      for (const msg of request.messages) {
+        fullPrompt += `<start_of_turn>${msg.role === 'assistant' ? 'model' : 'user'}\n${msg.content}<end_of_turn>\n`;
+      }
+      fullPrompt += `<start_of_turn>model\n`;
+    }
+
+    let inThinkTag = false;
 
     const result = await this.llamaContext.completion(
       {
         prompt: fullPrompt,
         n_predict: request.maxTokens || 512,
-        temperature: request.temperature || 0.6,
+        temperature: request.temperature || 0.7,
         top_p: 0.9,
         top_k: 40,
         penalty_repeat: 1.18,
@@ -139,10 +152,25 @@ export class LlamaRNEngine implements LLMEngine {
             data.token.includes('<start_of_turn>') ||
             data.token.includes('<end_of_turn>') ||
             data.token.includes('<|im_end|>') ||
-            data.token.includes('<|endoftext|>')
+            data.token.includes('<|endoftext|>') ||
+            data.token.includes('<|im_start|>')
           ) {
             return;
           }
+
+          // Handle Qwen 3 thinking tags to prevent leaking internal chain-of-thought into UI
+          if (data.token.includes('<think>') || data.token.includes('[Start thinking]')) {
+            inThinkTag = true;
+            return;
+          }
+          if (data.token.includes('</think>') || data.token.includes('[End thinking]')) {
+            inThinkTag = false;
+            return;
+          }
+          if (inThinkTag) {
+            return;
+          }
+
           tokenCount++;
           accumulatedText += data.token;
           onToken(data.token);

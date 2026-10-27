@@ -47,6 +47,8 @@
     "build:android": "eas build --platform android --profile production --auto-submit",
     "update:publish": "eas update --branch production",
     "update:preview": "eas update --branch preview",
+    "patch:release": "cmpatch release-react",
+    "patch:init": "cmpatch init",
     "postinstall": "patch-package"
   },
   "private": true

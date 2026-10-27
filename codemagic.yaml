@@ -1,0 +1,90 @@
+# Codemagic CI/CD configuration for ZeroCoach (Expo / React Native)
+# Documentation: https://docs.codemagic.io/yaml-quick-start/
+
+workflows:
+  android-release:
+    name: Android Release Build & Publish
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      node: 22.13.1
+      groups:
+        - google_play_credentials # Define GCLOUD_SERVICE_ACCOUNT_CREDENTIALS in Codemagic UI
+      vars:
+        PACKAGE_NAME: "tech.zerocoach.app"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
+          source: true
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci || npm install
+      - name: Generate native Android project (Expo Prebuild)
+        script: |
+          npx expo prebuild --platform android --clean
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+      - name: Build Android App Bundle (AAB)
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+      - android/app/build/outputs/apk/release/*.apk
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: production
+        submit_as_draft: false
+
+  ios-release:
+    name: iOS Release Build & Publish (TestFlight / App Store)
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      node: 22.13.1
+      groups:
+        - app_store_credentials # Define APP_STORE_CONNECT_PRIVATE_KEY, KEY_IDENTIFIER, ISSUER_ID in Codemagic UI
+      vars:
+        BUNDLE_ID: "tech.zerocoach.app"
+        XCODE_WORKSPACE: "ios/ZeroCoach.xcworkspace"
+        XCODE_SCHEME: "ZeroCoach"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "main"
+          include: true
+          source: true
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci || npm install
+      - name: Generate native iOS project (Expo Prebuild)
+        script: |
+          npx expo prebuild --platform ios --clean
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+      - name: Set up code signing on Xcode project
+        script: |
+          xcode-project use-profiles
+      - name: Build iOS IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

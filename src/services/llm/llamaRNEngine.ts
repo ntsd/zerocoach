@@ -11,6 +11,7 @@ export class LlamaRNEngine implements LLMEngine {
   private abortRequested: boolean = false;
   private isInferring: boolean = false;
   private loadedModelPath: string | null = null;
+  private isMultimodalActive: boolean = false;
 
   public async initialize(modelPath?: string): Promise<boolean> {
     if (!modelPath) {
@@ -56,6 +57,32 @@ export class LlamaRNEngine implements LLMEngine {
     }
   }
 
+  public async initMultimodal(mmprojPath: string): Promise<boolean> {
+    if (!this.llamaContext || typeof this.llamaContext.initMultimodal !== 'function') {
+      console.warn('[LlamaRNEngine] initMultimodal called but llama context is not ready.');
+      return false;
+    }
+    try {
+      console.log(`[LlamaRNEngine] Initializing multimodal vision with mmproj: ${mmprojPath}`);
+      const success = await this.llamaContext.initMultimodal({
+        path: mmprojPath,
+        use_gpu: Platform.OS === 'ios',
+        image_max_tokens: 512,
+      });
+      this.isMultimodalActive = Boolean(success);
+      console.log(`[LlamaRNEngine] initMultimodal success: ${this.isMultimodalActive}`);
+      return this.isMultimodalActive;
+    } catch (err) {
+      console.warn('[LlamaRNEngine] initMultimodal failed:', err);
+      this.isMultimodalActive = false;
+      return false;
+    }
+  }
+
+  public isMultimodalEnabled(): boolean {
+    return this.isMultimodalActive;
+  }
+
   public isReady(): boolean {
     return this.isModelReady && this.llamaContext !== null;
   }
@@ -77,6 +104,7 @@ export class LlamaRNEngine implements LLMEngine {
   }
 
   public async unload(): Promise<void> {
+    this.isMultimodalActive = false;
     if (this.llamaContext && typeof this.llamaContext.release === 'function') {
       try {
         await this.llamaContext.release();
@@ -165,31 +193,38 @@ export class LlamaRNEngine implements LLMEngine {
 
       console.log(`[LlamaRNEngine] Sending prompt to llama.rn (${fullPrompt.length} chars, temp: ${temperature})`);
 
+      const completionParams: any = {
+        prompt: fullPrompt,
+        n_predict: request.maxTokens || 512,
+        temperature,
+        top_p: topP,
+        top_k: topK,
+        penalty_repeat: penaltyRepeat,
+        penalty_freq: 0.1,
+        penalty_present: 0.1,
+        stop: [
+          '<start_of_turn>',
+          '<end_of_turn>',
+          '<|im_start|>',
+          '<|im_end|>',
+          '<|endoftext|>',
+          '<eos>',
+          '</s>',
+          'User:',
+          'user:',
+          'Assistant:',
+          'assistant:',
+          'Athlete:',
+        ],
+      };
+
+      if (request.mediaPaths && request.mediaPaths.length > 0) {
+        completionParams.media_paths = request.mediaPaths;
+        console.log(`[LlamaRNEngine] Attaching ${request.mediaPaths.length} image path(s) to completion:`, request.mediaPaths);
+      }
+
       const result = await this.llamaContext.completion(
-        {
-          prompt: fullPrompt,
-          n_predict: request.maxTokens || 512,
-          temperature,
-          top_p: topP,
-          top_k: topK,
-          penalty_repeat: penaltyRepeat,
-          penalty_freq: 0.1,
-          penalty_present: 0.1,
-          stop: [
-            '<start_of_turn>',
-            '<end_of_turn>',
-            '<|im_start|>',
-            '<|im_end|>',
-            '<|endoftext|>',
-            '<eos>',
-            '</s>',
-            'User:',
-            'user:',
-            'Assistant:',
-            'assistant:',
-            'Athlete:',
-          ],
-        },
+        completionParams,
         (data: { token: string }) => {
           if (!this.abortRequested && data.token) {
             // Filter special tokens or turn markers that might leak into user stream

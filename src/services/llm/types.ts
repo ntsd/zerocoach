@@ -5,6 +5,7 @@ export interface CompletionRequest {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   temperature?: number;
   maxTokens?: number;
+  mediaPaths?: string[];
 }
 
 export interface CompletionResult {

@@ -59,6 +59,10 @@ export const ModelManagerScreen: React.FC = () => {
     availableModels,
     status,
     downloadProgress,
+    isMmprojDownloading,
+    mmprojDownloadProgress,
+    isMmprojDownloaded,
+    downloadMmproj,
     provider,
     openAIConfig,
     geminiApiKey,
@@ -524,6 +528,60 @@ export const ModelManagerScreen: React.FC = () => {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Vision Projector Section (for models that support offline camera multimodal) */}
+              {currentModel.mmprojDownloadUrl && (
+                <View style={styles.projectorCard}>
+                  <View style={styles.projectorHeader}>
+                    <Eye size={14} color={modeColors.accent} />
+                    <Text style={styles.projectorTitle}>Vision Projector (Offline Camera)</Text>
+                    {isMmprojDownloaded && (
+                      <View style={styles.projectorActiveBadge}>
+                        <CheckCircle2 size={11} color="#00F0FF" />
+                        <Text style={styles.projectorActiveBadgeText}>ACTIVE</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.projectorDesc}>
+                    Enables 100% offline food plate recognition directly from your device camera using Qwen 3 VL ({currentModel.mmprojSizeFormatted || '445 MB'}).
+                  </Text>
+                  {isMmprojDownloading ? (
+                    <View style={styles.downloadBox}>
+                      <View style={styles.progressHeader}>
+                        <Text style={styles.downloadingText}>Downloading Projector...</Text>
+                        <Text style={styles.downloadPercent}>{mmprojDownloadProgress}%</Text>
+                      </View>
+                      <View style={styles.progressBarBg}>
+                        <View
+                          style={[
+                            styles.progressBarFill,
+                            {
+                              width: `${mmprojDownloadProgress}%`,
+                              backgroundColor: modeColors.accent,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => downloadMmproj()}
+                      style={[
+                        styles.btn,
+                        { borderColor: `${modeColors.accent}40`, marginTop: 10 },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Download size={14} color={modeColors.accent} />
+                      <Text style={[styles.btnText, { color: modeColors.accent }]}>
+                        {isMmprojDownloaded
+                          ? 'RE-VERIFY VISION PROJECTOR'
+                          : `DOWNLOAD VISION PROJECTOR (${currentModel.mmprojSizeFormatted || '445 MB'})`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
           )}
 
@@ -1804,6 +1862,43 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     color: COLORS.textMuted,
+    lineHeight: 16,
+  },
+  projectorCard: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  projectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  projectorTitle: {
+    ...TYPOGRAPHY.bodySmallBold,
+    color: COLORS.textPrimary,
+    flex: 1,
+  },
+  projectorActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 240, 255, 0.1)',
+  },
+  projectorActiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00F0FF',
+  },
+  projectorDesc: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontSize: 11,
     lineHeight: 16,
   },
 });

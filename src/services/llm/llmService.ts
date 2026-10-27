@@ -62,6 +62,35 @@ export class LLMService {
     return this.nativeEngine.getLoadedModelPath();
   }
 
+  public async initMultimodal(mmprojPath: string): Promise<boolean> {
+    return this.nativeEngine.initMultimodal(mmprojPath);
+  }
+
+  public isMultimodalReady(): boolean {
+    return this.nativeEngine.isMultimodalEnabled();
+  }
+
+  public async analyzeImageWithLocalVision(imageUri: string, prompt?: string): Promise<string> {
+    const cleanPath = decodeURIComponent(imageUri.replace(/^file:\/\//, ''));
+    const userPrompt =
+      prompt ||
+      'Identify the meal plate or food dish in the image. Return a single concise string listing the ingredients and realistic weights in grams, separated by commas (e.g., "180g grilled chicken breast, 150g jasmine rice, 80g steamed broccoli").';
+
+    const result = await this.nativeEngine.streamCompletion(
+      {
+        systemPrompt:
+          'You are a clinical sports nutritionist. Identify the meal plate or food dish in the image. Return ingredients with portion weights in grams.',
+        messages: [{ role: 'user', content: userPrompt }],
+        mediaPaths: [cleanPath],
+        temperature: 0.7,
+        maxTokens: 250,
+      },
+      () => {}
+    );
+
+    return result.fullText;
+  }
+
   public isReady(): boolean {
     if (this.provider === 'gemini') {
       const geminiKey = useModelStore.getState().geminiApiKey;

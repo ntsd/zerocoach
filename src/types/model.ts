@@ -16,6 +16,9 @@ export interface ModelMetadata {
   quantization: string; // e.g. 'Q4_K_M'
   downloadUrl: string;
   fallbackDownloadUrl?: string;
+  mmprojDownloadUrl?: string;
+  mmprojSizeBytes?: number;
+  mmprojSizeFormatted?: string;
   isFineTuned: boolean;
   contextLength: number;
 }
@@ -42,6 +45,9 @@ export interface ModelState {
   userSelectedModelId?: string;
   status: ModelStatus;
   downloadProgress: number; // 0 to 100
+  isMmprojDownloading: boolean;
+  mmprojDownloadProgress: number;
+  isMmprojDownloaded: boolean;
   provider: LLMProviderType;
   openAIConfig: OpenAICompatibleConfig;
   geminiApiKey: string;
@@ -54,6 +60,7 @@ export interface ModelState {
   testOpenAIConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
   testGeminiConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
   downloadModel: () => Promise<void>;
+  downloadMmproj: () => Promise<void>;
   loadModel: () => Promise<void>;
   unloadModel: () => Promise<void>;
   autoInitOnDeviceModel: () => Promise<void>;

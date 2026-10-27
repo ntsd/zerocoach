@@ -54,6 +54,8 @@ import {
   Globe,
   AlertCircle,
   Tag,
+  Download,
+  Eye,
 } from 'lucide-react-native';
 
 interface FoodSearchAndReviewModalProps {
@@ -84,6 +86,10 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   const currentModel = useModelStore((state) => state.currentModel);
   const selectModel = useModelStore((state) => state.selectModel);
+  const isMmprojDownloaded = useModelStore((state) => state.isMmprojDownloaded);
+  const isMmprojDownloading = useModelStore((state) => state.isMmprojDownloading);
+  const mmprojDownloadProgress = useModelStore((state) => state.mmprojDownloadProgress);
+  const downloadMmproj = useModelStore((state) => state.downloadMmproj);
   const isQwenVLActive = currentModel?.id?.includes('vl') || currentModel?.id?.includes('qwen');
 
   const geminiApiKey = useModelStore((state) => state.geminiApiKey);
@@ -852,17 +858,61 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           <View style={styles.plateSnapBadge}>
                             <Sparkles size={11} color="#00F0FF" />
                             <Text style={styles.plateSnapBadgeText}>
-                              {hasAnyVision ? t.nutrition.cloudAcceleratedBadge : 'QWEN 3 VL (LOCAL)'}
+                              {isMmprojDownloaded
+                                ? 'QWEN 3 VL (100% OFFLINE VISION)'
+                                : hasAnyVision
+                                ? t.nutrition.cloudAcceleratedBadge
+                                : 'QWEN 3 VL (LOCAL)'}
                             </Text>
                           </View>
                           <Text style={styles.plateSnapModelName}>
-                            {hasGeminiVisionKey ? 'AI Studio Gemini' : hasOpenAIVision ? 'OpenAI Vision' : 'Qwen 3 VL Vision'}
+                            {isMmprojDownloaded
+                              ? 'Qwen 3 VL Offline Vision'
+                              : hasGeminiVisionKey
+                              ? 'AI Studio Gemini'
+                              : hasOpenAIVision
+                              ? 'OpenAI Vision'
+                              : 'Qwen 3 VL'}
                           </Text>
                         </View>
                         <Text style={styles.plateSnapTitle}>{t.nutrition.snapFoodTitle}</Text>
                         <Text style={styles.plateSnapDesc}>
                           {t.nutrition.snapFoodDesc}
                         </Text>
+
+                        {/* If projector is missing and no cloud key, show one-tap download */}
+                        {!isMmprojDownloaded && !hasAnyVision && currentModel.mmprojDownloadUrl && (
+                          <View style={styles.projectorDownloadPrompt}>
+                            <Text style={styles.projectorDownloadTitle}>Offline Vision Projector (445 MB) Needed</Text>
+                            <Text style={styles.projectorDownloadSub}>
+                              Download Qwen 3 VL's Vision Projector to recognize meals from camera 100% offline, or type your meal description above.
+                            </Text>
+                            {isMmprojDownloading ? (
+                              <View style={styles.projectorProgressContainer}>
+                                <Text style={styles.projectorProgressText}>Downloading Projector: {mmprojDownloadProgress}%</Text>
+                                <View style={styles.projectorProgressBarBg}>
+                                  <View style={[styles.projectorProgressBarFill, { width: `${mmprojDownloadProgress}%` }]} />
+                                </View>
+                              </View>
+                            ) : (
+                              <TouchableOpacity
+                                style={styles.downloadProjectorBtn}
+                                onPress={async () => {
+                                  await downloadMmproj();
+                                  if (capturedImageUri) {
+                                    processCapturedFoodPhoto(capturedImageUri, capturedBase64);
+                                  }
+                                }}
+                                activeOpacity={0.8}
+                              >
+                                <Download size={14} color="#080B10" />
+                                <Text style={styles.downloadProjectorBtnText}>
+                                  DOWNLOAD VISION PROJECTOR ({currentModel.mmprojSizeFormatted || '445 MB'})
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
 
                         {/* Camera & Gallery Action Buttons */}
                         <View style={styles.photoActionsRow}>
@@ -927,16 +977,35 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           <View style={styles.photoErrorTextCol}>
                             <Text style={styles.photoErrorTitle}>{t.nutrition.cantIdentifyFood}</Text>
                             <Text style={styles.photoErrorSub}>{photoAnalysisError}</Text>
-                            {capturedImageUri && (
-                              <TouchableOpacity
-                                style={styles.retryAnalysisBtn}
-                                onPress={() => processCapturedFoodPhoto(capturedImageUri, capturedBase64)}
-                                activeOpacity={0.7}
-                              >
-                                <RotateCcw size={12} color="#00F0FF" />
-                                <Text style={styles.retryAnalysisBtnText}>{t.nutrition.retryAnalysis}</Text>
-                              </TouchableOpacity>
-                            )}
+                            <View style={styles.photoErrorActionsRow}>
+                              {!isMmprojDownloaded && currentModel.mmprojDownloadUrl && (
+                                <TouchableOpacity
+                                  style={styles.downloadProjectorSmallBtn}
+                                  onPress={async () => {
+                                    await downloadMmproj();
+                                    if (capturedImageUri) {
+                                      processCapturedFoodPhoto(capturedImageUri, capturedBase64);
+                                    }
+                                  }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Download size={12} color="#00F0FF" />
+                                  <Text style={styles.downloadProjectorSmallBtnText}>
+                                    Download Projector ({currentModel.mmprojSizeFormatted || '445 MB'})
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                              {capturedImageUri && (
+                                <TouchableOpacity
+                                  style={styles.retryAnalysisBtn}
+                                  onPress={() => processCapturedFoodPhoto(capturedImageUri, capturedBase64)}
+                                  activeOpacity={0.7}
+                                >
+                                  <RotateCcw size={12} color="#00F0FF" />
+                                  <Text style={styles.retryAnalysisBtnText}>{t.nutrition.retryAnalysis}</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
                           </View>
                         </View>
                       )}
@@ -2472,5 +2541,82 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#080B10',
+  },
+  projectorDownloadPrompt: {
+    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  projectorDownloadTitle: {
+    color: '#00F0FF',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  projectorDownloadSub: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 8,
+  },
+  projectorProgressContainer: {
+    marginTop: 4,
+  },
+  projectorProgressText: {
+    color: '#00F0FF',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  projectorProgressBarBg: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  projectorProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#00F0FF',
+    borderRadius: 3,
+  },
+  downloadProjectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#00F0FF',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  downloadProjectorBtnText: {
+    color: '#080B10',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  photoErrorActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  downloadProjectorSmallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0, 240, 255, 0.1)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.3)',
+  },
+  downloadProjectorSmallBtnText: {
+    color: '#00F0FF',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

@@ -43,7 +43,8 @@ export async function analyzeMealPhoto(
   }
 
   // 1. Check for Local Multimodal Vision (Qwen 3 VL with mmproj)
-  if (!llmService.isMultimodalReady() && Platform.OS !== 'web') {
+  const isLocalVisionModel = Boolean(useModelStore.getState().currentModel?.mmprojDownloadUrl);
+  if (isLocalVisionModel && !llmService.isMultimodalReady() && Platform.OS !== 'web') {
     try {
       const state = useModelStore.getState();
       if (state.provider === 'on_device' && state.status !== 'loading' && state.status !== 'downloading') {
@@ -55,7 +56,7 @@ export async function analyzeMealPhoto(
     }
   }
 
-  if (llmService.isMultimodalReady()) {
+  if (isLocalVisionModel && llmService.isMultimodalReady()) {
     try {
       console.log('[PhotoMealAnalyzer] Analyzing photo with on-device Qwen 3 VL vision...');
       const visionOutput = await llmService.analyzeImageWithLocalVision(photoUri, undefined, base64Data);

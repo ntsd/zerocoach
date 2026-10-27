@@ -94,8 +94,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   const status = useModelStore((state) => state.status);
   const loadModel = useModelStore((state) => state.loadModel);
   const downloadProgress = useModelStore((state) => state.downloadProgress);
-  const isLocalVisionReady = llmService.isMultimodalReady();
-  const isQwenVLActive = currentModel?.id?.includes('vl') || currentModel?.id?.includes('qwen');
+  const isLocalVisionCapable = Boolean(currentModel?.mmprojDownloadUrl);
+  const isLocalVisionReady = isLocalVisionCapable && llmService.isMultimodalReady();
+  const isQwenVLActive = isLocalVisionCapable;
 
   const geminiApiKey = useModelStore((state) => state.geminiApiKey);
   const openAIConfig = useModelStore((state) => state.openAIConfig);
@@ -818,7 +819,13 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <View style={styles.gemmaPill}>
                         <Sparkles size={11} color="#00F0FF" />
                         <Text style={styles.gemmaPillText}>
-                          {isQwenVLActive ? 'QWEN 3 VL (ON-DEVICE)' : hasAnyVision ? t.nutrition.cloudAcceleratedBadge : 'ZEROCOACH AI'}
+                          {currentModel.isFineTuned
+                            ? 'ZEROCOACH ATHLETIC'
+                            : isLocalVisionCapable
+                            ? 'QWEN 3 VL (ON-DEVICE)'
+                            : hasAnyVision
+                            ? t.nutrition.cloudAcceleratedBadge
+                            : 'ZEROCOACH AI'}
                         </Text>
                       </View>
                     </View>
@@ -848,7 +855,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   </View>
 
                   {/* Part 2: Photo Snap Card */}
-                  {(hasAnyVision || isQwenVLActive) && (
+                  {(hasAnyVision || isLocalVisionCapable) && (
                     <>
                       {/* Divider */}
                       <View style={styles.snapDividerRow}>
@@ -865,23 +872,25 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                             <Text style={styles.plateSnapBadgeText}>
                               {isLocalVisionReady
                                 ? 'QWEN 3 VL (100% OFFLINE VISION READY)'
-                                : isMmprojDownloaded && status !== 'loaded'
+                                : isMmprojDownloaded && isLocalVisionCapable && status !== 'loaded'
                                 ? 'QWEN 3 VL (READY TO ACTIVATE)'
-                                : hasAnyVision
-                                ? t.nutrition.cloudAcceleratedBadge
+                                : hasGeminiVisionKey
+                                ? 'GEMINI FLASH (CLOUD)'
+                                : hasOpenAIVision
+                                ? 'OPENAI VISION'
                                 : 'QWEN 3 VL (OFFLINE VISION)'}
                             </Text>
                           </View>
                           <Text style={styles.plateSnapModelName}>
                             {isLocalVisionReady
                               ? 'Qwen 3 VL Offline Vision'
-                              : isMmprojDownloaded && status !== 'loaded'
+                              : isMmprojDownloaded && isLocalVisionCapable && status !== 'loaded'
                               ? 'Offline Vision (Tap to Activate)'
                               : hasGeminiVisionKey
                               ? 'AI Studio Gemini'
                               : hasOpenAIVision
                               ? 'OpenAI Vision'
-                              : 'Qwen 3 VL'}
+                              : currentModel.name}
                           </Text>
                         </View>
                         <Text style={styles.plateSnapTitle}>{t.nutrition.snapFoodTitle}</Text>

@@ -13,10 +13,12 @@ import { MicronutrientScorecard } from '../components/nutrition/MicronutrientSco
 import { MealSectionCard } from '../components/nutrition/MealSectionCard';
 import { FoodSearchAndReviewModal } from '../components/nutrition/FoodSearchAndReviewModal';
 import { FoodItem, MealType } from '../types/nutrition';
+import { useTranslation } from '../i18n';
 import { COLORS } from '../theme/colors';
 import { Utensils, Plus, RotateCcw } from 'lucide-react-native';
 
 export const NutritionScreen: React.FC = () => {
+  const { t } = useTranslation();
   const {
     selectedDate,
     setSelectedDate,
@@ -114,9 +116,9 @@ export const NutritionScreen: React.FC = () => {
         <View style={styles.titleContainer}>
           <View style={styles.titleIconRow}>
             <Utensils size={20} color="#00F0FF" />
-            <Text style={styles.screenTitle}>NUTRITION</Text>
+            <Text style={styles.screenTitle}>{t.nutrition.screenTitle}</Text>
           </View>
-          <Text style={styles.screenSubtitle}>Macronutrient & Bio-Mineral Tracking</Text>
+          <Text style={styles.screenSubtitle}>{t.nutrition.screenSubtitle}</Text>
         </View>
 
         <TouchableOpacity
@@ -125,7 +127,7 @@ export const NutritionScreen: React.FC = () => {
           activeOpacity={0.7}
         >
           <Plus size={16} color="#080B10" />
-          <Text style={styles.quickAddButtonText}>Log</Text>
+          <Text style={styles.quickAddButtonText}>{t.nutrition.logBtn}</Text>
         </TouchableOpacity>
       </View>
 
@@ -150,7 +152,7 @@ export const NutritionScreen: React.FC = () => {
         {/* 4 Meal Cards */}
         <MealSectionCard
           mealType="breakfast"
-          title="BREAKFAST"
+          title={t.nutrition.meals.breakfast}
           foods={breakfastFoods}
           onAddFood={handleOpenAddFood}
           onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
@@ -158,7 +160,7 @@ export const NutritionScreen: React.FC = () => {
 
         <MealSectionCard
           mealType="lunch"
-          title="LUNCH"
+          title={t.nutrition.meals.lunch}
           foods={lunchFoods}
           onAddFood={handleOpenAddFood}
           onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
@@ -166,7 +168,7 @@ export const NutritionScreen: React.FC = () => {
 
         <MealSectionCard
           mealType="dinner"
-          title="DINNER"
+          title={t.nutrition.meals.dinner}
           foods={dinnerFoods}
           onAddFood={handleOpenAddFood}
           onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
@@ -174,7 +176,7 @@ export const NutritionScreen: React.FC = () => {
 
         <MealSectionCard
           mealType="snack"
-          title="SNACKS & SHAKES"
+          title={t.nutrition.meals.snack}
           foods={snackFoods}
           onAddFood={handleOpenAddFood}
           onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
@@ -188,7 +190,7 @@ export const NutritionScreen: React.FC = () => {
             activeOpacity={0.7}
           >
             <RotateCcw size={14} color={COLORS.textMuted} />
-            <Text style={styles.clearDayText}>Clear Log for This Date</Text>
+            <Text style={styles.clearDayText}>{t.nutrition.clearLogDay}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

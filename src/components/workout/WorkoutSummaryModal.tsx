@@ -16,6 +16,7 @@ import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
 import { ExerciseItem, GeneratedWorkoutPlan } from '@/types/workout';
 import { CoachingMode } from '@/types/coach';
+import { useTranslation } from '@/i18n';
 import {
   Trophy,
   CheckCircle2,
@@ -55,6 +56,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   initialDurationMin,
   initialCaloriesBurn,
 }) => {
+  const { t, language } = useTranslation();
   const modeColors = getModeColors(mode);
   const [durationMinutes, setDurationMinutes] = useState(
     String(Math.max(1, initialDurationMin))
@@ -78,7 +80,11 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   };
 
   const coachMessage =
-    mode === 'strict'
+    language === 'th'
+      ? mode === 'strict'
+        ? 'การฝึกได้รับการตรวจสอบแล้ว ความตึงเครียดของกล้ามเนื้ออยู่ในระดับสูง ดื่มน้ำให้เพียงพอ ให้ความสำคัญกับการนอนหลับ และรับประทานโปรตีนให้ถึงเป้าหมาย'
+        : 'ยอดเยี่ยมมากสำหรับวันนี้! คุณมีความมุ่งมั่นและวินัยในการฝึกอย่างดี ยินดีกับความสำเร็จนี้และพักผ่อนให้พร้อมสำหรับวันพรุ่งนี้!'
+      : mode === 'strict'
       ? 'Execution verified. High mechanical tension registered. Rehydrate, prioritize sleep architecture, and lock in your protein target.'
       : 'Phenomenal effort today! You brought intensity and discipline to this session. Celebrate this win and recharge for tomorrow!';
 
@@ -111,7 +117,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                   <Trophy size={20} color={modeColors.accent} />
                 </View>
                 <View>
-                  <Text style={styles.subTitle}>SESSION COMPLETED</Text>
+                  <Text style={styles.subTitle}>{t.workout.summaryModal.title}</Text>
                   <Text style={styles.title}>{plan.title}</Text>
                 </View>
               </View>
@@ -135,7 +141,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 <View style={styles.statBox}>
                   <View style={styles.statLabelRow}>
                     <Clock size={12} color={COLORS.textMuted} />
-                    <Text style={styles.statLabel}>DURATION (MIN)</Text>
+                    <Text style={styles.statLabel}>{t.workout.summaryModal.duration}</Text>
                   </View>
                   <TextInput
                     style={[styles.statInput, { color: modeColors.accent }]}
@@ -150,7 +156,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 <View style={styles.statBox}>
                   <View style={styles.statLabelRow}>
                     <Flame size={12} color={COLORS.warning} />
-                    <Text style={styles.statLabel}>CALORIES (KCAL)</Text>
+                    <Text style={styles.statLabel}>{t.workout.summaryModal.calories}</Text>
                   </View>
                   <TextInput
                     style={[styles.statInput, { color: COLORS.warning }]}
@@ -165,7 +171,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 <View style={styles.statBox}>
                   <View style={styles.statLabelRow}>
                     <Dumbbell size={12} color={COLORS.success} />
-                    <Text style={styles.statLabel}>MOVEMENTS</Text>
+                    <Text style={styles.statLabel}>{t.workout.summaryModal.movements}</Text>
                   </View>
                   <Text style={[styles.statStaticVal, { color: COLORS.success }]}>
                     {completedExercises.length} / {plan.exercises.length}
@@ -176,10 +182,10 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 <View style={styles.statBox}>
                   <View style={styles.statLabelRow}>
                     <Layers size={12} color={COLORS.purpleAccent} />
-                    <Text style={styles.statLabel}>TOTAL SETS</Text>
+                    <Text style={styles.statLabel}>{t.workout.summaryModal.totalSets}</Text>
                   </View>
                   <Text style={[styles.statStaticVal, { color: COLORS.purpleAccent }]}>
-                    {totalSets} Sets
+                    {totalSets} {t.common.sets}
                   </Text>
                 </View>
               </View>
@@ -199,7 +205,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                       { color: modeColors.accent },
                     ]}
                   >
-                    COACH DEBRIEF ({mode.toUpperCase()} MODE)
+                    {t.workout.summaryModal.coachDebrief} ({mode.toUpperCase()})
                   </Text>
                 </View>
                 <Text style={styles.coachSnippetText}>{coachMessage}</Text>
@@ -207,7 +213,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
 
               {/* Completed Exercises Summary */}
               <View style={styles.completedSection}>
-                <Text style={styles.sectionHeader}>LOGGED MOVEMENTS</Text>
+                <Text style={styles.sectionHeader}>{t.workout.summaryModal.loggedMovements}</Text>
                 {completedExercises.map((ex) => (
                   <View key={ex.id} style={styles.exerciseRow}>
                     <CheckCircle2 size={15} color={COLORS.success} />
@@ -215,7 +221,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                       {ex.name}
                     </Text>
                     <Text style={styles.exerciseSets}>
-                      {ex.targetSets} sets × {ex.targetReps}
+                      {ex.targetSets} {t.common.sets} × {ex.targetReps}
                     </Text>
                   </View>
                 ))}
@@ -223,7 +229,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 {skippedExercises.length > 0 && (
                   <>
                     <Text style={[styles.sectionHeader, { marginTop: SPACING.md }]}>
-                      SKIPPED ({skippedExercises.length})
+                      {t.workout.summaryModal.skipped} ({skippedExercises.length})
                     </Text>
                     {skippedExercises.map((ex) => (
                       <View key={ex.id} style={[styles.exerciseRow, { opacity: 0.5 }]}>
@@ -239,10 +245,10 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
 
               {/* User Notes Input */}
               <View style={styles.notesSection}>
-                <Text style={styles.sectionHeader}>SESSION NOTES (OPTIONAL)</Text>
+                <Text style={styles.sectionHeader}>{t.workout.summaryModal.sessionNotes}</Text>
                 <TextInput
                   style={styles.notesInput}
-                  placeholder="How did you feel? Grip fatigue, RPE, clean sets..."
+                  placeholder={t.workout.summaryModal.notesPlaceholder}
                   placeholderTextColor={COLORS.textMuted}
                   value={userNotes}
                   onChangeText={setUserNotes}
@@ -259,7 +265,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 style={styles.cancelBtn}
                 activeOpacity={0.7}
               >
-                <Text style={styles.cancelBtnText}>Back</Text>
+                <Text style={styles.cancelBtnText}>{t.common.back}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -268,7 +274,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 activeOpacity={0.85}
               >
                 <CheckCircle2 size={16} color={COLORS.background} />
-                <Text style={styles.saveBtnText}>Save to Workout History</Text>
+                <Text style={styles.saveBtnText}>{t.workout.summaryModal.finishAndSave}</Text>
                 <ArrowRight size={14} color={COLORS.background} />
               </TouchableOpacity>
             </View>

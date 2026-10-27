@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { getReadinessCategory } from '@/services/telemetry/readinessCalculator';
+import { useTranslation } from '@/i18n';
 import { COLORS } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -12,13 +13,30 @@ interface ReadinessGaugeProps {
 }
 
 export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({ score }) => {
+  const { t } = useTranslation();
   const isSynced = score > 0;
-  const category = isSynced
-    ? getReadinessCategory(score)
+  const rawCategory = isSynced ? getReadinessCategory(score) : null;
+
+  const category = isSynced && rawCategory
+    ? {
+        ...rawCategory,
+        label:
+          score >= 80
+            ? t.telemetry.readinessOptimal
+            : score >= 60
+            ? t.telemetry.readinessModerate
+            : t.telemetry.readinessFatigued,
+        guidance:
+          score >= 80
+            ? t.telemetry.guidanceOptimal
+            : score >= 60
+            ? t.telemetry.guidanceModerate
+            : t.telemetry.guidanceFatigued,
+      }
     : {
         category: 'none',
-        label: 'NO WEARABLE SYNCED',
-        guidance: 'Sync your fitness app via local health hub to calculate your daily recovery readiness score.',
+        label: t.coach.telemetryBanner.noWearable,
+        guidance: t.coach.telemetryBanner.tapToSync,
         color: COLORS.textMuted,
       };
 
@@ -28,11 +46,11 @@ export const ReadinessGauge: React.FC<ReadinessGaugeProps> = ({ score }) => {
         <View style={styles.badgeRow}>
           <Zap size={14} color={category.color} />
           <Text style={[styles.badgeText, { color: category.color }]}>
-            DAILY READINESS SCORE
+            {t.telemetry.dailyReadinessScore}
           </Text>
         </View>
         <Text style={styles.timestamp}>
-          {isSynced ? '100% On-Device Analysis' : 'Wearable Sync Required'}
+          {isSynced ? t.telemetry.onDeviceAnalysis : t.telemetry.wearableSyncRequired}
         </Text>
       </View>
 

@@ -497,7 +497,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 </View>
 
                 {/* Target Meal Type Chips */}
-                <Text style={styles.subSectionTitle}>TARGET MEAL</Text>
+                <Text style={styles.subSectionTitle}>{t.nutrition.targetMeal}</Text>
                 <View style={styles.mealChipRow}>
                   {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((m) => (
                     <TouchableOpacity
@@ -515,14 +515,14 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           selectedMealType === m && styles.mealChipTextActive,
                         ]}
                       >
-                        {m.toUpperCase()}
+                        {(t.nutrition.meals as any)[m] || m.toUpperCase()}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
                 {/* Gram Weight Stepper */}
-                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>PORTION WEIGHT (GRAMS)</Text>
+                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>{t.nutrition.adjustServing.toUpperCase()}</Text>
                 <View style={styles.stepperContainer}>
                   <TouchableOpacity
                     style={styles.stepBtn}
@@ -534,7 +534,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
                   <View style={styles.stepperDisplay}>
                     <Text style={styles.stepperNumber}>{consumedGrams}</Text>
-                    <Text style={styles.stepperUnit}>grams</Text>
+                    <Text style={styles.stepperUnit}>g</Text>
                   </View>
 
                   <TouchableOpacity
@@ -637,25 +637,25 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 {/* 4 Macros */}
                 <View style={styles.macrosFourRow}>
                   <View style={styles.macroMiniBox}>
-                    <Text style={styles.macroMiniLabel}>PROTEIN</Text>
+                    <Text style={styles.macroMiniLabel}>{t.nutrition.header.protein}</Text>
                     <Text style={[styles.macroMiniVal, { color: '#10B981' }]}>
                       {dynamicNutrients.proteinGrams}g
                     </Text>
                   </View>
                   <View style={styles.macroMiniBox}>
-                    <Text style={styles.macroMiniLabel}>CARBS</Text>
+                    <Text style={styles.macroMiniLabel}>{t.nutrition.header.carbs}</Text>
                     <Text style={[styles.macroMiniVal, { color: '#38BDF8' }]}>
                       {dynamicNutrients.carbsGrams}g
                     </Text>
                   </View>
                   <View style={styles.macroMiniBox}>
-                    <Text style={styles.macroMiniLabel}>FAT</Text>
+                    <Text style={styles.macroMiniLabel}>{t.nutrition.header.fat}</Text>
                     <Text style={[styles.macroMiniVal, { color: '#F59E0B' }]}>
                       {dynamicNutrients.fatGrams}g
                     </Text>
                   </View>
                   <View style={styles.macroMiniBox}>
-                    <Text style={styles.macroMiniLabel}>FIBER</Text>
+                    <Text style={styles.macroMiniLabel}>{t.nutrition.scorecard.fiber}</Text>
                     <Text style={[styles.macroMiniVal, { color: '#A855F7' }]}>
                       {dynamicNutrients.fiberGrams}g
                     </Text>
@@ -663,46 +663,46 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                 </View>
 
               {/* Key Micronutrients */}
-                <Text style={styles.microsSubHeading}>MICRONUTRIENT ASSAY</Text>
+                <Text style={styles.microsSubHeading}>{t.nutrition.micronutrientAssay}</Text>
                 <View style={styles.microAssayGrid}>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Vit A</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.vitA}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.vitaminA_mcg} mcg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Vit C</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.vitC}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.vitaminC_mg} mg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Vit D</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.vitD}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.vitaminD_mcg} mcg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Vit B12</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.vitB12}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.vitaminB12_mcg} mcg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Iron</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.iron}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.iron_mg} mg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Calcium</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.calcium}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.calcium_mg} mg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Magnesium</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.magnesium}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.magnesium_mg} mg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Potassium</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.potassium}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.potassium_mg} mg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Sodium</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.sodium}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.sodium_mg} mg</Text>
                   </View>
                   <View style={styles.microChip}>
-                    <Text style={styles.microChipLabel}>Zinc</Text>
+                    <Text style={styles.microChipLabel}>{t.nutrition.vitamins.zinc}</Text>
                     <Text style={styles.microChipVal}>{dynamicNutrients.zinc_mg} mg</Text>
                   </View>
                 </View>
@@ -719,7 +719,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
               >
                 <CheckCircle size={18} color="#080B10" />
                 <Text style={styles.confirmLogButtonText}>
-                  Log {consumedGrams}g to {selectedMealType.toUpperCase()}
+                  {t.nutrition.confirmLogBtn} ({consumedGrams}g • {t.nutrition.meals[selectedMealType] || selectedMealType.toUpperCase()})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -842,7 +842,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       {/* Divider */}
                       <View style={styles.snapDividerRow}>
                         <View style={styles.snapDividerLine} />
-                        <Text style={styles.snapDividerText}>OR SNAP FOOD PHOTO</Text>
+                        <Text style={styles.snapDividerText}>{t.nutrition.orSnapPhoto}</Text>
                         <View style={styles.snapDividerLine} />
                       </View>
 
@@ -856,7 +856,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                             </Text>
                           </View>
                           <Text style={styles.plateSnapModelName}>
-                            {hasGeminiVisionKey ? 'AI Studio Gemini' : hasOpenAIVision ? 'OpenAI Vision' : 'Plate Recognition'}
+                            {hasGeminiVisionKey ? 'AI Studio Gemini' : hasOpenAIVision ? 'OpenAI Vision' : t.nutrition.plateRecognition}
                           </Text>
                         </View>
                         <Text style={styles.plateSnapTitle}>{t.nutrition.snapFoodTitle}</Text>
@@ -896,9 +896,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           {isAnalyzingPhoto && (
                             <View style={styles.photoAnalyzingOverlay}>
                               <ActivityIndicator size="large" color="#00F0FF" />
-                              <Text style={styles.photoAnalyzingTitle}>Analyzing Meal Photo</Text>
+                              <Text style={styles.photoAnalyzingTitle}>{t.nutrition.analyzingMealPhoto}</Text>
                               <Text style={styles.photoAnalyzingSub}>
-                                Identifying food with Gemini Vision & estimating macros with ZeroCoach AI...
+                                {t.nutrition.analyzingMealPhotoSub}
                               </Text>
                             </View>
                           )}
@@ -906,7 +906,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           <View style={styles.capturedPhotoHeader}>
                             <View style={styles.photoBadge}>
                               <Sparkles size={12} color="#00F0FF" />
-                              <Text style={styles.photoBadgeText}>PHOTO ATTACHED</Text>
+                              <Text style={styles.photoBadgeText}>{t.nutrition.photoAttached}</Text>
                             </View>
                             <TouchableOpacity
                               style={styles.retakeBtn}
@@ -914,7 +914,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                               activeOpacity={0.7}
                             >
                               <RotateCcw size={12} color={COLORS.textMuted} />
-                              <Text style={styles.retakeBtnText}>Retake</Text>
+                              <Text style={styles.retakeBtnText}>{t.nutrition.retake}</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -925,7 +925,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         <View style={styles.photoErrorBanner}>
                           <AlertCircle size={18} color="#FF6B35" />
                           <View style={styles.photoErrorTextCol}>
-                            <Text style={styles.photoErrorTitle}>Can't identify food from photo</Text>
+                            <Text style={styles.photoErrorTitle}>{t.nutrition.cantIdentifyFood}</Text>
                             <Text style={styles.photoErrorSub}>{photoAnalysisError}</Text>
                             {capturedImageUri && (
                               <TouchableOpacity
@@ -934,7 +934,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                                 activeOpacity={0.7}
                               >
                                 <RotateCcw size={12} color="#00F0FF" />
-                                <Text style={styles.retryAnalysisBtnText}>Retry Analysis</Text>
+                                <Text style={styles.retryAnalysisBtnText}>{t.nutrition.retryAnalysis}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -952,13 +952,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     <Search size={16} color={COLORS.textSecondary} />
                     <TextInput
                       style={styles.searchInput}
-                      placeholder={
-                        sourceFilter === 'open_food_facts'
-                          ? 'Search Open Food Facts (e.g., Oreo, Fairlife, Doritos)...'
-                          : sourceFilter === 'usda_bundled'
-                          ? 'Search USDA whole foods (e.g., salmon, oats, steak)...'
-                          : 'Search foods (USDA Whole + Open Food Facts)...'
-                      }
+                      placeholder={t.nutrition.searchPlaceholder}
                       placeholderTextColor={COLORS.textMuted}
                       value={searchQuery}
                       onChangeText={handleSearchChange}
@@ -984,7 +978,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           sourceFilter === 'all' && styles.sourceFilterTextActive,
                         ]}
                       >
-                        All Sources
+                        {t.nutrition.allSources}
                       </Text>
                     </TouchableOpacity>
 
@@ -1007,7 +1001,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           sourceFilter === 'open_food_facts' && styles.sourceFilterTextActive,
                         ]}
                       >
-                        Open Food Facts
+                        {t.nutrition.openFoodFactsSource}
                       </Text>
                     </TouchableOpacity>
 
@@ -1025,7 +1019,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           sourceFilter === 'usda_bundled' && styles.sourceFilterTextActive,
                         ]}
                       >
-                        USDA Whole
+                        {t.nutrition.usdaWholeSource}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1039,12 +1033,12 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <View style={styles.emptySearchResults}>
                         <Search size={30} color={COLORS.textMuted} />
                         <Text style={styles.emptySearchTitle}>
-                          {searchQuery.trim() ? 'No foods found' : 'Type to search foods'}
+                          {searchQuery.trim() ? t.nutrition.noFoodsFound : t.nutrition.typeToSearchFoods}
                         </Text>
                         <Text style={styles.emptySearchSub}>
                           {searchQuery.trim()
-                            ? 'Try switching to Open Food Facts or checking the spelling.'
-                            : 'Search millions of packaged products via Open Food Facts or lab-verified whole foods from USDA.'}
+                            ? t.nutrition.noFoodsFoundSub
+                            : t.nutrition.typeToSearchFoodsSub}
                         </Text>
                       </View>
                     ) : (
@@ -1105,7 +1099,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                                     : { color: '#38BDF8' },
                                 ]}
                               >
-                                {item.source === 'usda_bundled' ? 'USDA Whole' : 'Open Food Facts'}
+                                {item.source === 'usda_bundled' ? t.nutrition.usdaWholeSource : t.nutrition.openFoodFactsSource}
                               </Text>
                             </View>
                             <ChevronRight size={16} color={COLORS.textMuted} />
@@ -1125,28 +1119,28 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   showsVerticalScrollIndicator={false}
                 >
                   <Text style={styles.sectionSubtitle}>
-                    Scan packaged food barcode with camera or enter code manually:
+                    {t.nutrition.scanBarcodeInstruction}
                   </Text>
 
                   {/* Live Camera Barcode Scanner View */}
                   {!permission ? (
                     <View style={styles.cameraLoadingBox}>
                       <ActivityIndicator size="small" color="#00F0FF" />
-                      <Text style={styles.cameraLoadingText}>Initializing Camera...</Text>
+                      <Text style={styles.cameraLoadingText}>{t.nutrition.initializingCamera}</Text>
                     </View>
                   ) : !permission.granted ? (
                     <View style={styles.permissionBox}>
                       <Camera size={32} color="#00F0FF" />
-                      <Text style={styles.permissionTitle}>Camera Access Required</Text>
+                      <Text style={styles.permissionTitle}>{t.nutrition.cameraAccessRequired}</Text>
                       <Text style={styles.permissionSub}>
-                        Grant camera permission to scan barcodes directly off food packages in real time.
+                        {t.nutrition.cameraAccessRequiredSub}
                       </Text>
                       <TouchableOpacity
                         style={styles.permissionButton}
                         onPress={requestPermission}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.permissionButtonText}>Enable Camera</Text>
+                        <Text style={styles.permissionButtonText}>{t.nutrition.enableCamera}</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -1183,7 +1177,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         <View style={styles.scannerHeaderRow}>
                           <View style={styles.liveIndicator}>
                             <View style={styles.liveDot} />
-                            <Text style={styles.liveText}>LIVE SCANNER</Text>
+                            <Text style={styles.liveText}>{t.nutrition.liveScanner}</Text>
                           </View>
                           <TouchableOpacity
                             style={[styles.torchButton, torchEnabled && styles.torchButtonActive]}
@@ -1203,14 +1197,14 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         </View>
 
                         <Text style={styles.scannerInstruction}>
-                          Align barcode inside frame
+                          {t.nutrition.alignBarcodeInstruction}
                         </Text>
                       </View>
 
                       {isLookingUpBarcode && (
                         <View style={styles.scanningLookupOverlay}>
                           <ActivityIndicator size="large" color="#00F0FF" />
-                          <Text style={styles.scanningLookupText}>Looking up product in Open Food Facts...</Text>
+                          <Text style={styles.scanningLookupText}>{t.nutrition.lookingUpBarcode}</Text>
                         </View>
                       )}
                     </View>
@@ -1234,7 +1228,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       {isLookingUpBarcode ? (
                         <ActivityIndicator size="small" color="#080B10" />
                       ) : (
-                        <Text style={styles.barcodeLookupText}>Lookup</Text>
+                        <Text style={styles.barcodeLookupText}>{t.nutrition.lookupBtn}</Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -1243,7 +1237,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     <View style={styles.barcodeErrorCard}>
                       <View style={styles.barcodeErrorHeader}>
                         <AlertCircle size={16} color="#FF6B35" />
-                        <Text style={styles.barcodeErrorTitle}>Barcode Not Found</Text>
+                        <Text style={styles.barcodeErrorTitle}>{t.nutrition.barcodeNotFound}</Text>
                       </View>
                       <Text style={styles.barcodeErrorCardText}>{barcodeError}</Text>
                       <TouchableOpacity
@@ -1253,7 +1247,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       >
                         <Camera size={15} color="#080B10" />
                         <Text style={styles.quickScanLabelBtnText}>
-                          Scan Nutrition Table with Camera
+                          {t.nutrition.scanNutritionTableBtn}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -1269,9 +1263,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <Text style={styles.labelScanCardSubTitle}>LayoutLMv3 AI</Text>
                     </View>
 
-                    <Text style={styles.labelScanCardTitle}>No Barcode? Scan Nutrition Table</Text>
+                    <Text style={styles.labelScanCardTitle}>{t.nutrition.noBarcodeTitle}</Text>
                     <Text style={styles.labelScanCardSub}>
-                      Snap or upload a photo of the printed nutrition facts table on the package to extract exact calories, protein, carbs, fat, fiber & sodium directly.
+                      {t.nutrition.noBarcodeSub}
                     </Text>
 
                     <View style={styles.labelScanBtnRow}>
@@ -1282,7 +1276,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         disabled={isExtractingLabel}
                       >
                         <Camera size={16} color="#080B10" />
-                        <Text style={styles.labelCameraBtnText}>Scan Label Photo</Text>
+                        <Text style={styles.labelCameraBtnText}>{t.nutrition.scanLabelPhotoBtn}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -1292,7 +1286,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         disabled={isExtractingLabel}
                       >
                         <ImageIcon size={16} color="#00F0FF" />
-                        <Text style={styles.labelGalleryBtnText}>Upload Label</Text>
+                        <Text style={styles.labelGalleryBtnText}>{t.nutrition.uploadLabelBtn}</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -1300,7 +1294,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <View style={styles.labelExtractingBox}>
                         <ActivityIndicator size="small" color="#00F0FF" />
                         <Text style={styles.labelExtractingText}>
-                          Extracting nutrition table with Open Food Facts AI...
+                          {t.nutrition.extractingNutritionTable}
                         </Text>
                       </View>
                     )}

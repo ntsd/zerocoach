@@ -23,6 +23,7 @@ import { TYPOGRAPHY } from '@/theme/typography';
 import { HorizontalChipBar, ChipItem } from '@/components/common/HorizontalChipBar';
 import { GlassCard } from '@/components/common/GlassCard';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
+import { useTranslation } from '@/i18n';
 import {
   DateNavigationBar,
   getTodayDateString,
@@ -75,6 +76,7 @@ const WORKOUT_SPLITS: Array<{ id: WorkoutSplit; label: string; icon: any }> = [
 export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
+  const { t } = useTranslation();
   const { mode, userProfile, updateProfile, setSkillLevel } = useCoachStore();
   const defaultMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
@@ -184,27 +186,32 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   const goalChipItems: ChipItem[] = useMemo(() => {
     return TRAINING_GOALS.map((g) => ({
       id: g.id,
-      label: g.label,
+      label: t.workout.goals[g.id] || g.label,
       icon: g.icon,
     }));
-  }, []);
+  }, [t]);
 
   // Split chip items
   const splitChipItems: ChipItem[] = useMemo(() => {
     return WORKOUT_SPLITS.map((s) => ({
       id: s.id,
-      label: s.label,
+      label: t.workout.splits[s.id] || s.label,
       icon: s.icon,
-      badge: s.id === coachRec.recommendedSplit ? '⚡ Coach' : undefined,
+      badge: s.id === coachRec.recommendedSplit ? t.workout.coachRecommendation : undefined,
     }));
-  }, [coachRec.recommendedSplit]);
+  }, [coachRec.recommendedSplit, t]);
 
   const handleAskCoachPlan = () => {
     onNavigateToChat();
-    const goalTitle = TRAINING_GOALS.find((g) => g.id === activeGoal)?.label || activeGoal;
-    sendMessage(
-      `Coach, I am reviewing today's suggested plan: "${adaptivePlan.title}" (${adaptivePlan.tierLabel}, ~${adaptivePlan.estimatedDurationMin} min). My goal is ${goalTitle} at ${activeSkillLevel.toUpperCase()} level with a Readiness Score of ${metrics.readinessScore}/100. Why is this workout split and progression scheme best for me today?`
-    );
+    const goalTitle = t.workout.goals[activeGoal] || activeGoal;
+    const query = t.workout.askCoachPlanTemplate
+      .replace('{title}', adaptivePlan.title)
+      .replace('{tier}', adaptivePlan.tierLabel)
+      .replace('{duration}', String(adaptivePlan.estimatedDurationMin))
+      .replace('{goal}', goalTitle)
+      .replace('{level}', activeSkillLevel.toUpperCase())
+      .replace('{readiness}', String(metrics.readinessScore));
+    sendMessage(query);
   };
 
   return (
@@ -217,10 +224,10 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Dumbbell size={20} color={modeColors.accent} />
-            <Text style={styles.title}>ADAPTIVE WORKOUT</Text>
+            <Text style={styles.title}>{t.workout.screenTitle}</Text>
           </View>
           <Text style={styles.subtitle}>
-            Goal-Driven Training • RepDB Open Exercise Library
+            {t.workout.screenSubtitle}
           </Text>
         </View>
 
@@ -240,14 +247,14 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
             <View style={styles.pastDateBanner}>
               <CheckCircle2 size={14} color={COLORS.success} />
               <Text style={styles.pastDateBannerText}>
-                Workout Completed on {formatDateDisplay(activeDate)} ({activeDate})
+                {t.workout.completedOnDate.replace('{date}', `${formatDateDisplay(activeDate)} (${activeDate})`)}
               </Text>
             </View>
           ) : (
             <View style={styles.pastDateBannerMuted}>
               <Calendar size={14} color={COLORS.textMuted} />
               <Text style={styles.pastDateBannerTextMuted}>
-                No workout recorded on {formatDateDisplay(activeDate)}. Showing scheduled plan:
+                {t.workout.noWorkoutOnDate.replace('{date}', formatDateDisplay(activeDate))}
               </Text>
             </View>
           )
@@ -262,10 +269,10 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           <View style={styles.selectorHeaderRow}>
             <View style={styles.selectorTitleRow}>
               <Target size={13} color={modeColors.accent} />
-              <Text style={styles.selectorGroupTitle}>TRAINING GOAL</Text>
+              <Text style={styles.selectorGroupTitle}>{t.workout.trainingGoalSection}</Text>
             </View>
             <Text style={styles.selectorActiveText}>
-              {TRAINING_GOALS.find((g) => g.id === activeGoal)?.label}
+              {t.workout.goals[activeGoal] || activeGoal}
             </Text>
           </View>
           <HorizontalChipBar
@@ -282,7 +289,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           <View style={styles.selectorHeaderRow}>
             <View style={styles.selectorTitleRow}>
               <Sliders size={13} color={modeColors.accent} />
-              <Text style={styles.selectorGroupTitle}>SKILL LEVEL</Text>
+              <Text style={styles.selectorGroupTitle}>{t.workout.skillLevelSection}</Text>
             </View>
             <Text style={[styles.selectorActiveText, { color: modeColors.accent }]}>
               {activeSkillLevel.toUpperCase()}
@@ -291,6 +298,8 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           <View style={styles.skillSegmentContainer}>
             {SKILL_LEVELS.map((level) => {
               const isSelected = activeSkillLevel === level.id;
+              const levelLabel = (t.workout.skillLevels as any)[level.id] || level.label;
+              const subLabel = (t.workout.skillLevels as any)[`${level.id}Sub`] || level.subLabel;
               return (
                 <TouchableOpacity
                   key={level.id}
@@ -310,7 +319,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                       isSelected && { color: modeColors.accent, fontWeight: '700' },
                     ]}
                   >
-                    {level.label}
+                    {levelLabel}
                   </Text>
                   <Text
                     style={[
@@ -318,7 +327,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                       isSelected && { color: modeColors.accent, opacity: 0.9 },
                     ]}
                   >
-                    {level.subLabel}
+                    {subLabel}
                   </Text>
                 </TouchableOpacity>
               );
@@ -331,10 +340,10 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           <View style={styles.selectorHeaderRow}>
             <View style={styles.selectorTitleRow}>
               <Zap size={13} color={modeColors.accent} />
-              <Text style={styles.selectorGroupTitle}>WORKOUT PLAN / SPLIT</Text>
+              <Text style={styles.selectorGroupTitle}>{t.workout.splitSection}</Text>
             </View>
             <Text style={styles.selectorActiveText}>
-              {WORKOUT_SPLITS.find((s) => s.id === currentSplit)?.label}
+              {t.workout.splits[currentSplit] || currentSplit}
             </Text>
           </View>
           <HorizontalChipBar
@@ -360,7 +369,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                 <Sparkles size={14} color={modeColors.accent} />
               </View>
               <View>
-                <Text style={styles.coachRecLabel}>COACH SUGGESTION</Text>
+                <Text style={styles.coachRecLabel}>{t.workout.coachSuggestion}</Text>
                 <Text style={styles.coachRecSplitTitle}>{coachRec.splitTitle}</Text>
               </View>
             </View>
@@ -383,14 +392,14 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
               >
                 <Zap size={13} color={COLORS.background} />
                 <Text style={styles.applyCoachBtnText}>
-                  Apply Coach Plan ({coachRec.splitTitle})
+                  {t.workout.applyCoachPlan.replace('{split}', coachRec.splitTitle)}
                 </Text>
               </TouchableOpacity>
             ) : (
               <View style={[styles.activeCoachBadge, { borderColor: `${COLORS.success}60`, backgroundColor: `${COLORS.success}15` }]}>
                 <CheckCircle2 size={13} color={COLORS.success} />
                 <Text style={[styles.activeCoachBadgeText, { color: COLORS.success }]}>
-                  Active Coach Pick
+                  {t.workout.activeCoachPick}
                 </Text>
               </View>
             )}
@@ -402,7 +411,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
             >
               <MessageSquare size={13} color={modeColors.accent} />
               <Text style={[styles.askCoachPlanBtnText, { color: modeColors.accent }]}>
-                Ask Coach
+                {t.workout.askCoach}
               </Text>
             </TouchableOpacity>
           </View>
@@ -431,7 +440,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                 equipmentMode === 'all' && { color: modeColors.accent, fontWeight: '700' },
               ]}
             >
-              Full Gym (All Equipment)
+              {t.onboarding.fullGym}
             </Text>
           </TouchableOpacity>
 
@@ -456,7 +465,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                 equipmentMode === 'bodyweight' && { color: modeColors.accent, fontWeight: '700' },
               ]}
             >
-              Bodyweight / Home
+              {t.onboarding.homeEquipment}
             </Text>
           </TouchableOpacity>
         </View>

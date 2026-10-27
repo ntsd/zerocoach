@@ -18,6 +18,7 @@ import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { exerciseRepository } from '@/services/workout/exerciseRepository';
 import { getRepDBImageUrl } from '@/services/workout/workoutPlanGenerator';
+import { useTranslation } from '@/i18n';
 import {
   Search,
   X,
@@ -77,9 +78,24 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
   mode,
   swapTargetExercise,
 }) => {
+  const { t } = useTranslation();
   const modeColors = getModeColors(mode);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
+
+  const categoryTabs = useMemo(
+    () => [
+      { id: 'all', label: t.workout.selectModal.categories.all },
+      { id: 'back', label: t.workout.selectModal.categories.back },
+      { id: 'chest', label: t.workout.selectModal.categories.chest },
+      { id: 'shoulders', label: t.workout.selectModal.categories.shoulders },
+      { id: 'arms', label: t.workout.selectModal.categories.arms },
+      { id: 'legs', label: t.workout.selectModal.categories.legs },
+      { id: 'core', label: t.workout.selectModal.categories.core },
+      { id: 'bodyweight', label: t.workout.selectModal.categories.bodyweight },
+    ],
+    [t]
+  );
 
   // Filtered exercises from RepDB dataset (643 exercises total)
   const filteredExercises = useMemo(() => {
@@ -172,7 +188,7 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
     <AppModal
       visible={visible}
       onClose={onClose}
-      title={isSwapping ? 'SWAP EXERCISE' : 'ADD EXERCISE FROM REPDB'}
+      title={isSwapping ? t.workout.selectModal.swapTitle : t.workout.selectModal.addTitle}
       icon={isSwapping ? RefreshCw : Dumbbell}
       iconColor={modeColors.accent}
       height="88%"
@@ -182,11 +198,11 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
         <View style={styles.subHeaderBox}>
           {isSwapping ? (
             <Text style={styles.subHeaderText}>
-              Replacing <Text style={{ color: modeColors.accent, fontWeight: '700' }}>{swapTargetExercise?.name}</Text> with a movement from the RepDB science library.
+              {t.workout.selectModal.swapSub.replace('{name}', swapTargetExercise?.name || '')}
             </Text>
           ) : (
             <Text style={styles.subHeaderText}>
-              Select any exercise from RepDB (643 movements with verified CDN preview poses) to add to today's workout.
+              {t.workout.selectModal.addSub}
             </Text>
           )}
         </View>
@@ -196,7 +212,7 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
           <Search size={16} color={COLORS.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search e.g. Pull-up, Squat, Push-up, Dips..."
+            placeholder={t.workout.selectModal.searchPlaceholder}
             placeholderTextColor={COLORS.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -257,7 +273,7 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={CATEGORY_TABS}
+            data={categoryTabs}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.tabsContent}
             renderItem={({ item }) => {
@@ -291,9 +307,9 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
         {/* Results Counter */}
         <View style={styles.resultsInfoRow}>
           <Text style={styles.resultsCountText}>
-            SHOWING <Text style={{ color: COLORS.textPrimary, fontWeight: '700' }}>{filteredExercises.length}</Text> EXERCISES
+            {t.workout.selectModal.showingCount.replace('{count}', String(filteredExercises.length))}
           </Text>
-          <Text style={styles.repDbTag}>RepDB • 643 movements</Text>
+          <Text style={styles.repDbTag}>{t.workout.selectModal.repDbTag}</Text>
         </View>
 
         {/* Exercises FlatList */}
@@ -310,9 +326,9 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Dumbbell size={32} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No exercises matched</Text>
+              <Text style={styles.emptyTitle}>{t.workout.selectModal.noMatchTitle}</Text>
               <Text style={styles.emptySubText}>
-                Try adjusting your search query or switching category tabs.
+                {t.workout.selectModal.noMatchSub}
               </Text>
             </View>
           }

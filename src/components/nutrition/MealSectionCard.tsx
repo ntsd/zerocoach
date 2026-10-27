@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { GlassCard } from '../common/GlassCard';
 import { LoggedFood, MealType } from '../../types/nutrition';
+import { useTranslation } from '../../i18n';
 import { COLORS } from '../../theme/colors';
 import {
   Coffee,
@@ -30,6 +31,7 @@ export const MealSectionCard: React.FC<MealSectionCardProps> = ({
   onAddFood,
   onRemoveFood,
 }) => {
+  const { t } = useTranslation();
   // Aggregate meal calories and protein
   const mealCalories = foods.reduce((sum, f) => sum + f.nutrients.calories, 0);
   const mealProtein = Math.round(foods.reduce((sum, f) => sum + f.nutrients.proteinGrams, 0) * 10) / 10;
@@ -53,21 +55,21 @@ export const MealSectionCard: React.FC<MealSectionCardProps> = ({
         return (
           <View style={[styles.sourceBadge, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
             <CheckCircle size={10} color="#10B981" />
-            <Text style={[styles.sourceBadgeText, { color: '#10B981' }]}>USDA Whole</Text>
+            <Text style={[styles.sourceBadgeText, { color: '#10B981' }]}>{t.nutrition.badges.usda}</Text>
           </View>
         );
       case 'open_food_facts':
         return (
           <View style={[styles.sourceBadge, { backgroundColor: 'rgba(56, 189, 248, 0.12)' }]}>
             <Barcode size={10} color="#38BDF8" />
-            <Text style={[styles.sourceBadgeText, { color: '#38BDF8' }]}>Open Food Facts</Text>
+            <Text style={[styles.sourceBadgeText, { color: '#38BDF8' }]}>{t.nutrition.badges.openFood}</Text>
           </View>
         );
       case 'ai_decomposed':
         return (
           <View style={[styles.sourceBadge, { backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
             <Sparkles size={10} color="#A855F7" />
-            <Text style={[styles.sourceBadgeText, { color: '#A855F7' }]}>AI Meal</Text>
+            <Text style={[styles.sourceBadgeText, { color: '#A855F7' }]}>{t.nutrition.badges.aiMeal}</Text>
           </View>
         );
       default:
@@ -98,7 +100,7 @@ export const MealSectionCard: React.FC<MealSectionCardProps> = ({
           activeOpacity={0.7}
         >
           <Plus size={14} color="#00F0FF" />
-          <Text style={styles.addButtonText}>Add Food</Text>
+          <Text style={styles.addButtonText}>{t.nutrition.meals.addFood}</Text>
         </TouchableOpacity>
       </View>
 
@@ -110,8 +112,7 @@ export const MealSectionCard: React.FC<MealSectionCardProps> = ({
           onPress={() => onAddFood(mealType)}
           activeOpacity={0.7}
         >
-          <Text style={styles.emptyText}>No food logged for {title.toLowerCase()} yet.</Text>
-          <Text style={styles.emptySubtext}>Tap + Add Food to log whole foods, scan, or snap a photo.</Text>
+          <Text style={styles.emptyText}>{t.nutrition.meals.empty}</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.foodList}>

@@ -23,6 +23,7 @@ import { ChatBubble } from '@/components/chat/ChatBubble';
 import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
+import { useTranslation } from '@/i18n';
 import { Send, Square, Trash2 } from 'lucide-react-native';
 
 interface CoachChatScreenProps {
@@ -36,6 +37,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
   onNavigateToProgressions,
   onNavigateToNutrition,
 }) => {
+  const { t } = useTranslation();
   const [inputText, setInputText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -156,9 +158,11 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           <View style={styles.downloadBanner}>
             <View style={styles.downloadBannerHeader}>
               <Text style={styles.downloadBannerTitle}>
-                Downloading {currentModel?.name || 'ZeroCoach AI'} weights ({downloadProgress}%)
+                {t.coach.downloadBannerTitle
+                  .replace('{name}', currentModel?.name || 'ZeroCoach AI')
+                  .replace('{progress}', String(downloadProgress))}
               </Text>
-              <Text style={styles.downloadBannerSub}>Auto-loading into RAM upon completion</Text>
+              <Text style={styles.downloadBannerSub}>{t.coach.downloadBannerSub}</Text>
             </View>
             <View style={styles.progressBarTrack}>
               <View
@@ -177,7 +181,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
         {provider === 'on_device' && Platform.OS !== 'web' && status === 'loading' && (
           <View style={styles.loadingBanner}>
             <Text style={[styles.loadingBannerText, { color: modeColors.accent }]}>
-              ⚡ Allocating {currentModel?.name || 'ZeroCoach AI'} context into device RAM via llama.rn...
+              {t.coach.loadingBannerText.replace('{name}', currentModel?.name || 'ZeroCoach AI')}
             </Text>
           </View>
         )}
@@ -239,8 +243,8 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
             }}
             placeholder={
               mode === 'strict'
-                ? "Ask coach for macros, sets, or exercise form..."
-                : "Ask coach about daily wellness, food, or movement..."
+                ? t.coach.chatPlaceholderStrict
+                : t.coach.chatPlaceholderComfort
             }
             placeholderTextColor={COLORS.textMuted}
             value={inputText}

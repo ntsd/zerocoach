@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useTranslation } from '@/i18n';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
+
+import { llmService } from '@/services/llm/llmService';
 
 interface StreamingIndicatorProps {
   tokenCount?: number;
@@ -12,6 +15,7 @@ interface StreamingIndicatorProps {
 
 export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
   const { mode } = useCoachStore();
+  const { t } = useTranslation();
   const modeColors = getModeColors(mode);
   const [pulse, setPulse] = useState(true);
 
@@ -21,6 +25,16 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
     }, 400);
     return () => clearInterval(interval);
   }, []);
+
+  const engineType = llmService.getActiveEngineName();
+  const engineLabel =
+    engineType === 'gemini'
+      ? 'GOOGLE GEMINI STREAMING'
+      : engineType === 'openai'
+      ? 'OPENAI STREAMING'
+      : engineType === 'on_device'
+      ? t.coach.onDeviceStreaming
+      : 'SOVEREIGN STREAMING (~38 tok/s)';
 
   return (
     <View style={styles.container}>
@@ -36,7 +50,7 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
       />
       <ZeroCoachLogo size={13} mode={mode} />
       <Text style={[styles.text, { color: modeColors.accent }]}>
-        ON-DEVICE INFERENCE STREAMING (~38 tok/s)
+        {engineLabel}
       </Text>
     </View>
   );

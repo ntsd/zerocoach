@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useTranslation } from '@/i18n';
 import { COLORS } from '@/theme/colors';
 
 export function getTodayDateString(): string {
@@ -11,21 +12,21 @@ export function getTodayDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDateDisplay(dateStr: string): string {
+export function formatDateDisplay(dateStr: string, language?: string): string {
   const todayStr = getTodayDateString();
-  if (dateStr === todayStr) return 'Today';
+  if (dateStr === todayStr) return language === 'th' ? 'วันนี้' : 'Today';
 
   const d = new Date();
   d.setDate(d.getDate() - 1);
   const yesterdayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
     d.getDate()
   ).padStart(2, '0')}`;
-  if (dateStr === yesterdayStr) return 'Yesterday';
+  if (dateStr === yesterdayStr) return language === 'th' ? 'เมื่อวาน' : 'Yesterday';
 
   try {
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString(undefined, {
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -52,6 +53,7 @@ export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
   style,
   accentColor = COLORS.strict.accent,
 }) => {
+  const { language } = useTranslation();
   const todayStr = getTodayDateString();
   const isToday = currentDate === todayStr;
 
@@ -68,7 +70,7 @@ export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
 
       <TouchableOpacity onPress={onToday} activeOpacity={0.7} style={styles.dateCenter}>
         <Text style={[styles.dateTitle, isToday && { color: accentColor }]}>
-          {formatDateDisplay(currentDate)}
+          {formatDateDisplay(currentDate, language)}
         </Text>
         <Text style={styles.dateSubtitle}>{currentDate}</Text>
       </TouchableOpacity>

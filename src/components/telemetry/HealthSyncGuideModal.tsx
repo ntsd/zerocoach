@@ -12,6 +12,7 @@ import { AppModal } from '@/components/common/AppModal';
 import { GlassCard } from '@/components/common/GlassCard';
 import { COLORS } from '@/theme/colors';
 import { fitnessBridge, HealthAvailabilityStatus } from '@/services/telemetry/fitnessBridgeService';
+import { useTranslation } from '@/i18n';
 import {
   Watch,
   Activity,
@@ -47,6 +48,7 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
   onSyncSuccess,
   onTriggerSync,
 }) => {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<HealthAvailabilityStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -106,7 +108,7 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
     <AppModal
       visible={visible}
       onClose={onClose}
-      title="Fitness App Sync Bridge"
+      title={t.analyze.healthGuideModal.title}
       icon={Watch}
       iconColor="#00F0FF"
       height="85%"
@@ -124,7 +126,7 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
             ) : (
               <>
                 <Zap size={18} color="#080B10" />
-                <Text style={styles.primarySyncBtnText}>Sync Live Biometrics</Text>
+                <Text style={styles.primarySyncBtnText}>{t.analyze.healthGuideModal.syncLive}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -142,7 +144,7 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
               <>
                 <Sparkles size={18} color="#080B10" />
                 <Text style={styles.primarySyncBtnText}>
-                  Simulate Device Sync ({Platform.OS.toUpperCase()})
+                  {t.analyze.healthGuideModal.simulateSync.replace('{os}', Platform.OS.toUpperCase())}
                 </Text>
               </>
             )}
@@ -159,20 +161,20 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
         <View style={styles.privacyBanner}>
           <ShieldCheck size={18} color="#10B981" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.privacyTitle}>100% On-Device & Private</Text>
+            <Text style={styles.privacyTitle}>{t.analyze.healthGuideModal.privacyTitle}</Text>
             <Text style={styles.privacySub}>
-              ZeroCoach reads your health telemetry directly from the OS. No cloud accounts, zero third-party tracking.
+              {t.analyze.healthGuideModal.privacySub}
             </Text>
           </View>
         </View>
 
         {/* Provider Status Card */}
-        <Text style={styles.sectionHeading}>NATIVE HEALTH ENGINE</Text>
+        <Text style={styles.sectionHeading}>{t.analyze.healthGuideModal.nativeEngine}</Text>
         <GlassCard style={styles.statusCard}>
           {loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color="#00F0FF" />
-              <Text style={styles.loadingText}>Checking local health daemons...</Text>
+              <Text style={styles.loadingText}>{t.analyze.healthGuideModal.checkingStatus}</Text>
             </View>
           ) : (
             <>
@@ -185,10 +187,10 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
                   )}
                   <Text style={styles.statusBadgeText}>
                     {status?.provider === 'health_connect'
-                      ? 'Android Health Connect'
+                      ? t.analyze.healthGuideModal.androidHealthConnect
                       : status?.provider === 'apple_health'
-                      ? 'Apple HealthKit'
-                      : 'Simulated Device Bridge'}
+                      ? t.analyze.healthGuideModal.appleHealthKit
+                      : t.analyze.healthGuideModal.simulatedBridge}
                   </Text>
                 </View>
 
@@ -198,7 +200,7 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
                     status?.available ? styles.statusPillReady : styles.statusPillSim,
                   ]}
                 >
-                  {status?.available ? 'ACTIVE' : 'SIMULATION READY'}
+                  {status?.available ? t.analyze.healthGuideModal.active : t.analyze.healthGuideModal.simReady}
                 </Text>
               </View>
 
@@ -213,7 +215,7 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
                 >
                   <ExternalLink size={14} color="#080B10" />
                   <Text style={styles.installButtonText}>
-                    Install Health Connect (Google Play)
+                    {t.analyze.healthGuideModal.installHealthConnect}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -223,10 +225,10 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
 
         {/* Universal Supported Fitness Companion Apps */}
         <Text style={[styles.sectionHeading, { marginTop: 16 }]}>
-          UNIVERSAL FITNESS APP INTEGRATION
+          {t.analyze.healthGuideModal.universalIntegration}
         </Text>
         <Text style={styles.supportedExplainer}>
-          Any wearable or companion app that syncs to Android Health Connect or Apple Health works automatically with ZeroCoach:
+          {t.analyze.healthGuideModal.supportedExplainer}
         </Text>
 
         <View style={styles.appsGrid}>
@@ -242,14 +244,16 @@ export const HealthSyncGuideModal: React.FC<HealthSyncGuideModalProps> = ({
         </View>
 
         {/* Metrics Synced List */}
-        <Text style={[styles.sectionHeading, { marginTop: 16 }]}>BIOMETRICS SYNCED</Text>
+        <Text style={[styles.sectionHeading, { marginTop: 16 }]}>
+          {t.analyze.healthGuideModal.biometricsSynced}
+        </Text>
         <View style={styles.metricsBox}>
-          <Text style={styles.metricBullet}>• <Text style={styles.bold}>Daily Steps</Text> (00:00 to now)</Text>
-          <Text style={styles.metricBullet}>• <Text style={styles.bold}>Active Energy Burned</Text> (kcal)</Text>
-          <Text style={styles.metricBullet}>• <Text style={styles.bold}>Resting Heart Rate</Text> (BPM)</Text>
-          <Text style={styles.metricBullet}>• <Text style={styles.bold}>Heart Rate Variability</Text> (HRV rMSSD / SDNN)</Text>
-          <Text style={styles.metricBullet}>• <Text style={styles.bold}>Sleep Duration & Deep Sleep</Text> (Last session)</Text>
-          <Text style={styles.metricBullet}>• <Text style={styles.bold}>Body Weight</Text> (Auto-updates Coach Nutrition Targets)</Text>
+          <Text style={styles.metricBullet}>• <Text style={styles.bold}>{t.analyze.healthGuideModal.metrics.steps}</Text> {t.analyze.healthGuideModal.metrics.stepsDesc}</Text>
+          <Text style={styles.metricBullet}>• <Text style={styles.bold}>{t.analyze.healthGuideModal.metrics.calories}</Text> {t.analyze.healthGuideModal.metrics.caloriesDesc}</Text>
+          <Text style={styles.metricBullet}>• <Text style={styles.bold}>{t.analyze.healthGuideModal.metrics.hr}</Text> {t.analyze.healthGuideModal.metrics.hrDesc}</Text>
+          <Text style={styles.metricBullet}>• <Text style={styles.bold}>{t.analyze.healthGuideModal.metrics.hrv}</Text> {t.analyze.healthGuideModal.metrics.hrvDesc}</Text>
+          <Text style={styles.metricBullet}>• <Text style={styles.bold}>{t.analyze.healthGuideModal.metrics.sleep}</Text> {t.analyze.healthGuideModal.metrics.sleepDesc}</Text>
+          <Text style={styles.metricBullet}>• <Text style={styles.bold}>{t.analyze.healthGuideModal.metrics.weight}</Text> {t.analyze.healthGuideModal.metrics.weightDesc}</Text>
         </View>
       </ScrollView>
     </AppModal>

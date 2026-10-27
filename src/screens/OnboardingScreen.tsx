@@ -142,7 +142,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
         bmr: 0,
         tdee: 0,
         goalAdjustmentKcal: 0,
-        goalSummary: 'Weight and height required for calculation',
+        goalSummary: t.onboarding.metricsRequiredCalc,
         isActiveBurnFromWearable: false,
       };
     }
@@ -200,9 +200,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       }
 
       if (!fresh.weightKg || !fresh.heightCm) {
-        setCompanionNote(
-          'Steps & biometrics synced from Health Connect! Note: Mi Fitness / Xiaomi Wear does not write Weight & Height to Health Connect. Please enter your weight and height below.'
-        );
+        setCompanionNote(t.onboarding.xiaomiNotice);
       } else {
         setCompanionNote(null);
       }
@@ -224,8 +222,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       setHasFitnessApp(true);
     } catch (e: any) {
       setSyncError(
-        e?.message ||
-          'No fitness app detected on this device. Please enter your weight and height directly.'
+        e?.message || t.onboarding.noAppDetected
       );
     } finally {
       setIsSyncing(false);
@@ -307,16 +304,47 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     onComplete();
   };
 
+  const trainingGoalsList = useMemo(
+    () => [
+      {
+        id: 'strength_hypertrophy' as TrainingGoal,
+        label: t.onboarding.trainingGoals.strength_hypertrophy.label,
+        desc: t.onboarding.trainingGoals.strength_hypertrophy.desc,
+      },
+      {
+        id: 'calisthenics_mastery' as TrainingGoal,
+        label: t.onboarding.trainingGoals.calisthenics_mastery.label,
+        desc: t.onboarding.trainingGoals.calisthenics_mastery.desc,
+      },
+      {
+        id: 'fat_loss_recomp' as TrainingGoal,
+        label: t.onboarding.trainingGoals.fat_loss_recomp.label,
+        desc: t.onboarding.trainingGoals.fat_loss_recomp.desc,
+      },
+      {
+        id: 'cardio_endurance' as TrainingGoal,
+        label: t.onboarding.trainingGoals.cardio_endurance.label,
+        desc: t.onboarding.trainingGoals.cardio_endurance.desc,
+      },
+      {
+        id: 'daily_health_longevity' as TrainingGoal,
+        label: t.onboarding.trainingGoals.daily_health_longevity.label,
+        desc: t.onboarding.trainingGoals.daily_health_longevity.desc,
+      },
+    ],
+    [t]
+  );
+
   const getStepTitle = () => {
     switch (currentStep) {
       case 1:
-        return 'Fitness Telemetry & App Sync';
+        return t.onboarding.step1Title;
       case 2:
-        return 'Coaching Philosophy';
+        return t.onboarding.step2Title;
       case 3:
-        return 'Profile & Training Goals';
+        return t.onboarding.step3Title;
       case 4:
-        return 'Daily Nutrition & Smart Macros';
+        return t.onboarding.step4Title;
     }
   };
 
@@ -344,7 +372,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           </View>
           <View style={styles.headerRight}>
             <Text style={[styles.stepCountText, { color: modeColors.accent }]}>
-              STEP {currentStep} OF 4
+              {t.onboarding.stepCount.replace('{current}', String(currentStep))}
             </Text>
             <Text style={styles.stepTitleSubtitle}>{getStepTitle()}</Text>
           </View>
@@ -496,35 +524,35 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         <View style={styles.syncedCheckBadge}>
                           <Check size={12} color={COLORS.success} />
                           <Text style={styles.syncedCheckText}>
-                            Connected to {syncedSource} (Local On-Device)
+                            {t.onboarding.syncedWith} {syncedSource} {t.onboarding.localOnDevice}
                           </Text>
                         </View>
-                        <Text style={styles.syncedTimestamp}>Just now</Text>
+                        <Text style={styles.syncedTimestamp}>{t.onboarding.justNow}</Text>
                       </View>
 
                       {/* 4-Stat Synced Grid */}
                       <View style={styles.statsGrid}>
                         <View style={styles.statTile}>
                           <Footprints size={14} color={COLORS.strict.accent} />
-                          <Text style={styles.statLabel}>DAILY STEPS</Text>
+                          <Text style={styles.statLabel}>{t.telemetry.steps}</Text>
                           <Text style={styles.statValue}>{Number(steps ?? 0).toLocaleString()}</Text>
                         </View>
 
                         <View style={styles.statTile}>
                           <Flame size={14} color={COLORS.warning} />
-                          <Text style={styles.statLabel}>ACTIVE BURN</Text>
+                          <Text style={styles.statLabel}>{t.telemetry.activeCalories}</Text>
                           <Text style={styles.statValue}>{activeCalories ?? 0} kcal</Text>
                         </View>
 
                         <View style={styles.statTile}>
                           <Heart size={14} color={COLORS.danger} />
-                          <Text style={styles.statLabel}>RESTING HR</Text>
+                          <Text style={styles.statLabel}>{t.telemetry.restingHeartRate}</Text>
                           <Text style={styles.statValue}>{restingHeartRate ?? 60} bpm</Text>
                         </View>
 
                         <View style={styles.statTile}>
                           <Moon size={14} color={COLORS.purpleAccent} />
-                          <Text style={styles.statLabel}>SLEEP</Text>
+                          <Text style={styles.statLabel}>{t.telemetry.sleepDuration}</Text>
                           <Text style={styles.statValue}>{sleepHours ?? 0}h</Text>
                         </View>
                       </View>
@@ -542,10 +570,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         <View style={styles.halfInput}>
                           <View style={styles.labelRow}>
                             <Weight size={13} color={modeColors.accent} />
-                            <Text style={styles.inputLabel}>BODY WEIGHT (KG)</Text>
+                            <Text style={styles.inputLabel}>{t.onboarding.weightKg.toUpperCase()}</Text>
                             {isWeightSynced && (
                               <View style={styles.syncedMiniTag}>
-                                <Text style={styles.syncedMiniText}>SYNCED</Text>
+                                <Text style={styles.syncedMiniText}>{t.common.synced.toUpperCase()}</Text>
                               </View>
                             )}
                           </View>
@@ -562,10 +590,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         <View style={styles.halfInput}>
                           <View style={styles.labelRow}>
                             <Ruler size={13} color={modeColors.accent} />
-                            <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                            <Text style={styles.inputLabel}>{t.onboarding.heightCm.toUpperCase()}</Text>
                             {isHeightSynced && (
                               <View style={styles.syncedMiniTag}>
-                                <Text style={styles.syncedMiniText}>SYNCED</Text>
+                                <Text style={styles.syncedMiniText}>{t.common.synced.toUpperCase()}</Text>
                               </View>
                             )}
                           </View>
@@ -584,7 +612,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                       {readinessCategory && (
                         <View style={styles.readinessPreviewBox}>
                           <View style={styles.previewTop}>
-                            <Text style={styles.previewTitle}>RECOVERY READINESS</Text>
+                            <Text style={styles.previewTitle}>{t.onboarding.recoveryReadiness}</Text>
                             <Text style={[styles.previewScore, { color: readinessCategory.color }]}>
                               {previewReadiness}/100
                             </Text>
@@ -600,9 +628,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <>
                       <View style={styles.syncCardContent}>
                         <Watch size={28} color={modeColors.accent} />
-                        <Text style={styles.syncCardTitle}>Local Wearable Bridges</Text>
+                        <Text style={styles.syncCardTitle}>{t.onboarding.wearableBridgeTitle}</Text>
                         <Text style={styles.syncCardDesc}>
-                          Tap "Sync Fitness App Now" to pull local health records. If no fitness app is connected, enter your Weight & Height below:
+                          {t.onboarding.wearableBridgeDesc}
                         </Text>
                       </View>
 
@@ -617,7 +645,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         <View style={styles.halfInput}>
                           <View style={styles.labelRow}>
                             <Weight size={13} color={modeColors.accent} />
-                            <Text style={styles.inputLabel}>BODY WEIGHT (KG)</Text>
+                            <Text style={styles.inputLabel}>{t.onboarding.weightKg.toUpperCase()}</Text>
                           </View>
                           <TextInput
                             style={styles.textInput}
@@ -632,7 +660,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         <View style={styles.halfInput}>
                           <View style={styles.labelRow}>
                             <Ruler size={13} color={modeColors.accent} />
-                            <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                            <Text style={styles.inputLabel}>{t.onboarding.heightCm.toUpperCase()}</Text>
                           </View>
                           <TextInput
                             style={styles.textInput}
@@ -652,9 +680,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   <View style={styles.noAppInfoBox}>
                     <Info size={18} color={modeColors.accent} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.noAppTitle}>Continuing Without a Fitness App</Text>
+                      <Text style={styles.noAppTitle}>{t.onboarding.noAppTitle}</Text>
                       <Text style={styles.noAppDesc}>
-                        No wearable tracker needed. ZeroCoach will calculate your customized workout volume and nutrition blueprint using only your body metrics and training goals. You can sync a wearable anytime later in the Telemetry tab.
+                        {t.onboarding.noAppDesc}
                       </Text>
                     </View>
                   </View>
@@ -664,7 +692,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <View style={styles.halfInput}>
                       <View style={styles.labelRow}>
                         <Weight size={13} color={modeColors.accent} />
-                        <Text style={styles.inputLabel}>BODY WEIGHT (KG)</Text>
+                        <Text style={styles.inputLabel}>{t.onboarding.weightKg.toUpperCase()}</Text>
                       </View>
                       <TextInput
                         style={styles.textInput}
@@ -679,7 +707,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <View style={styles.halfInput}>
                       <View style={styles.labelRow}>
                         <Ruler size={13} color={modeColors.accent} />
-                        <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                        <Text style={styles.inputLabel}>{t.onboarding.heightCm.toUpperCase()}</Text>
                       </View>
                       <TextInput
                         style={styles.textInput}
@@ -702,9 +730,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           {currentStep === 2 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
-                <Text style={styles.mainTitle}>Choose Your Coaching Philosophy</Text>
+                <Text style={styles.mainTitle}>{t.onboarding.step2Title}</Text>
                 <Text style={styles.subtitle}>
-                  ZeroCoach adapts its tone, programming rigor, and recovery logic based on your preferred style:
+                  {t.onboarding.step2Sub}
                 </Text>
               </View>
 
@@ -724,7 +752,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <View style={styles.modeIconRow}>
                       <ShieldAlert size={20} color={COLORS.strict.accent} />
                       <Text style={[styles.modeTitle, { color: COLORS.strict.accent }]}>
-                        STRICT ATHLETE MODE
+                        {t.onboarding.strictModeTitle}
                       </Text>
                     </View>
                     {selectedMode === 'strict' && (
@@ -734,12 +762,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     )}
                   </View>
                   <Text style={styles.modeDescription}>
-                    Data-driven sports scientist persona. Direct, structured, periodized training, precise macronutrient targets, and zero fluff.
+                    {t.onboarding.strictDesc}
                   </Text>
                   <View style={styles.bulletList}>
-                    <Text style={styles.bullet}>• Mechanical cues & joint alignment breakdown</Text>
-                    <Text style={styles.bullet}>• Strict accountability to daily macro limits</Text>
-                    <Text style={styles.bullet}>• Enforces deloads when readiness drops below 60</Text>
+                    <Text style={styles.bullet}>• {t.onboarding.strictBullet1}</Text>
+                    <Text style={styles.bullet}>• {t.onboarding.strictBullet2}</Text>
+                    <Text style={styles.bullet}>• {t.onboarding.strictBullet3}</Text>
                   </View>
                 </GlassCard>
               </TouchableOpacity>
@@ -760,7 +788,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     <View style={styles.modeIconRow}>
                       <HeartHandshake size={20} color={COLORS.comfortable.accent} />
                       <Text style={[styles.modeTitle, { color: COLORS.comfortable.accent }]}>
-                        COMFORTABLE HEALTH MODE
+                        {t.onboarding.comfortModeTitle}
                       </Text>
                     </View>
                     {selectedMode === 'comfortable' && (
@@ -770,12 +798,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     )}
                   </View>
                   <Text style={styles.modeDescription}>
-                    Compassionate wellness guide. Flexible, encouraging, focused on lifelong health, stress management, and sustainable micro-habits.
+                    {t.onboarding.comfortDesc}
                   </Text>
                   <View style={styles.bulletList}>
-                    <Text style={styles.bullet}>• Encouraging feedback and positive reinforcement</Text>
-                    <Text style={styles.bullet}>• Adaptable goals that fit around busy schedules</Text>
-                    <Text style={styles.bullet}>• Focuses on energy, vitality, and well-being</Text>
+                    <Text style={styles.bullet}>• {t.onboarding.comfortBullet1}</Text>
+                    <Text style={styles.bullet}>• {t.onboarding.comfortBullet2}</Text>
+                    <Text style={styles.bullet}>• {t.onboarding.comfortBullet3}</Text>
                   </View>
                 </GlassCard>
               </TouchableOpacity>
@@ -788,17 +816,17 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           {currentStep === 3 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
-                <Text style={styles.mainTitle}>Your Profile & Goals</Text>
+                <Text style={styles.mainTitle}>{t.onboarding.step3Title}</Text>
                 <Text style={styles.subtitle}>
-                  Verify your body metrics and select your primary training objectives from the 5 Core Pillars:
+                  {t.onboarding.step3Sub}
                 </Text>
               </View>
 
               <GlassCard style={styles.formCard}>
-                <Text style={styles.inputLabel}>YOUR ATHLETE NAME</Text>
+                <Text style={styles.inputLabel}>{t.onboarding.athleteName.toUpperCase()}</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. Alex"
+                  placeholder={t.onboarding.athleteNamePlaceholder}
                   placeholderTextColor={COLORS.textMuted}
                   value={name}
                   onChangeText={setName}
@@ -812,10 +840,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 <View style={[styles.rowInputs, { marginTop: SPACING.md }]}>
                   <View style={styles.halfInput}>
                     <View style={styles.labelRow}>
-                      <Text style={styles.inputLabel}>WEIGHT (KG)</Text>
+                      <Text style={styles.inputLabel}>{t.onboarding.weightKg.toUpperCase()}</Text>
                       {syncedSource && (
                         <View style={styles.syncedMiniTag}>
-                          <Text style={styles.syncedMiniText}>Synced</Text>
+                          <Text style={styles.syncedMiniText}>{t.common.synced}</Text>
                         </View>
                       )}
                     </View>
@@ -831,10 +859,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                   <View style={styles.halfInput}>
                     <View style={styles.labelRow}>
-                      <Text style={styles.inputLabel}>HEIGHT (CM)</Text>
+                      <Text style={styles.inputLabel}>{t.onboarding.heightCm.toUpperCase()}</Text>
                       {syncedSource && (
                         <View style={styles.syncedMiniTag}>
-                          <Text style={styles.syncedMiniText}>Synced</Text>
+                          <Text style={styles.syncedMiniText}>{t.common.synced}</Text>
                         </View>
                       )}
                     </View>
@@ -851,12 +879,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                 {/* Biological Sex */}
                 <View style={{ marginTop: SPACING.md }}>
-                  <Text style={styles.inputLabel}>BIOLOGICAL SEX</Text>
+                  <Text style={styles.inputLabel}>{t.onboarding.sexLabel.toUpperCase()}</Text>
                   <View style={styles.segmentedSelectorRow}>
                     {(
                       [
-                        { id: 'male', label: 'Male 👨', sub: 'Neural Drive Focus' },
-                        { id: 'female', label: 'Female 👩', sub: 'Volume Tolerance' },
+                        { id: 'male', label: t.onboarding.maleLabel, sub: t.onboarding.maleSub },
+                        { id: 'female', label: t.onboarding.femaleLabel, sub: t.onboarding.femaleSub },
                       ] as const
                     ).map((item) => {
                       const isSelected = sex === item.id;
@@ -890,13 +918,13 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                 {/* Primary Workout Environment */}
                 <View style={{ marginTop: SPACING.md }}>
-                  <Text style={styles.inputLabel}>PRIMARY WORKOUT ENVIRONMENT</Text>
+                  <Text style={styles.inputLabel}>{t.onboarding.equipmentLabel.toUpperCase()}</Text>
                   <View style={styles.segmentedSelectorRow}>
                     {(
                       [
-                        { id: 'gym', label: '🏋️ Full Gym', sub: 'Barbells, DBs, Cables' },
-                        { id: 'home', label: '🏠 Home / BW', sub: 'Bodyweight & Calisthenics' },
-                        { id: 'both', label: '🔄 Hybrid / Both', sub: 'Flexible Training' },
+                        { id: 'gym', label: t.onboarding.envGym, sub: t.onboarding.envGymSub },
+                        { id: 'home', label: t.onboarding.envHome, sub: t.onboarding.envHomeSub },
+                        { id: 'both', label: t.onboarding.envHybrid, sub: t.onboarding.envHybridSub },
                       ] as const
                     ).map((item) => {
                       const isSelected = equipmentPreference === item.id;
@@ -930,16 +958,16 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                 {/* Primary Training Goal */}
                 <View style={styles.goalsHeaderRow}>
-                  <Text style={styles.inputLabel}>PRIMARY TRAINING GOAL</Text>
+                  <Text style={styles.inputLabel}>{t.onboarding.goalsLabel.toUpperCase()}</Text>
                   {selectedGoals.length > 0 && (
                     <Text style={[styles.goalsCountBadge, { color: modeColors.accent }]}>
-                      1 SELECTED
+                      {t.onboarding.oneSelected}
                     </Text>
                   )}
                 </View>
 
                 <View style={styles.goalsWrap}>
-                  {COMMON_TRAINING_GOALS.map((goal) => {
+                  {trainingGoalsList.map((goal) => {
                     const isSelected = selectedGoals.includes(goal.id);
                     return (
                       <TouchableOpacity
@@ -991,11 +1019,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           {currentStep === 4 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
-                <Text style={styles.mainTitle}>Daily Nutrition & Smart Macros</Text>
+                <Text style={styles.mainTitle}>{t.onboarding.step4Title}</Text>
                 <Text style={styles.subtitle}>
-                  Dynamically calculated from your Profile ({weightKg}kg, {heightCm}cm), Primary Goal (
-                  {COMMON_TRAINING_GOALS.find((g) => g.id === selectedGoals[0])?.label || 'General Fitness'}
-                  ), and Fitness Telemetry:
+                  {t.onboarding.step4Sub}
                 </Text>
               </View>
 
@@ -1003,30 +1029,30 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 {/* Science Calculation Breakdown Card */}
                 <View style={styles.breakdownBox}>
                   <View style={styles.breakdownHeaderRow}>
-                    <Text style={styles.breakdownHeaderTitle}>SMART METRIC BREAKDOWN</Text>
+                    <Text style={styles.breakdownHeaderTitle}>{t.onboarding.smartBreakdownTitle}</Text>
                     {syncedSource ? (
                       <View style={styles.syncedTagBadge}>
                         <Zap size={10} color={modeColors.accent} />
                         <Text style={[styles.syncedTagText, { color: modeColors.accent }]}>
-                          Synced with {syncedSource}
+                          {t.onboarding.syncedWithSource.replace('{source}', syncedSource)}
                         </Text>
                       </View>
                     ) : (
-                      <Text style={styles.manualTagText}>Standard Metabolic Baseline</Text>
+                      <Text style={styles.manualTagText}>{t.onboarding.standardMetabolicBaseline}</Text>
                     )}
                   </View>
 
                   <View style={styles.breakdownList}>
                     <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownItemLabel}>BMR (Mifflin-St Jeor):</Text>
+                      <Text style={styles.breakdownItemLabel}>{t.onboarding.bmrLabel}</Text>
                       <Text style={styles.breakdownItemVal}>{smartRecommendation.bmr} kcal</Text>
                     </View>
 
                     <View style={styles.breakdownRow}>
                       <Text style={styles.breakdownItemLabel}>
                         {smartRecommendation.isActiveBurnFromWearable
-                          ? 'Active Wearable Burn:'
-                          : 'Estimated Baseline Activity:'}
+                          ? t.onboarding.activeBurnLabel
+                          : t.onboarding.baselineActivityLabel}
                       </Text>
                       <Text style={[styles.breakdownItemVal, { color: COLORS.warning }]}>
                         +{smartRecommendation.isActiveBurnFromWearable
@@ -1037,7 +1063,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                     <View style={styles.breakdownRow}>
                       <Text style={styles.breakdownItemLabel}>
-                        Goal ({smartRecommendation.goalSummary}):
+                        {t.onboarding.goalLabel.replace('{summary}', smartRecommendation.goalSummary)}
                       </Text>
                       <Text
                         style={[
@@ -1053,7 +1079,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     </View>
 
                     <View style={[styles.breakdownRow, styles.breakdownRowTotal]}>
-                      <Text style={styles.breakdownTotalLabel}>Calculated Target:</Text>
+                      <Text style={styles.breakdownTotalLabel}>{t.onboarding.calculatedTarget}</Text>
                       <Text style={[styles.breakdownTotalVal, { color: modeColors.accent }]}>
                         {smartRecommendation.dailyCalories} kcal / day
                       </Text>
@@ -1064,7 +1090,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 {/* Calorie Input */}
                 <View style={[styles.headerWithIcon, { marginTop: SPACING.md }]}>
                   <Flame size={18} color={COLORS.warning} />
-                  <Text style={styles.inputLabel}>DAILY CALORIE TARGET (KCAL)</Text>
+                  <Text style={styles.inputLabel}>{t.onboarding.dailyCalories.toUpperCase()}</Text>
                 </View>
                 <TextInput
                   style={styles.textInput}
@@ -1080,7 +1106,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                 {/* Macronutrient Distribution */}
                 <View style={styles.macroHeaderRow}>
-                  <Text style={styles.inputLabel}>MACRONUTRIENT DISTRIBUTION</Text>
+                  <Text style={styles.inputLabel}>{t.onboarding.macroDistribution}</Text>
                   {hasCustomMacros && (
                     <TouchableOpacity
                       onPress={resetToAutoCalculated}
@@ -1089,7 +1115,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                     >
                       <RefreshCw size={11} color={modeColors.accent} />
                       <Text style={[styles.resetBtnText, { color: modeColors.accent }]}>
-                        Reset to Auto
+                        {t.onboarding.resetToAuto}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -1097,7 +1123,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                 <View style={styles.macroRow}>
                   <View style={styles.macroCol}>
-                    <Text style={styles.macroBadge}>PROTEIN</Text>
+                    <Text style={styles.macroBadge}>{t.nutrition.header.protein}</Text>
                     <TextInput
                       style={styles.macroInput}
                       keyboardType="number-pad"
@@ -1109,14 +1135,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         setHasCustomMacros(true);
                       }}
                     />
-                    <Text style={styles.macroUnit}>grams</Text>
+                    <Text style={styles.macroUnit}>{t.onboarding.grams}</Text>
                     <Text style={styles.macroKcalSub}>
                       {(parseInt(proteinGrams, 10) || 0) * 4} kcal
                     </Text>
                   </View>
 
                   <View style={styles.macroCol}>
-                    <Text style={styles.macroBadge}>CARBS</Text>
+                    <Text style={styles.macroBadge}>{t.nutrition.header.carbs}</Text>
                     <TextInput
                       style={styles.macroInput}
                       keyboardType="number-pad"
@@ -1128,14 +1154,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         setHasCustomMacros(true);
                       }}
                     />
-                    <Text style={styles.macroUnit}>grams</Text>
+                    <Text style={styles.macroUnit}>{t.onboarding.grams}</Text>
                     <Text style={styles.macroKcalSub}>
                       {(parseInt(carbsGrams, 10) || 0) * 4} kcal
                     </Text>
                   </View>
 
                   <View style={styles.macroCol}>
-                    <Text style={styles.macroBadge}>FATS</Text>
+                    <Text style={styles.macroBadge}>{t.nutrition.header.fat}</Text>
                     <TextInput
                       style={styles.macroInput}
                       keyboardType="number-pad"
@@ -1147,7 +1173,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         setHasCustomMacros(true);
                       }}
                     />
-                    <Text style={styles.macroUnit}>grams</Text>
+                    <Text style={styles.macroUnit}>{t.onboarding.grams}</Text>
                     <Text style={styles.macroKcalSub}>
                       {(parseInt(fatGrams, 10) || 0) * 9} kcal
                     </Text>
@@ -1168,8 +1194,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                   />
                   <Text style={[styles.reSyncBtnText, { color: modeColors.accent }]}>
                     {isSyncing
-                      ? 'Re-syncing Fitness App...'
-                      : 'Re-sync Wearable Active Calories & Weight'}
+                      ? t.onboarding.resyncing
+                      : t.onboarding.resyncBtn}
                   </Text>
                 </TouchableOpacity>
               </GlassCard>
@@ -1206,10 +1232,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               >
                 <Text style={[styles.nextBtnText, !canProceed && styles.disabledBtnText]}>
                   {currentStep === 1 && !isBodyMetricsValid
-                    ? (language === 'th' ? 'ใส่น้ำหนักและส่วนสูง' : 'Enter Weight & Height')
+                    ? t.onboarding.enterWeightHeight
                     : currentStep === 3 && selectedGoals.length === 0
-                    ? (language === 'th' ? 'เลือกเป้าหมายการฝึก' : 'Select a Training Goal')
-                    : (language === 'th' ? 'ดำเนินการต่อ' : 'Continue')}
+                    ? t.onboarding.selectTrainingGoal
+                    : t.onboarding.continueAction}
                 </Text>
                 <ArrowRight size={16} color={!canProceed ? COLORS.textMuted : COLORS.textDark} />
               </TouchableOpacity>
@@ -1220,7 +1246,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 activeOpacity={0.8}
               >
                 <Text style={styles.nextBtnText}>
-                  {language === 'th' ? 'เริ่มต้นใช้งาน ZeroCoach' : 'Enter ZeroCoach'}
+                  {t.onboarding.enterZeroCoach}
                 </Text>
                 <Sparkles size={16} color={COLORS.textDark} />
               </TouchableOpacity>

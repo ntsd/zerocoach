@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useTranslation } from '@/i18n';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -8,6 +9,7 @@ import { ShieldAlert, HeartHandshake } from 'lucide-react-native';
 
 export const ModeSwitch: React.FC = () => {
   const { mode, toggleMode, setMode } = useCoachStore();
+  const { t } = useTranslation();
   const isStrict = mode === 'strict';
   const modeColors = getModeColors(mode);
 
@@ -33,7 +35,7 @@ export const ModeSwitch: React.FC = () => {
             isStrict && { color: COLORS.strict.accent },
           ]}
         >
-          STRICT
+          {t.mode.strict}
         </Text>
       </TouchableOpacity>
 
@@ -57,7 +59,7 @@ export const ModeSwitch: React.FC = () => {
             !isStrict && { color: COLORS.comfortable.accent },
           ]}
         >
-          COMFORT
+          {t.mode.comfortable}
         </Text>
       </TouchableOpacity>
     </View>

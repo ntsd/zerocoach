@@ -14,6 +14,7 @@ import { CoachingMode } from '@/types/coach';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
+import { useTranslation } from '@/i18n';
 import {
   Dumbbell,
   Clock,
@@ -53,6 +54,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   onAskCoach,
   mode,
 }) => {
+  const { t } = useTranslation();
   const [activePose, setActivePose] = useState<'start' | 'peak'>('peak');
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -122,7 +124,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                   { color: isCompleted ? COLORS.success : COLORS.textPrimary },
                 ]}
               >
-                {isCompleted ? 'Completed' : 'Mark Done'}
+                {isCompleted ? t.workout.detailModal.completed : t.workout.detailModal.markDone}
               </Text>
             </TouchableOpacity>
           )}
@@ -137,7 +139,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
               activeOpacity={0.85}
             >
               <Sparkles size={16} color={COLORS.textDark} />
-              <Text style={styles.askCoachBtnText}>Ask Coach Form Cues</Text>
+              <Text style={styles.askCoachBtnText}>{t.workout.detailModal.askCoachCues}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -172,7 +174,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
           ) : (
             <View style={styles.fallbackBox}>
               <Dumbbell size={40} color={COLORS.textMuted} />
-              <Text style={styles.fallbackText}>RepDB Biomechanical Movement</Text>
+              <Text style={styles.fallbackText}>{t.workout.detailModal.repDbMovement}</Text>
             </View>
           )}
 
@@ -200,7 +202,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                       activePose === 'start' && { color: modeColors.accent, fontWeight: '800' },
                     ]}
                   >
-                    Start Pose
+                    {t.workout.detailModal.startPose}
                   </Text>
                 </TouchableOpacity>
 
@@ -224,7 +226,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                       activePose === 'peak' && { color: modeColors.accent, fontWeight: '800' },
                     ]}
                   >
-                    Peak Contraction
+                    {t.workout.detailModal.peakContraction}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -250,7 +252,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                     isAutoPlaying && { color: COLORS.textDark, fontWeight: '800' },
                   ]}
                 >
-                  {isAutoPlaying ? 'Looping' : 'Auto-Loop'}
+                  {isAutoPlaying ? t.workout.detailModal.looping : t.workout.detailModal.autoLoop}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -260,7 +262,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
         {/* Prescription Card (Sets, Reps, Rest, Energy) */}
         <View style={styles.prescriptionCard}>
           <View style={styles.prescItem}>
-            <Text style={styles.prescLabel}>SETS</Text>
+            <Text style={styles.prescLabel}>{t.workout.detailModal.sets}</Text>
             {onUpdateSets ? (
               <View style={styles.modalSetControls}>
                 <TouchableOpacity
@@ -305,17 +307,17 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
           </View>
           <View style={styles.prescDivider} />
           <View style={styles.prescItem}>
-            <Text style={styles.prescLabel}>TARGET REPS</Text>
+            <Text style={styles.prescLabel}>{t.workout.detailModal.targetReps}</Text>
             <Text style={styles.prescValue}>{exercise.targetReps}</Text>
           </View>
           <View style={styles.prescDivider} />
           <View style={styles.prescItem}>
-            <Text style={styles.prescLabel}>REST</Text>
+            <Text style={styles.prescLabel}>{t.workout.detailModal.rest}</Text>
             <Text style={styles.prescValue}>{exercise.restPeriodSeconds}s</Text>
           </View>
           <View style={styles.prescDivider} />
           <View style={styles.prescItem}>
-            <Text style={styles.prescLabel}>MET BURN</Text>
+            <Text style={styles.prescLabel}>{t.workout.detailModal.metBurn}</Text>
             <Text style={[styles.prescValue, { color: COLORS.warning }]}>
               {exercise.met || 5.0}
             </Text>
@@ -327,7 +329,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
           <View style={styles.repSelectorCard}>
             <View style={styles.repSelectorHeader}>
               <Text style={[styles.repSelectorTitle, { color: modeColors.accent }]}>
-                TARGET REP PROTOCOL
+                {t.workout.detailModal.repProtocol}
               </Text>
               <Text style={styles.repSelectorCurrent}>{exercise.targetReps}</Text>
             </View>
@@ -415,7 +417,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
           (exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0)) && (
           <View style={styles.sectionBlock}>
             <Text style={[styles.sectionHeading, { color: modeColors.accent }]}>
-              MUSCLE RECRUITMENT PATTERN
+              {t.workout.detailModal.musclePattern}
             </Text>
             <View style={styles.musclesRow}>
               {exercise.primaryMuscles?.map((muscle) => (
@@ -442,7 +444,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
             <View style={styles.cueHeaderRow}>
               <ShieldCheck size={14} color={modeColors.accent} />
               <Text style={[styles.cueCardLabel, { color: modeColors.accent }]}>
-                PRIMARY COACHING CUE
+                {t.workout.detailModal.coachingCue}
               </Text>
             </View>
             <Text style={styles.cueCardBody}>{exercise.coachingCue}</Text>
@@ -453,7 +455,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
         {exercise.instructions && exercise.instructions.length > 0 && (
           <View style={styles.sectionBlock}>
             <Text style={[styles.sectionHeading, { color: modeColors.accent }]}>
-              STEP-BY-STEP EXECUTION
+              {t.workout.detailModal.stepByStep}
             </Text>
             <View style={styles.instructionsList}>
               {exercise.instructions.map((step, idx) => (
@@ -474,7 +476,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
         {exercise.tips && exercise.tips.length > 1 && (
           <View style={styles.sectionBlock}>
             <Text style={[styles.sectionHeading, { color: modeColors.accent }]}>
-              FORM TIPS & FAULT AVOIDANCE
+              {t.workout.detailModal.formTips}
             </Text>
             <View style={styles.tipsBox}>
               {exercise.tips.slice(1).map((tip, idx) => (

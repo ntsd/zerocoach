@@ -12,6 +12,7 @@ import { WorkoutSummaryModal } from './WorkoutSummaryModal';
 import { createExerciseItemFromRepDB } from '@/services/workout/workoutPlanGenerator';
 import { RepDBExercise } from '@/types/exercise';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
+import { useTranslation } from '@/i18n';
 import {
   Dumbbell,
   CheckCircle2,
@@ -66,6 +67,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   onAskCoach,
   date,
 }) => {
+  const { t } = useTranslation();
   const modeColors = getModeColors(mode);
   const todayDateStr = new Date().toISOString().split('T')[0];
   const currentDateStr = date || todayDateStr;
@@ -369,10 +371,12 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
               </View>
               <View style={styles.completedTextCol}>
                 <Text style={styles.completedBannerTitle}>
-                  {isToday ? 'WORKOUT LOGGED TODAY' : `WORKOUT LOGGED (${formatDateDisplay(currentDateStr).toUpperCase()})`}
+                  {isToday
+                    ? t.workout.card.loggedToday
+                    : t.workout.card.loggedOnDate.replace('{date}', formatDateDisplay(currentDateStr).toUpperCase())}
                 </Text>
                 <Text style={styles.completedBannerSub}>
-                  {sessionForDate.durationMinutes}m • {sessionForDate.caloriesBurned} kcal • {sessionForDate.completedMovements} movements • {sessionForDate.totalSets} sets
+                  {sessionForDate.durationMinutes}m • {sessionForDate.caloriesBurned} kcal • {sessionForDate.completedMovements} {t.common.movements} • {sessionForDate.totalSets} {t.common.sets}
                 </Text>
               </View>
             </View>
@@ -381,7 +385,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
               style={styles.reopenBtn}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Text style={[styles.reopenBtnText, { color: modeColors.accent }]}>Edit</Text>
+              <Text style={[styles.reopenBtnText, { color: modeColors.accent }]}>{t.common.edit}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -393,7 +397,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
               <Dumbbell size={16} color={modeColors.accent} />
             </View>
             <View style={styles.headerTitleBox}>
-              <Text style={styles.planSuperTitle}>DATA-GENERATED EXERCISE PLAN</Text>
+              <Text style={styles.planSuperTitle}>{t.workout.card.planSuperTitle}</Text>
               <Text style={styles.planTitle}>{sessionForDate?.title || plan.title}</Text>
             </View>
           </View>
@@ -408,14 +412,14 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         <View style={styles.metaRow}>
           <View style={styles.metaPill}>
             <Clock size={11} color={COLORS.textSecondary} />
-            <Text style={styles.metaPillText}>~{plan.estimatedDurationMin} MIN</Text>
+            <Text style={styles.metaPillText}>~{plan.estimatedDurationMin} {t.common.min.toUpperCase()}</Text>
           </View>
 
           {plan.estimatedCaloriesBurn && (
             <View style={styles.metaPill}>
               <Flame size={11} color={COLORS.warning} />
               <Text style={[styles.metaPillText, { color: COLORS.warning }]}>
-                ~{plan.estimatedCaloriesBurn} KCAL
+                ~{plan.estimatedCaloriesBurn} {t.common.kcal.toUpperCase()}
               </Text>
             </View>
           )}
@@ -423,13 +427,13 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           <View style={styles.metaPill}>
             <Activity size={11} color={modeColors.accent} />
             <Text style={[styles.metaPillText, { color: modeColors.accent }]}>
-              {exercises.length} MOVEMENTS
+              {exercises.length} {t.workout.summaryModal.movements}
             </Text>
           </View>
 
           <View style={styles.metaPill}>
             <Text style={styles.metaPillDate}>
-              {plan.equipmentMode === 'bodyweight' ? 'HOME / BODYWEIGHT' : 'ALL GYM'}
+              {plan.equipmentMode === 'bodyweight' ? t.workout.card.bodyweight : t.workout.card.allGym}
             </Text>
           </View>
 
@@ -457,7 +461,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         {plan.targetSkillMilestone && (
           <View style={styles.milestoneHighlight}>
             <Sparkles size={13} color={COLORS.warning} />
-            <Text style={styles.milestoneLabel}>TARGET MILESTONE:</Text>
+            <Text style={styles.milestoneLabel}>{t.workout.card.targetMilestone}</Text>
             <Text style={styles.milestoneValue} numberOfLines={1}>
               {plan.targetSkillMilestone}
             </Text>
@@ -467,10 +471,13 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         {/* Completion Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressInfoRow}>
-            <Text style={styles.progressLabel}>SESSION COMPLETION</Text>
+            <Text style={styles.progressLabel}>{t.workout.card.sessionCompletion}</Text>
             <Text style={[styles.progressValText, { color: modeColors.accent }]}>
-              {completedCount} of {totalActiveCount} ({progressPercent}%)
-              {skippedCount > 0 ? ` • ${skippedCount} skipped` : ''}
+              {t.workout.card.ofCompleted
+                .replace('{done}', String(completedCount))
+                .replace('{total}', String(totalActiveCount))
+                .replace('{pct}', String(progressPercent))}
+              {skippedCount > 0 ? ` • ${t.workout.card.skippedNotice.replace('{count}', String(skippedCount))}` : ''}
             </Text>
           </View>
           <View style={styles.progressBarBg}>
@@ -556,13 +563,15 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
                           {item.isCustomAdded && (
                             <View style={styles.customBadge}>
-                              <Text style={styles.customBadgeText}>ADDED</Text>
+                              <Text style={styles.customBadgeText}>{t.workout.card.added}</Text>
                             </View>
                           )}
 
                           {isSkipped && (
                             <View style={styles.skippedBadge}>
-                              <Text style={styles.skippedBadgeText}>SKIPPED</Text>
+                              <Text style={styles.skippedBadgeText}>
+                                {t.workout.summaryModal.skipped.toUpperCase()}
+                              </Text>
                             </View>
                           )}
 
@@ -575,7 +584,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
                         <View style={styles.previewHintBadge}>
                           <Eye size={10} color={COLORS.textMuted} />
-                          <Text style={styles.previewHintText}>Preview</Text>
+                          <Text style={styles.previewHintText}>{t.workout.card.preview}</Text>
                         </View>
                       </View>
 
@@ -647,7 +656,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                             <Text style={[styles.setNumberText, { color: modeColors.accent }]}>
                               {item.targetSets}
                             </Text>
-                            <Text style={styles.setNumberLabel}>SETS</Text>
+                            <Text style={styles.setNumberLabel}>{t.workout.card.sets}</Text>
                           </View>
 
                           <TouchableOpacity
@@ -677,7 +686,9 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
                         <View style={styles.restBadge}>
                           <Clock size={9} color={COLORS.textMuted} />
-                          <Text style={styles.restText}>{item.restPeriodSeconds}s rest</Text>
+                          <Text style={styles.restText}>
+                            {t.workout.card.restSeconds.replace('{sec}', String(item.restPeriodSeconds))}
+                          </Text>
                         </View>
                       </View>
                     )}
@@ -689,7 +700,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                         activeOpacity={0.8}
                         style={styles.cueBox}
                       >
-                        <Text style={styles.cueLabel}>CUE:</Text>
+                        <Text style={styles.cueLabel}>{t.workout.card.cue}</Text>
                         <Text style={styles.cueText}>{item.coachingCue}</Text>
                       </TouchableOpacity>
                     )}
@@ -708,13 +719,13 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                       <>
                         <RotateCcw size={11} color={COLORS.warning} />
                         <Text style={[styles.itemActionPillText, { color: COLORS.warning }]}>
-                          Restore Exercise
+                          {t.workout.card.restore}
                         </Text>
                       </>
                     ) : (
                       <>
                         <SkipForward size={11} color={COLORS.textMuted} />
-                        <Text style={styles.itemActionPillText}>Skip</Text>
+                        <Text style={styles.itemActionPillText}>{t.workout.card.skip}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -726,7 +737,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                     activeOpacity={0.7}
                   >
                     <RefreshCw size={11} color={COLORS.textMuted} />
-                    <Text style={styles.itemActionPillText}>Swap</Text>
+                    <Text style={styles.itemActionPillText}>{t.workout.card.swap}</Text>
                   </TouchableOpacity>
 
                   {item.isCustomAdded && (
@@ -738,7 +749,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                     >
                       <Trash2 size={11} color={COLORS.danger} />
                       <Text style={[styles.itemActionPillText, { color: COLORS.danger }]}>
-                        Remove
+                        {t.workout.card.remove}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -759,10 +770,10 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           </View>
           <View style={styles.addExerciseTextCol}>
             <Text style={[styles.addExerciseTitle, { color: modeColors.accent }]}>
-              + Add Skill / Exercise from RepDB
+              {t.workout.card.addRepDb}
             </Text>
             <Text style={styles.addExerciseSubtitle}>
-              Select from 643 movements (e.g. Pull-up, Squat, Dips)
+              {t.workout.card.addRepDbSub}
             </Text>
           </View>
         </TouchableOpacity>
@@ -771,7 +782,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         <View style={styles.repDbAttributionRow}>
           <Database size={11} color={COLORS.textMuted} />
           <Text style={styles.repDbAttributionText}>
-            Exercise dataset by <Text style={{ color: modeColors.accent }}>RepDB (repdb.co)</Text> • 643 Science-Backed Movements
+            {t.workout.card.repDbAttribution}
           </Text>
         </View>
 
@@ -812,8 +823,10 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
             ]}
           >
             {sessionForDate
-              ? `Workout Complete (${sessionForDate.completedMovements} Movements Logged)`
-              : `Finish Workout (${completedCount}/${totalActiveCount} Completed)`}
+              ? t.workout.card.editWorkoutBtn
+              : completedCount > 0
+              ? t.workout.card.finishWorkoutBtn
+              : t.workout.card.resumeWorkoutBtn}
           </Text>
         </TouchableOpacity>
 
@@ -824,7 +837,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           activeOpacity={0.85}
         >
           <Sparkles size={16} color={COLORS.textDark} />
-          <Text style={styles.askCoachBtnText}>Ask Coach to Breakdown This Routine</Text>
+          <Text style={styles.askCoachBtnText}>{t.workout.askCoachPlan}</Text>
           <ArrowRight size={14} color={COLORS.textDark} />
         </TouchableOpacity>
       </GlassCard>

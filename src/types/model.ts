@@ -27,7 +27,7 @@ export interface ModelHardwareStats {
   tokensPerSec: number;
 }
 
-export type LLMProviderType = 'on_device' | 'openai_compatible';
+export type LLMProviderType = 'on_device' | 'gemini' | 'openai_compatible';
 
 export interface OpenAICompatibleConfig {
   baseUrl: string;
@@ -52,6 +52,7 @@ export interface ModelState {
   updateOpenAIConfig: (config: Partial<OpenAICompatibleConfig>) => void;
   setGeminiApiKey: (key: string) => void;
   testOpenAIConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
+  testGeminiConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
   downloadModel: () => Promise<void>;
   loadModel: () => Promise<void>;
   unloadModel: () => Promise<void>;

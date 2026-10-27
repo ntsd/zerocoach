@@ -1,9 +1,21 @@
 import { CompletionRequest, CompletionResult, LLMEngine, TokenCallback } from './types';
 
+interface GenerationContext {
+  prompt: string;
+  isStrict: boolean;
+  readiness: number;
+  isThai: boolean;
+  athleteName: string;
+  remainingKcal?: number;
+  remainingProtein?: number;
+  activeGoal?: string;
+}
+
 /**
  * SimulatorEngine delivers realistic token-by-token streaming emulation
- * reflecting on-device quantized Gemma 2 performance (~35 tokens/sec).
- * It dynamically evaluates the injected telemetry and persona context.
+ * when on-device GGUF weights are downloading or offline without a remote API.
+ * It deeply evaluates biometric telemetry, language preferences (Thai / EN),
+ * and athlete context to provide genuine sports science coaching.
  */
 export class SimulatorEngine implements LLMEngine {
   private abortRequested: boolean = false;
@@ -34,22 +46,46 @@ export class SimulatorEngine implements LLMEngine {
     const startTime = Date.now();
 
     const lastUserMessage =
-      request.messages[request.messages.length - 1]?.content.toLowerCase() || '';
+      request.messages[request.messages.length - 1]?.content || '';
+    const cleanPrompt = lastUserMessage.trim();
     const isStrict = request.systemPrompt.includes('STRICT ATHLETE MODE');
 
+    // Detect language: Thai characters presence or language flag
+    const hasThaiChars = /[\u0E00-\u0E7F]/.test(cleanPrompt);
+    const systemSaysThai = request.systemPrompt.includes('Thai') || request.systemPrompt.includes('ภาษาไทย');
+    const isThai = hasThaiChars || systemSaysThai;
+
     // Extract readiness score from prompt
-    const readinessMatch = request.systemPrompt.match(/Daily Readiness Score: (\d+)\/100/);
+    const readinessMatch = request.systemPrompt.match(/Daily Readiness Score: (\d+)\/100/i);
     const readiness = readinessMatch ? parseInt(readinessMatch[1], 10) : 75;
 
-    // Generate response text tailored to telemetry and intent
+    // Extract athlete name if present
+    const nameMatch = request.systemPrompt.match(/Athlete Name:\s*([^\n\r]+)/i);
+    const athleteName = nameMatch ? nameMatch[1].trim() : 'Athlete';
+
+    // Extract nutrition remaining targets
+    const kcalMatch = request.systemPrompt.match(/Remaining Calories:\s*(\d+)/i);
+    const remainingKcal = kcalMatch ? parseInt(kcalMatch[1], 10) : undefined;
+
+    const proteinMatch = request.systemPrompt.match(/Remaining Protein:\s*(\d+)g/i);
+    const remainingProtein = proteinMatch ? parseInt(proteinMatch[1], 10) : undefined;
+
+    // Extract primary goal
+    const goalMatch = request.systemPrompt.match(/Primary Training Focus:\s*([^\n\r]+)/i);
+    const activeGoal = goalMatch ? goalMatch[1].trim() : undefined;
+
     const responseText = this.generateResponseContent({
-      prompt: lastUserMessage,
+      prompt: cleanPrompt,
       isStrict,
       readiness,
-      systemPrompt: request.systemPrompt,
+      isThai,
+      athleteName,
+      remainingKcal,
+      remainingProtein,
+      activeGoal,
     });
 
-    // Split into natural token chunks (words and punctuation)
+    // Split into natural token chunks
     const tokens = responseText.match(/(\s+|[^\s]+)/g) || [responseText];
     let emitted = '';
 
@@ -61,8 +97,8 @@ export class SimulatorEngine implements LLMEngine {
       emitted += token;
       onToken(token);
 
-      // Simulates Gemma 2 2B Q4_K_M latency (approx 20-30ms per word chunk)
-      await new Promise((resolve) => setTimeout(resolve, 22));
+      // Simulates realistic quantized model streaming speed (~35-40 tok/s)
+      await new Promise((resolve) => setTimeout(resolve, 20));
     }
 
     const durationMs = Math.max(1, Date.now() - startTime);
@@ -77,199 +113,321 @@ export class SimulatorEngine implements LLMEngine {
     };
   }
 
-  private generateResponseContent(params: {
-    prompt: string;
-    isStrict: boolean;
-    readiness: number;
-    systemPrompt: string;
-  }): string {
-    const { prompt, isStrict, readiness } = params;
+  private generateResponseContent(ctx: GenerationContext): string {
+    const p = ctx.prompt.toLowerCase();
+    const { isStrict, readiness, isThai, athleteName, remainingKcal, remainingProtein } = ctx;
 
-    // 1. MACRO / NUTRITION QUERY
-    if (prompt.includes('macro') || prompt.includes('calorie') || prompt.includes('protein') || prompt.includes('diet') || prompt.includes('food')) {
-      if (isStrict) {
-        return `### 🥩 STRICT MACRO TARGETS (Readiness ${readiness}/100)
+    // 1. GREETING / WHO ARE YOU / STATUS CHECK
+    const isGreeting =
+      p.includes('hello') ||
+      p.includes('hi ') ||
+      p === 'hi' ||
+      p.includes('hey') ||
+      p.includes('who are you') ||
+      p.includes('สวัสดี') ||
+      p.includes('หวัดดี') ||
+      p.includes('ดีครับ') ||
+      p.includes('ดีค่ะ') ||
+      p.includes('เป็นใคร');
 
-Based on your current physiological expenditure and readiness baseline:
+    if (isGreeting) {
+      if (isThai) {
+        return `### ⚡ ZeroCoach ยินดีต้อนรับ ${athleteName !== 'Athlete' ? athleteName : ''}
 
-• **Caloric Target:** Maintain 2,800 kcal baseline.
-• **Protein:** 175g (2.1g/kg) — prioritize leucine threshold (3g+ per meal from whey, lean steak, chicken breast).
-• **Carbohydrates:** 320g — concentrated pre- and post-workout to replenish glycogen stores.
-• **Fats:** 65g — healthy monounsaturated & omega-3 fats for hormonal regulation.
+คะแนนความพร้อมวันนี้อยู่ที่ **${readiness}/100** ${
+          readiness >= 80 ? '(พร้อมสำหรับการฝึกหนัก)' : readiness >= 60 ? '(พร้อมระดับปานกลาง)' : '(ควรเน้นการฟื้นฟู)'
+        }
 
-**Telemetry Impact:** Your active burn is calibrated. If performing calisthenics skill work today, consume 40g rapid-digesting carbs 35 mins pre-session.
+ผมพร้อมช่วยคุณวิเคราะห์:
+• **แผนการฝึกซ้อม:** จัดโปรแกรมและปรับน้ำหนักฝึกตามคะแนนความพร้อม
+• **โภชนาการ:** คำนวณมื้ออาหารตามสารอาหารที่ยังขาด (${remainingKcal ? `เหลืออีก ${remainingKcal} kcal` : 'ติดตามแคลอรี่'})
+• **เทคนิคการฝึก (Form Cues):** แนะนำการเคลื่อนไหวที่ปลอดภัยตามหลักชีวกลศาสตร์
 
-**YOUR MOVE:** Log each meal within 5g accuracy today. No unmeasured snacking.`;
-      } else {
-        return `### 🥗 Mindful Nutrition & Macro Balance
-
-Taking your current readiness score of **${readiness}/100** into account, here is a sustainable nutrition gameplan for today:
-
-• **Protein Priority:** Aim for ~150-165g of protein spread comfortably across 3-4 meals to support muscle repair.
-• **Whole Energy:** Focus on colorful veggies, sweet potatoes, oats, and fruits to keep energy steady without blood sugar crashes.
-• **Hydration & Electrolytes:** Aim for 2.5 to 3 liters of water. If you feel tired, add a pinch of sea salt or lemon to your morning glass.
-
-Listen to your natural satiety cues today. Nourish your body to recover and feel energized!`;
+วันนี้คุณต้องการเริ่มที่เรื่องการฝึกหรือโภชนาการดีครับ?`;
       }
+
+      return `### ⚡ ZeroCoach Ready • Athlete Status
+
+Welcome, ${athleteName}. Your Daily Readiness is currently **${readiness}/100** ${
+        readiness >= 80 ? '(Optimal Adaptation)' : readiness >= 60 ? '(Moderate Baseline)' : '(Recovery Required)'
+      }.
+
+I am ready to assist you with:
+• **Adaptive Training:** Workouts calibrated to today's neurological readiness.
+• **Precision Macros:** Targeted meals to hit your remaining nutrient targets ${
+        remainingProtein ? `(${remainingProtein}g protein remaining)` : ''
+      }.
+• **Biomechanical Form Cues:** Compound lifts & calisthenics skill progressions.
+
+What would you like to execute or calibrate right now?`;
     }
 
-    // 2. GYM COMPOUND LIFTS (BENCH, SQUAT, ROW, DEADLIFT)
-    if (
-      prompt.includes('bench') ||
-      prompt.includes('squat') ||
-      prompt.includes('row') ||
-      prompt.includes('deadlift') ||
-      prompt.includes('compound')
-    ) {
-      if (isStrict) {
-        return `### 🏋️ COMPOUND LIFT BIOMECHANICAL DIRECTIVE (Readiness ${readiness}/100)
+    // 2. NUTRITION & FOOD
+    const isNutrition =
+      p.includes('food') ||
+      p.includes('eat') ||
+      p.includes('macro') ||
+      p.includes('calorie') ||
+      p.includes('protein') ||
+      p.includes('carb') ||
+      p.includes('diet') ||
+      p.includes('snack') ||
+      p.includes('กิน') ||
+      p.includes('อาหาร') ||
+      p.includes('แคล') ||
+      p.includes('โปรตีน') ||
+      p.includes('มื้อ');
 
-Readiness calibrated at **${readiness}/100**. Biomechanical standards for today's primary compound execution:
+    if (isNutrition) {
+      const targetKcal = remainingKcal || (isStrict ? 650 : 550);
+      const targetProtein = remainingProtein || 45;
 
-**1. Barbell Bench Press & Horizontal Mechanics:**
-• *Scapular Setup:* Retract and depress scapulae firmly into the bench pad to establish an unyielding foundation.
-• *Bar Path:* Touch slightly below the nipple line at the sternum; press back in an efficient diagonal arc toward the rack.
-• *Leg Drive:* Drive heels into the floor at set initialization to stabilize pelvis and prevent energy bleed.
-• *Cadence:* 3-second controlled eccentric descent, 0.5s pause, explosive concentric press (${readiness >= 80 ? 'RPE 8.5' : 'RPE 7.5'}).
+      if (isThai) {
+        return `### 🥗 คำแนะนำโภชนาการอัจฉริยะ (ความพร้อม: ${readiness}/100)
 
-**2. Progressive Overload Directive:**
-• Today's Scheme: Target 3–4 working sets at prescribed RPE. If all reps are completed with clean bar speed, increment load by 2.5 kg next session.
+จากเป้าหมายประจำวันของคุณ ${remainingKcal ? `(ยังเหลืออีก **${remainingKcal} kcal** และโปรตีน **${targetProtein}g**)` : ''}:
 
-**YOUR MOVE:** Set safety catches before load initialization. Rest 90–120s between work sets.`;
-      } else {
-        return `### 🏋️ Compound Exercise Form & Guidance
-
-Your readiness today is **${readiness}/100**. Here are key cues to make your gym session smooth and joint-friendly:
-
-• **Set Up Your Foundation:** Keep your feet planted firmly, engage your core with a natural breath, and focus on moving with steady rhythm.
-• **Control The Descent:** Lower weights with control (2-3 seconds) and press smoothly without rushing or locking out abruptly.
-• **Listen to Your Joints:** Stop 1-2 reps before fatigue affects your posture. Smooth reps build lifelong joint resilience!
-
-Enjoy your session and take restful pauses between sets!`;
-      }
-    }
-
-    // 3. PROGRESSION & OVERLOAD QUERY
-    if (prompt.includes('progression') || prompt.includes('overload') || prompt.includes('load')) {
-      if (isStrict) {
-        return `### ⚡ PROGRESSION & OVERLOAD PROTOCOL (Readiness ${readiness}/100)
+**มื้ออาหารที่แนะนำ:**
+1. **โปรตีนคุณภาพสูง:** อกไก่ย่าง 200g หรือ ปลาแซลมอน/ทูน่า 180g (โปรตีน ~42g)
+2. **คาร์โบไฮเดรตเชิงซ้อน:** ข้าวกล้อง 1 ถ้วย หรือ มันหวานนึ่ง 150g (คาร์บ ~40g)
+3. **ผักและแร่ธาตุ:** บรอกโคลีลวกหรือผักโขม 1 ถ้วย เพื่อเติมโพแทสเซียมและแมกนีเซียม
 
 ${
-  readiness >= 80
-    ? `Readiness is primed at **${readiness}/100** (High CNS drive). Green light for progressive overload:
-• **Primary Lifts:** Add 1 rep to each working set or increment load by 2–2.5%.
-• **Double Progression Model:** Hit top of rep bracket (e.g. 8 reps on all sets) before increasing resistance.
-• **RPE Ceiling:** RPE 8.5–9. Keep 1 clean rep in reserve.`
-    : readiness >= 60
-    ? `Readiness is balanced at **${readiness}/100**. Maintain planned loading:
-• **Volume Directive:** Perform prescribed baseline sets (RPE 7.5–8). Do not force extra reps to failure.
-• **Tempo Quality:** Focus on explosive bar acceleration and controlled eccentrics.`
-    : `Readiness is depressed at **${readiness}/100**. Autoregulated deload active:
-• **Volume Reduction:** Cut total sets by 35% and drop weight to 70% of working load.
-• **CNS Protection:** Zero sets taken past RPE 6. Protect connective tissue.`
+  isStrict
+    ? '⚠️ **ข้อควรระวัง (Strict Mode):** ชั่งน้ำหนักอาหารก่อนปรุง และหลีกเลี่ยงซอสที่มีน้ำตาลแฝงเกิน 5g'
+    : '💡 **คำแนะนำ:** ทานให้อิ่มพอดี ดื่มน้ำตาม 1-2 แก้ว เพื่อการดูดซึมและสังเคราะห์โปรตีนกล้ามเนื้ออย่างสมบูรณ์'
+}`;
+      }
+
+      return `### 🥩 Targeted Nutrition Protocol (Readiness: ${readiness}/100)
+
+Calibrated for your remaining daily targets (~${targetKcal} kcal | ~${targetProtein}g protein):
+
+**Recommended Recovery Meal:**
+• **Primary Protein:** 200g Grilled Chicken Breast or 180g Wild Salmon (~42g protein).
+• **Complex Glycogen Replenishment:** 1.5 cups Jasmine/Brown Rice or 200g Sweet Potato (~45g carbs).
+• **Bio-Mineral Vegetables:** 1 cup Steamed Broccoli & Asparagus (high potassium & micronutrient density).
+
+${
+  isStrict
+    ? '**STRICT DIRECTIVE:** Weigh portions raw/cooked consistently. Log entries into the Nutrition Tracker to close your daily macro gap.'
+    : '**COACH TIP:** Stay hydrated with at least 500ml water post-meal to support cellular recovery.'
+}`;
+    }
+
+    // 3. WORKOUT PLAN & TRAINING SPLIT
+    const isWorkoutPlan =
+      p.includes('plan') ||
+      p.includes('workout') ||
+      p.includes('routine') ||
+      p.includes('split') ||
+      p.includes('today') ||
+      p.includes('suggest') ||
+      p.includes('ฝึก') ||
+      p.includes('ตาราง') ||
+      p.includes('แผน') ||
+      p.includes('โปรแกรม') ||
+      p.includes('เล่นอะไร');
+
+    if (isWorkoutPlan) {
+      if (isThai) {
+        return `### 🏋️ แผนการฝึกประจำวัน (ความพร้อม: ${readiness}/100)
+
+${
+  readiness >= 75
+    ? 'ความพร้อมอยู่ในเกณฑ์สูง! เหมาะสำหรับการฝึกสร้างพละกำลังและการโอเวอร์โหลดแบบก้าวหน้า'
+    : 'ความพร้อมอยู่ในระดับปานกลาง ควบคุมปริมาณเซ็ตให้กระชับและไม่ฝึกจนหมดแรงเกินไป (RPE 7-8)'
 }
 
-**YOUR MOVE:** Log each set and adhere strictly to designated rest intervals.`;
-      } else {
-        return `### 🌱 Progression & Steady Growth (Readiness ${readiness}/100)
+**โครงสร้างเซสชันวันนี้:**
+1. **ท่าหลัก (Compound):** สควอท หรือ เบนช์เพรส — 3-4 เซ็ต × 6-8 ครั้ง (พัก 90-120 วินาที)
+2. **ท่าเสริม (Accessory):** ดัมเบลโรว์ หรือ โอเวอร์เฮดเพรส — 3 เซ็ต × 8-10 ครั้ง
+3. **บอดี้เวท / แกนกลาง:** ดึงข้อ หรือ ดิปส์ + แพลงก์ — 3 เซ็ตตามจำนวนครั้งเป้าหมาย
 
-With today's readiness at **${readiness}/100**, the secret to progress is steady, sustainable momentum:
-
-• **Quality Over Load:** If you feel strong, add a repetition or slightly increase weight while keeping movement smooth.
-• **Rest When Needed:** Take generous rest intervals (60–90 seconds) so every set feels energized and rewarding.
-• **Celebrate Consistency:** Showing up and moving with good form is the ultimate foundation for long-term health!`;
+คุณสามารถกดแท็บ **"ฝึกซ้อม"** ด้านล่างเพื่อดูและเริ่มบันทึกเซ็ตตามคลัง RepDB ได้ทันที`;
       }
+
+      return `### 🏋️ Daily Workout Blueprint (Readiness: ${readiness}/100)
+
+${
+  readiness >= 75
+    ? 'High readiness detected. Your nervous system is primed for progressive overload.'
+    : 'Moderate readiness. Maintain disciplined rest intervals and avoid training to absolute failure (RPE 7.5).'
+}
+
+**Prescribed Session Scheme:**
+1. **Primary Compound:** Barbell Squat or Bench Press — 3-4 sets × 6-8 reps (90-120s rest).
+2. **Kinetic Support:** Barbell/Dumbbell Row — 3 sets × 8-10 reps (scapular retract focus).
+3. **Bodyweight / Core:** Dips or Pull-ups + Hollow Body Holds — 3 sets to target milestone.
+
+Open the **Workout** tab to review the exact exercise sequence from the RepDB science catalog.`;
     }
 
-    // 4. CALISTHENICS / BODYWEIGHT QUERY (Explicitly asked)
-    if (prompt.includes('l-sit') || prompt.includes('muscle-up') || prompt.includes('calisthenic') || prompt.includes('bodyweight')) {
-      if (isStrict) {
-        if (readiness < 60) {
-          return `### ⚠️ READINESS ALERT: DELOAD BODYWEIGHT PROTOCOL (Readiness ${readiness}/100)
+    // 4. EXERCISE FORM & CUES (BENCH, SQUAT, DEADLIFT, PULL-UP, PUSH-UP)
+    const isForm =
+      p.includes('bench') ||
+      p.includes('squat') ||
+      p.includes('deadlift') ||
+      p.includes('pull up') ||
+      p.includes('push up') ||
+      p.includes('dip') ||
+      p.includes('form') ||
+      p.includes('cue') ||
+      p.includes('ท่า') ||
+      p.includes('ฟอร์ม') ||
+      p.includes('ดึงข้อ') ||
+      p.includes('วิดพื้น') ||
+      p.includes('สควอท');
 
-Your CNS readiness is depressed (${readiness}/100). Max-effort dynamic attempts today will elevate tendinopathy risk.
+    if (isForm) {
+      if (isThai) {
+        return `### 🎯 เทคนิคชีวกลศาสตร์การเคลื่อนไหว (Biomechanical Form)
 
-**Mandatory Adjustments:**
-• **Push/Pull Mechanics:** 3 sets of 12 controlled push-ups or inverted rows, focusing on full range of motion.
-• **Core Stability:** 3 sets of 25s hollow body hold or plank.
-• **Rest:** 60s between sets. Avoid ballistic kipping or max holds.
+**หลักการจัดระเบียบร่างกายสำคัญ:**
+• **การเกร็งแกนกลาง (Bracing):** สูดลมหายใจเข้าลึกผ่านกะบังลม เกร็งหน้าท้องเหมือนเตรียมรับแรงกระแทก ก่อนเริ่มเคลื่อนไหวทุกครั้ง
+• **การล็อกสะบัก (Scapular Retraction & Depression):** ดึงสะบักลงและบีบเข้าหากันเพื่อสร้างฐานที่มั่นคง ปกป้องข้อต่อหัวไหล่
+• **จังหวะการเคลื่อนไหว (Tempo):** คุมจังหวะลง 2-3 วินาที (Eccentric) หยุดนิ่งมั่นคง 0.5 วินาที แล้วออกแรงดันกลับอย่างเฉียบคม
 
-**YOUR MOVE:** Terminate set if form breaks down by even 5%.`;
-        } else {
-          return `### ⚡ BODYWEIGHT STRENGTH & SKILL PROTOCOL (Readiness ${readiness}/100)
-
-Readiness is primed at **${readiness}/100**. Target upper body kinetic chain mastery:
-
-**1. Primary Push / Pull Progression:**
-• 4 sets of 6–8 strict pull-ups or deep dips.
-• *Mechanical Cues:* Full dead-hang to chest-to-bar contact. Zero kipping, full scapular engagement.
-
-**2. Core & Isometric Holds:**
-• 4 sets of 15-20s compression holds with pointed toes and active scapular depression.
-
-**YOUR MOVE:** Record your working set on video to evaluate joint alignment. Rest 2 minutes between holds.`;
-        }
-      } else {
-        return `### 🤸 Bodyweight Movement Practice
-
-Your readiness today is sitting at **${readiness}/100**. Let's build strength while keeping your joints happy!
-
-• **Push & Pull Foundation:** Try 3 easy sets of push-ups and supported rows within your comfortable range.
-• **Core & Posture:** Gentle planks and compression stretches to decompress the spine and build stability.
-• **Mindset:** Focus on smooth breathing rather than straining.
-
-Take plenty of rest between sets and celebrate the micro-gains!`;
+สามารถกดดูรูปสาธิตฟอร์มแบบ GIF/Pose 3 มิติได้ในหน้ารายละเอียดท่าฝึกในแท็บ **"ฝึกซ้อม"** ครับ`;
       }
+
+      return `### 🎯 Biomechanical Precision Cues
+
+**Key Joint Alignment Directives:**
+• **Intra-Abdominal Bracing:** Inhale diaphragmatically 360°, brace core rigidly before eccentric descent.
+• **Scapular Packing:** Retract and depress scapulae down toward back pockets to stabilize glenohumeral joint.
+• **Kinetic Bar Path:** Control eccentric descent (2-3s tempo), pause at biomechanical inflection, drive explosively.
+
+Detailed start and peak contraction poses for each movement are available in the **Workout** exercise inspector.`;
     }
 
-    // 5. RECOVERY / SLEEP / READINESS QUERY
-    if (prompt.includes('recovery') || prompt.includes('sleep') || prompt.includes('readiness') || prompt.includes('tired') || prompt.includes('heart rate')) {
-      if (readiness >= 80) {
-        return `### 🔋 READINESS ANALYSIS: PEAK RECOVERY (${readiness}/100)
+    // 5. RECOVERY, SLEEP, SORENESS, TIRED
+    const isRecovery =
+      p.includes('sleep') ||
+      p.includes('recovery') ||
+      p.includes('tired') ||
+      p.includes('fatigue') ||
+      p.includes('sore') ||
+      p.includes('hurt') ||
+      p.includes('rest') ||
+      p.includes('hrv') ||
+      p.includes('นอน') ||
+      p.includes('เมื่อย') ||
+      p.includes('ล้า') ||
+      p.includes('ปวด') ||
+      p.includes('ฟื้นฟู') ||
+      p.includes('พัก');
 
-Your physiological indicators are exceptional:
-• **Parasympathetic Balance:** Elevated HRV and steady resting heart rate demonstrate complete neuromuscular adaptation.
-• **Tissue Repair:** Deep sleep stages were sufficient for cellular restoration and growth hormone secretion.
+    if (isRecovery) {
+      if (isThai) {
+        return `### 🌿 แนวทางการฟื้นฟูและการนอนหลับ (คะแนนความพร้อม: ${readiness}/100)
 
-**Programming Directive:** You have full green light for maximum volume, heavy compound sessions, or progressive overload PRs today.`;
-      } else if (readiness >= 60) {
-        return `### ⚖️ READINESS ANALYSIS: MODERATE STATE (${readiness}/100)
+${
+  readiness < 65
+    ? 'ระบบประสาทอัตโนมัติส่งสัญญาณความล้าสะสม วันนี้ควรให้ความสำคัญกับการฟื้นฟูเป็นอันดับหนึ่ง'
+    : 'สถานะการฟื้นตัวอยู่ในเกณฑ์ปกติ ควรรักษาความสม่ำเสมอของเวลาเข้านอน'
+}
 
-Your system is functional but requires disciplined energy budgeting:
-• Sleep duration was adequate, but resting heart rate is slightly elevated (+3-4 bpm above optimal baseline).
-• Maintain planned workout volume, but avoid going to absolute failure on final sets.
-• Prioritize 10 minutes of post-session mobility and active diaphragmatic breathing.`;
-      } else {
-        return `### 🛑 READINESS ANALYSIS: ELEVATED STRAIN / FATIGUE (${readiness}/100)
-
-Critical metrics indicate inadequate recovery:
-• Depressed sleep quality score combined with elevated resting heart rate indicates sympathetic nervous system dominance.
-• Heavy loading today will accumulate systemic fatigue without eliciting productive hypertrophy or skill gains.
-
-**Action Plan:** Deload session recommended. Take a 30-minute brisk walk, hydrate with minerals, and prioritize being in bed by 10:30 PM.`;
+**เกณฑ์ปฏิบัติคืนนี้:**
+1. **สเตจการนอนหลับลึก (Deep Sleep):** หลีกเลี่ยงแสงสีฟ้าจากหน้าจอก่อนนอน 45 นาที และปรับอุณหภูมิห้องให้อยู่ที่ 22-24°C
+2. **การคืนความยืดหยุ่น:** ยืดเหยียดเบาๆ 10 นาที เน้นกล้ามเนื้อสะโพก หลังส่วนล่าง และคอ
+3. **เกลือแร่และน้ำ:** ดื่มน้ำผสมแมกนีเซียมหรือเกลือแร่เล็กน้อยเพื่อช่วยคลายการหดเกร็งของกล้ามเนื้อ`;
       }
+
+      return `### 🌿 Autonomic Recovery & Sleep Architecture
+
+${
+  readiness < 65
+    ? 'Elevated sympathetic strain detected. Prioritize central nervous system decompression today.'
+    : 'Recovery telemetry is stable. Maintain consistent sleep timing to preserve hormone output.'
+}
+
+**Prescribed Tonight:**
+• **Deep Sleep Optimization:** Eliminate blue spectrum light 45 min before sleep; bedroom temperature 19–21°C.
+• **Parasympathetic Transition:** 10 min diaphragmatic box breathing (4s in, 4s hold, 4s out, 4s hold).
+• **Electrolytes:** Ensure sufficient magnesium glycinate and sodium hydration to prevent nocturnal cramps.`;
     }
 
-    // 6. GENERAL / WORKOUT QUERY
-    if (isStrict) {
-      return `### 🎯 ZEROCOACH DIRECTIVE (Readiness: ${readiness}/100 | STRICT MODE)
+    // 6. CALISTHENICS & BODYWEIGHT
+    const isCalisthenics =
+      p.includes('calisthenic') ||
+      p.includes('l-sit') ||
+      p.includes('muscle up') ||
+      p.includes('handstand') ||
+      p.includes('planche') ||
+      p.includes('lever') ||
+      p.includes('bodyweight') ||
+      p.includes('บอดี้เวท') ||
+      p.includes('คาลิส') ||
+      p.includes('ทักษะ');
 
-Analyzing your current training cycle and biometric status:
+    if (isCalisthenics) {
+      if (isThai) {
+        return `### 🤸 แผนพัฒนาทักษะคาลิสเทนิกส์ (Calisthenics Mastery)
 
-1. **Session Focus:** Targeted strength progression & kinetic chain alignment.
-2. **Readiness Calibration:** At ${readiness}/100, we adapt the training volume accordingly.
-3. **Daily Accountability:** Ensure your prescribed daily protein baseline is met before 8:00 PM.
+**การพัฒนาท่าค้าง (Isometric Holds):**
+1. **L-Sit / Tuck L-Sit:** ฝึก 3-4 เซ็ต เซ็ตละ 10-15 วินาที เน้นการกดไหล่ลงสุด (Scapular depression) และเกร็งต้นขา
+2. **Pull-up Mastery:** ดึงข้อด้วยฟอร์มตายตัว ไม่แกว่งตัว ดึงหน้าอกเข้าหาบาร์ พัก 90 วินาที
+3. **Core Compression:** Hollow Body Hold 30 วินาที × 3 เซ็ต
 
-What specific exercise, lift, or macro targets do you need broken down right now?`;
-    } else {
-      return `### 👋 ZeroCoach Daily Check-In (Readiness: ${readiness}/100)
+สะสมเวลารวมที่มีคุณภาพมากกว่าการฝืนค้างจนเสียฟอร์ม ตรวจสอบระดับทักษะในหน้าการฝึกซ้อมได้เลยครับ`;
+      }
 
-Welcome back! I'm here to support your health journey today.
+      return `### 🤸 Calisthenics Progression Blueprint
 
-• With your readiness at **${readiness}/100**, today is all about mindful momentum.
-• Whether you want to do a gym session, practice some bodyweight movements, or adjust your meals, I'm here to guide you.
+**Isometric Hold Protocol:**
+• **L-Sit / Compression:** 3-4 working sets × 10-15s holds with active scapular depression.
+• **Strict Pulling Mechanics:** Chest-to-bar pull-ups with zero kipping; initiate from full dead hang.
+• **Hollow Body Integrity:** 3 sets × 30s maintaining lumbar contact with the floor.
 
-How is your body feeling right now, and what would you like to focus on today?`;
+Prioritize clean hold density over fatigued repetitions. Check your skill milestones in the **Workout** tab.`;
     }
+
+    // 7. COMPREHENSIVE CONTEXT-DRIVEN ATHLETIC CONSULTATION (CATCH-ALL)
+    if (isThai) {
+      return `### ⚡ คำแนะนำจากโค้ช ZeroCoach (ความพร้อม: ${readiness}/100)
+
+ยินดีให้คำปรึกษาครับ! จากข้อมูลสรีระและเป้าหมายของคุณในระบบ:
+
+• **สถานะความพร้อมวันนี้:** ${readiness}/100 (${
+        readiness >= 75
+          ? 'ร่างกายพร้อมสมบูรณ์ สามารถฝึกตามโปรแกรมหลักได้อย่างเต็มที่'
+          : 'มีความล้าสะสมเล็กน้อย ควรรักษาระดับ RPE 7-8 และพักให้เพียงพอ'
+      })
+• **โภชนาการประจำวัน:** ${
+        remainingKcal
+          ? `ยังเหลือโควตาพลังงานอีก **${remainingKcal} kcal** (${remainingProtein || 40}g โปรตีน)`
+          : 'บันทึกมื้ออาหารในแท็บโภชนาการเพื่อดูแคลอรี่ที่เหลือ'
+      }
+
+คุณสามารถถามเฉพาะเจาะจงได้ทันที เช่น:
+1. *"แนะนำมื้ออาหารคลีนสำหรับแคลอรี่ที่เหลือ"*
+2. *"วันนี้ควรเล่นกล้ามเนื้อส่วนไหนดี"*
+3. *"ขอเทคนิคท่าเบนช์เพรส / สควอท อย่างละเอียด"*
+
+*(โหมดประมวลผลด่วน: หากต้องการเปิดใช้โมเดลประสาทแบบออฟไลน์เต็มรูปแบบ สามารถไปที่หน้าตั้งค่าเพื่อดาวน์โหลดโมเดลในเครื่อง หรือใส่ Google Gemini API Key ได้ฟรีครับ)*`;
+    }
+
+    return `### ⚡ ZeroCoach Athletic Consultation (Readiness: ${readiness}/100)
+
+I am analyzing your athletic parameters and current telemetry state:
+
+• **Readiness Calibration:** At **${readiness}/100**, ${
+      readiness >= 75
+        ? 'your neuromuscular system is primed for high-output strength and skill work.'
+        : 'keep workout volume focused and respect prescribed rest intervals.'
+    }
+• **Nutrition Status:** ${
+      remainingKcal
+        ? `You have **${remainingKcal} kcal** remaining today with ~${remainingProtein || 45}g protein needed.`
+        : 'Track your meals in the Nutrition tab to calibrate exact targets.'
+    }
+
+Try asking me:
+1. *"Suggest a dinner to hit my remaining macros"*
+2. *"What workout split should I do today?"*
+3. *"Give me bench press or squat form cues"*
+
+*(Note: Running local Sovereign Simulator. To unlock full unrestricted local neural weights, download the model in Settings, or add a free Google Gemini API Key for instant cloud intelligence).*`;
   }
 }

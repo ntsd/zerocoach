@@ -23,6 +23,7 @@ import { SvgBarChart } from '@/components/analytics/SvgBarChart';
 import { ReadinessGauge } from '@/components/telemetry/ReadinessGauge';
 import { MetricGrid } from '@/components/telemetry/MetricGrid';
 import { HealthSyncGuideModal } from '@/components/telemetry/HealthSyncGuideModal';
+import { useTranslation } from '@/i18n';
 import {
   Activity,
   Dumbbell,
@@ -46,6 +47,7 @@ const TIME_RANGES: TimeRangeFilter[] = ['7D', '14D', '30D'];
 export const AnalyzeScreen: React.FC = () => {
   const { mode } = useCoachStore();
   const modeColors = getModeColors(mode);
+  const { t } = useTranslation();
 
   const { metrics, syncing, syncTelemetry } = useTelemetryStore();
   const { historyByDate } = useWorkoutStore();
@@ -72,10 +74,10 @@ export const AnalyzeScreen: React.FC = () => {
 
   // Overall Score Grade / Tier
   const getScoreRating = (score: number) => {
-    if (score >= 85) return { label: 'PEAK ATHLETE', color: COLORS.success };
-    if (score >= 70) return { label: 'OPTIMAL ADAPTATION', color: modeColors.accent };
-    if (score >= 50) return { label: 'MODERATE FATIGUE', color: COLORS.warning };
-    return { label: 'RECOVERY DELOAD', color: COLORS.strict.accent };
+    if (score >= 85) return { label: t.analyze.ratings.peak, color: COLORS.success };
+    if (score >= 70) return { label: t.analyze.ratings.optimal, color: modeColors.accent };
+    if (score >= 50) return { label: t.analyze.ratings.moderate, color: COLORS.warning };
+    return { label: t.analyze.ratings.deload, color: COLORS.strict.accent };
   };
 
   const rating = getScoreRating(trends.averageOverallScore);
@@ -120,7 +122,7 @@ export const AnalyzeScreen: React.FC = () => {
           <View style={styles.headerTitleRow}>
             <View style={styles.headerLeft}>
               <Activity size={20} color={modeColors.accent} />
-              <Text style={styles.title}>ANALYZE & TELEMETRY</Text>
+              <Text style={styles.title}>{t.analyze.screenTitle}</Text>
             </View>
             <TouchableOpacity
               style={[styles.syncBtn, { borderColor: `${modeColors.accent}40` }]}
@@ -133,13 +135,13 @@ export const AnalyzeScreen: React.FC = () => {
               ) : (
                 <>
                   <RefreshCw size={13} color={modeColors.accent} />
-                  <Text style={[styles.syncBtnText, { color: modeColors.accent }]}>Sync</Text>
+                  <Text style={[styles.syncBtnText, { color: modeColors.accent }]}>{t.analyze.syncBtn}</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
           <Text style={styles.subtitle}>
-            Unified Athletic Performance Score • Multi-Domain Bio-History
+            {t.analyze.screenSubtitle}
           </Text>
         </View>
 
@@ -185,7 +187,7 @@ export const AnalyzeScreen: React.FC = () => {
                 <Sparkles size={16} color={modeColors.accent} />
               </View>
               <View>
-                <Text style={styles.heroSuperTitle}>COMPOSITE PERFORMANCE SCORE</Text>
+                <Text style={styles.heroSuperTitle}>{t.analyze.heroTitle}</Text>
                 <View style={styles.heroScoreRow}>
                   <Text style={[styles.heroScoreBig, { color: modeColors.accent }]}>
                     {trends.averageOverallScore > 0 ? trends.averageOverallScore : '--'}
@@ -197,7 +199,7 @@ export const AnalyzeScreen: React.FC = () => {
 
             <View style={[styles.ratingBadge, { borderColor: rating.color, backgroundColor: `${rating.color}15` }]}>
               <Text style={[styles.ratingBadgeText, { color: rating.color }]}>
-                {trends.averageOverallScore > 0 ? rating.label : 'AWAITING LOGS'}
+                {trends.averageOverallScore > 0 ? rating.label : t.analyze.awaitingLogs}
               </Text>
             </View>
           </View>
@@ -207,7 +209,7 @@ export const AnalyzeScreen: React.FC = () => {
             {/* Recovery */}
             <View style={styles.domainItem}>
               <View style={styles.domainItemHeader}>
-                <Text style={styles.domainItemLabel}>RECOVERY</Text>
+                <Text style={styles.domainItemLabel}>{t.analyze.domains.recovery}</Text>
                 <Text style={[styles.domainItemVal, { color: COLORS.strict.accent }]}>
                   {trends.averageReadiness > 0 ? `${trends.averageReadiness}%` : '--'}
                 </Text>
@@ -223,16 +225,16 @@ export const AnalyzeScreen: React.FC = () => {
                   ]}
                 />
               </View>
-              <Text style={styles.domainItemSub}>Weight: 35%</Text>
+              <Text style={styles.domainItemSub}>{t.analyze.domains.weightRecovery}</Text>
             </View>
 
             {/* Workout */}
             <View style={styles.domainItem}>
               <View style={styles.domainItemHeader}>
-                <Text style={styles.domainItemLabel}>WORKOUT</Text>
+                <Text style={styles.domainItemLabel}>{t.analyze.domains.workout}</Text>
                 <Text style={[styles.domainItemVal, { color: modeColors.accent }]}>
                   {trends.totalWorkoutsCompleted > 0
-                    ? `${trends.totalWorkoutsCompleted} done`
+                    ? `${trends.totalWorkoutsCompleted} ${t.analyze.completed}`
                     : '--'}
                 </Text>
               </View>
@@ -247,13 +249,13 @@ export const AnalyzeScreen: React.FC = () => {
                   ]}
                 />
               </View>
-              <Text style={styles.domainItemSub}>Weight: 35%</Text>
+              <Text style={styles.domainItemSub}>{t.analyze.domains.weightWorkout}</Text>
             </View>
 
             {/* Nutrition */}
             <View style={styles.domainItem}>
               <View style={styles.domainItemHeader}>
-                <Text style={styles.domainItemLabel}>NUTRITION</Text>
+                <Text style={styles.domainItemLabel}>{t.analyze.domains.nutrition}</Text>
                 <Text style={[styles.domainItemVal, { color: COLORS.warning }]}>
                   {trends.averageNutritionScore > 0
                     ? `${trends.averageNutritionScore}%`
@@ -273,7 +275,7 @@ export const AnalyzeScreen: React.FC = () => {
                   ]}
                 />
               </View>
-              <Text style={styles.domainItemSub}>Weight: 30%</Text>
+              <Text style={styles.domainItemSub}>{t.analyze.domains.weightNutrition}</Text>
             </View>
           </View>
 
@@ -281,10 +283,10 @@ export const AnalyzeScreen: React.FC = () => {
           <View style={styles.heroChartSection}>
             <View style={styles.chartHeaderRow}>
               <Text style={styles.chartSectionTitle}>
-                {timeRange} COMPOSITE SCORE PROGRESSION
+                {t.analyze.heroProgression.replace('{range}', timeRange)}
               </Text>
               <Text style={styles.chartSectionMeta}>
-                {trends.totalDaysWithData} of {trends.points.length} days logged
+                {t.analyze.daysLogged.replace('{logged}', String(trends.totalDaysWithData)).replace('{total}', String(trends.points.length))}
               </Text>
             </View>
             <SvgTrendLineChart
@@ -320,7 +322,7 @@ export const AnalyzeScreen: React.FC = () => {
                 activeDomain === 'workout' && { color: modeColors.accent, fontWeight: '700' },
               ]}
             >
-              Workout
+              {t.analyze.tabWorkout}
             </Text>
           </TouchableOpacity>
 
@@ -345,7 +347,7 @@ export const AnalyzeScreen: React.FC = () => {
                 activeDomain === 'nutrition' && { color: modeColors.accent, fontWeight: '700' },
               ]}
             >
-              Nutrition
+              {t.analyze.tabNutrition}
             </Text>
           </TouchableOpacity>
 
@@ -370,7 +372,7 @@ export const AnalyzeScreen: React.FC = () => {
                 activeDomain === 'recovery' && { color: modeColors.accent, fontWeight: '700' },
               ]}
             >
-              Recovery
+              {t.analyze.tabRecovery}
             </Text>
           </TouchableOpacity>
         </View>
@@ -383,35 +385,35 @@ export const AnalyzeScreen: React.FC = () => {
             {/* Quick KPI stats */}
             <View style={styles.kpiRow}>
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>SESSIONS</Text>
+                <Text style={styles.kpiLabel}>{t.analyze.sessions}</Text>
                 <Text style={[styles.kpiVal, { color: modeColors.accent }]}>
                   {trends.totalWorkoutsCompleted}
                 </Text>
-                <Text style={styles.kpiSub}>Completed</Text>
+                <Text style={styles.kpiSub}>{t.analyze.completed}</Text>
               </View>
 
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>ACTIVE BURN</Text>
+                <Text style={styles.kpiLabel}>{t.analyze.activeBurn}</Text>
                 <Text style={[styles.kpiVal, { color: COLORS.warning }]}>
                   ~{trends.totalCaloriesBurned}
                 </Text>
-                <Text style={styles.kpiSub}>Total kcal</Text>
+                <Text style={styles.kpiSub}>{t.analyze.totalKcal}</Text>
               </View>
 
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>TOTAL SETS</Text>
+                <Text style={styles.kpiLabel}>{t.analyze.totalSets}</Text>
                 <Text style={[styles.kpiVal, { color: COLORS.textPrimary }]}>
                   {trends.points.reduce((acc, p) => acc + p.workoutTotalSets, 0)}
                 </Text>
-                <Text style={styles.kpiSub}>Volume</Text>
+                <Text style={styles.kpiSub}>{t.analyze.volume}</Text>
               </View>
             </View>
 
             {/* Volume Chart */}
             <GlassCard style={styles.chartCard}>
               <View style={styles.chartHeaderRow}>
-                <Text style={styles.chartSectionTitle}>DAILY SETS & VOLUME</Text>
-                <Text style={styles.chartSectionMeta}>Total working sets</Text>
+                <Text style={styles.chartSectionTitle}>{t.analyze.dailySetsVolume}</Text>
+                <Text style={styles.chartSectionMeta}>{t.analyze.totalWorkingSets}</Text>
               </View>
               <SvgBarChart
                 data={workoutBarData}
@@ -423,7 +425,7 @@ export const AnalyzeScreen: React.FC = () => {
             {/* Recent Completed Sessions */}
             <View style={styles.sectionTitleRow}>
               <Calendar size={14} color={modeColors.accent} />
-              <Text style={styles.domainSectionHeading}>RECENT COMPLETED SESSIONS</Text>
+              <Text style={styles.domainSectionHeading}>{t.analyze.recentCompletedSessions}</Text>
             </View>
 
             {recentWorkouts.length > 0 ? (
@@ -436,23 +438,23 @@ export const AnalyzeScreen: React.FC = () => {
                     </View>
                     <View style={styles.sessionBadge}>
                       <CheckCircle2 size={12} color={COLORS.success} />
-                      <Text style={styles.sessionBadgeText}>COMPLETED</Text>
+                      <Text style={styles.sessionBadgeText}>{t.analyze.sessionCompletedBadge}</Text>
                     </View>
                   </View>
 
                   <View style={styles.sessionSpecsRow}>
                     <View style={styles.sessionSpecItem}>
                       <Clock size={11} color={COLORS.textMuted} />
-                      <Text style={styles.sessionSpecText}>{session.durationMinutes} min</Text>
+                      <Text style={styles.sessionSpecText}>{session.durationMinutes} {t.common.min}</Text>
                     </View>
                     <View style={styles.sessionSpecItem}>
                       <Flame size={11} color={COLORS.warning} />
-                      <Text style={styles.sessionSpecText}>{session.caloriesBurned} kcal</Text>
+                      <Text style={styles.sessionSpecText}>{session.caloriesBurned} {t.common.kcal}</Text>
                     </View>
                     <View style={styles.sessionSpecItem}>
                       <Layers size={11} color={modeColors.accent} />
                       <Text style={styles.sessionSpecText}>
-                        {session.completedMovements} movements ({session.totalSets} sets)
+                        {session.completedMovements} {t.common.movements} ({session.totalSets} {t.common.sets})
                       </Text>
                     </View>
                   </View>
@@ -461,9 +463,9 @@ export const AnalyzeScreen: React.FC = () => {
             ) : (
               <GlassCard style={styles.emptyCard}>
                 <Dumbbell size={28} color={COLORS.textMuted} />
-                <Text style={styles.emptyCardTitle}>No completed workouts yet</Text>
+                <Text style={styles.emptyCardTitle}>{t.analyze.noWorkoutsTitle}</Text>
                 <Text style={styles.emptyCardSub}>
-                  Complete your daily workout in the Workout tab to see session summaries here.
+                  {t.analyze.noWorkoutsSub}
                 </Text>
               </GlassCard>
             )}
@@ -487,7 +489,7 @@ export const AnalyzeScreen: React.FC = () => {
                     <Utensils size={18} color={COLORS.warning} />
                   </View>
                   <View>
-                    <Text style={styles.domainScoreSuperTitle}>NUTRITION ADHERENCE SCORE</Text>
+                    <Text style={styles.domainScoreSuperTitle}>{t.analyze.nutritionAdherenceTitle}</Text>
                     <View style={styles.domainScoreRow}>
                       <Text style={[styles.domainScoreBig, { color: COLORS.warning }]}>
                         {todayNutritionScore > 0
@@ -504,12 +506,12 @@ export const AnalyzeScreen: React.FC = () => {
                 <View style={[styles.ratingBadge, { borderColor: COLORS.warning, backgroundColor: `${COLORS.warning}15` }]}>
                   <Text style={[styles.ratingBadgeText, { color: COLORS.warning }]}>
                     {(todayNutritionScore >= 80 || trends.averageNutritionScore >= 80)
-                      ? 'EXCELLENT'
+                      ? t.analyze.excellent
                       : (todayNutritionScore >= 60 || trends.averageNutritionScore >= 60)
-                      ? 'ON TRACK'
+                      ? t.analyze.onTrack
                       : todayNutLog.foods.length > 0
-                      ? 'FUELING'
-                      : 'NO LOGS'}
+                      ? t.analyze.fueling
+                      : t.analyze.noLogs}
                   </Text>
                 </View>
               </View>
@@ -530,7 +532,7 @@ export const AnalyzeScreen: React.FC = () => {
               {/* Sub-breakdown: Protein & Calorie Status */}
               <View style={styles.macroPacingRow}>
                 <View style={styles.macroPacingItem}>
-                  <Text style={styles.macroPacingLabel}>PROTEIN FULFILLMENT</Text>
+                  <Text style={styles.macroPacingLabel}>{t.analyze.proteinFulfillment}</Text>
                   <Text style={[styles.macroPacingVal, { color: COLORS.success }]}>
                     {todayNutSummary
                       ? `${todayNutSummary.totalProtein}g / ${todayNutLog.targetProtein}g`
@@ -539,7 +541,7 @@ export const AnalyzeScreen: React.FC = () => {
                 </View>
                 <View style={styles.macroPacingDivider} />
                 <View style={styles.macroPacingItem}>
-                  <Text style={styles.macroPacingLabel}>CALORIE PACING</Text>
+                  <Text style={styles.macroPacingLabel}>{t.analyze.caloriePacing}</Text>
                   <Text style={[styles.macroPacingVal, { color: COLORS.warning }]}>
                     {todayNutSummary
                       ? `${todayNutSummary.totalCalories} / ${todayNutLog.targetCalories} kcal`
@@ -552,35 +554,35 @@ export const AnalyzeScreen: React.FC = () => {
             {/* Quick KPI stats */}
             <View style={styles.kpiRow}>
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>CALORIES TODAY</Text>
+                <Text style={styles.kpiLabel}>{t.analyze.caloriesToday}</Text>
                 <Text style={[styles.kpiVal, { color: COLORS.warning }]}>
                   {todayNutSummary ? todayNutSummary.totalCalories : (trends.averageCalorieIntake > 0 ? trends.averageCalorieIntake : '--')}
                 </Text>
-                <Text style={styles.kpiSub}>kcal</Text>
+                <Text style={styles.kpiSub}>{t.common.kcal}</Text>
               </View>
 
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>LOGGED FOODS</Text>
+                <Text style={styles.kpiLabel}>{t.analyze.loggedFoods}</Text>
                 <Text style={[styles.kpiVal, { color: modeColors.accent }]}>
-                  {todayNutLog.foods.length} items
+                  {todayNutLog.foods.length} {t.analyze.itemsToday}
                 </Text>
-                <Text style={styles.kpiSub}>Today</Text>
+                <Text style={styles.kpiSub}>{t.common.today}</Text>
               </View>
 
               <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>PROTEIN TODAY</Text>
+                <Text style={styles.kpiLabel}>{t.analyze.proteinToday}</Text>
                 <Text style={[styles.kpiVal, { color: COLORS.textPrimary }]}>
                   {todayNutSummary ? `${todayNutSummary.totalProtein}g` : '--'}
                 </Text>
-                <Text style={styles.kpiSub}>Target: {todayNutLog.targetProtein}g</Text>
+                <Text style={styles.kpiSub}>{t.analyze.targetLabel} {todayNutLog.targetProtein}g</Text>
               </View>
             </View>
 
             {/* Calorie Intake vs Target Bar Chart */}
             <GlassCard style={styles.chartCard}>
               <View style={styles.chartHeaderRow}>
-                <Text style={styles.chartSectionTitle}>CALORIE INTAKE VS TARGET</Text>
-                <Text style={styles.chartSectionMeta}>Dash = Target line</Text>
+                <Text style={styles.chartSectionTitle}>{t.analyze.calorieIntakeVsTarget}</Text>
+                <Text style={styles.chartSectionMeta}>{t.analyze.dashTargetLine}</Text>
               </View>
               <SvgBarChart
                 data={nutritionBarData}
@@ -593,7 +595,7 @@ export const AnalyzeScreen: React.FC = () => {
             {/* Today's Logged Foods List */}
             <View style={styles.sectionTitleRow}>
               <Utensils size={14} color={COLORS.warning} />
-              <Text style={styles.domainSectionHeading}>TODAY'S LOGGED MEALS</Text>
+              <Text style={styles.domainSectionHeading}>{t.analyze.todaysLoggedMeals}</Text>
             </View>
 
             {todayNutLog.foods.length > 0 ? (
@@ -616,17 +618,17 @@ export const AnalyzeScreen: React.FC = () => {
                   <View style={styles.sessionSpecsRow}>
                     <View style={styles.sessionSpecItem}>
                       <Text style={[styles.sessionSpecText, { color: COLORS.success, fontWeight: '700' }]}>
-                        {food.nutrients.proteinGrams}g Protein
+                        {food.nutrients.proteinGrams}g {t.nutrition.header.protein}
                       </Text>
                     </View>
                     <View style={styles.sessionSpecItem}>
                       <Text style={styles.sessionSpecText}>
-                        {food.nutrients.carbsGrams}g Carbs
+                        {food.nutrients.carbsGrams}g {t.nutrition.header.carbs}
                       </Text>
                     </View>
                     <View style={styles.sessionSpecItem}>
                       <Text style={styles.sessionSpecText}>
-                        {food.nutrients.fatGrams}g Fat
+                        {food.nutrients.fatGrams}g {t.nutrition.header.fat}
                       </Text>
                     </View>
                   </View>
@@ -635,9 +637,9 @@ export const AnalyzeScreen: React.FC = () => {
             ) : (
               <GlassCard style={styles.emptyCard}>
                 <Utensils size={28} color={COLORS.textMuted} />
-                <Text style={styles.emptyCardTitle}>No foods logged today</Text>
+                <Text style={styles.emptyCardTitle}>{t.analyze.noFoodsTitle}</Text>
                 <Text style={styles.emptyCardSub}>
-                  Log your meals in the Nutrition tab to see your nutrition adherence score and macro breakdown here.
+                  {t.analyze.noFoodsSub}
                 </Text>
               </GlassCard>
             )}
@@ -661,10 +663,10 @@ export const AnalyzeScreen: React.FC = () => {
               <Watch size={16} color={modeColors.accent} />
               <View style={styles.bridgeCtaTextCol}>
                 <Text style={[styles.bridgeCtaTitle, { color: modeColors.accent }]}>
-                  Multi-Wearable & Health Companion Hub
+                  {t.analyze.companionHubTitle}
                 </Text>
                 <Text style={styles.bridgeCtaSub}>
-                  Garmin • Apple Watch • Whoop • Oura • Samsung • Strava
+                  {t.analyze.companionHubSub}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -675,8 +677,10 @@ export const AnalyzeScreen: React.FC = () => {
             {/* Sleep Architecture Trend */}
             <GlassCard style={styles.chartCard}>
               <View style={styles.chartHeaderRow}>
-                <Text style={styles.chartSectionTitle}>SLEEP DURATION TREND</Text>
-                <Text style={styles.chartSectionMeta}>Avg: {trends.averageSleepHours} hrs</Text>
+                <Text style={styles.chartSectionTitle}>{t.analyze.sleepTrendTitle}</Text>
+                <Text style={styles.chartSectionMeta}>
+                  {t.analyze.avgHrs.replace('{hrs}', String(trends.averageSleepHours))}
+                </Text>
               </View>
               <SvgTrendLineChart
                 data={sleepChartData}

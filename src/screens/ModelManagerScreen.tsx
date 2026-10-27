@@ -70,6 +70,7 @@ export const ModelManagerScreen: React.FC = () => {
     setProvider,
     updateOpenAIConfig,
     testOpenAIConnection,
+    testGeminiConnection,
   } = useModelStore();
 
   const { mode, userProfile, updateProfile, language, setLanguage } = useCoachStore();
@@ -100,7 +101,7 @@ export const ModelManagerScreen: React.FC = () => {
     if (!isNaN(w) && w > 0 && !isNaN(h) && h > 0) {
       updateProfile({ weightKg: w, heightCm: h });
       setEditingMetrics(false);
-      setActionNotice('Updated athlete weight & height.');
+      setActionNotice(t.settings.actionNoticeMetrics);
       setTimeout(() => setActionNotice(null), 3000);
     }
   };
@@ -113,15 +114,23 @@ export const ModelManagerScreen: React.FC = () => {
     setTestingConnection(false);
   };
 
+  const handleTestGeminiConnection = async () => {
+    setTestingConnection(true);
+    setTestResult(null);
+    const result = await testGeminiConnection();
+    setTestResult(result);
+    setTestingConnection(false);
+  };
+
   const handleClearChat = async () => {
     await clearChatHistoryOnly();
-    setActionNotice('AI Chat conversation history cleared.');
+    setActionNotice(t.settings.actionNoticeChat);
     setTimeout(() => setActionNotice(null), 3500);
   };
 
   const handleClearBiometrics = async () => {
     await clearBiometricsAndProgressionsOnly();
-    setActionNotice('Biometrics and skill milestones cleared.');
+    setActionNotice(t.settings.actionNoticeBio);
     setTimeout(() => setActionNotice(null), 3500);
   };
 
@@ -262,7 +271,35 @@ export const ModelManagerScreen: React.FC = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setProvider('openai_compatible')}
+              onPress={() => {
+                setProvider('gemini');
+                setTestResult(null);
+              }}
+              style={[
+                styles.providerTab,
+                provider === 'gemini' && {
+                  borderColor: modeColors.accent,
+                  backgroundColor: `${modeColors.accent}15`,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Zap size={14} color={provider === 'gemini' ? modeColors.accent : COLORS.textMuted} />
+              <Text
+                style={[
+                  styles.providerTabText,
+                  provider === 'gemini' && { color: modeColors.accent, fontWeight: '700' },
+                ]}
+              >
+                {t.settings.geminiProvider}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setProvider('openai_compatible');
+                setTestResult(null);
+              }}
               style={[
                 styles.providerTab,
                 provider === 'openai_compatible' && {
@@ -311,8 +348,8 @@ export const ModelManagerScreen: React.FC = () => {
                 <Cpu size={14} color={modeColors.accent} />
                 <Text style={styles.providerNoteText}>
                   {Platform.OS === 'web'
-                    ? 'Browser Simulation Active: Automatically running the local on-device streaming simulator (~35 tok/s). On native iOS/Android, executes local GGUF weights via llama.rn with Metal / OpenCL acceleration.'
-                    : 'Mobile Mode: Runs quantized GGUF weights locally via llama.rn with Metal / OpenCL GPU acceleration and 0 cloud data transfer.'}
+                    ? t.settings.webSimActive
+                    : t.settings.mobileGgufActive}
                 </Text>
               </View>
 
@@ -359,13 +396,13 @@ export const ModelManagerScreen: React.FC = () => {
                             ) : isGemma4 ? (
                               <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
                                 <Text style={[styles.modelTagText, { color: modeColors.accent }]}>
-                                  {t.settings.recommendedBadge} (DEFAULT)
+                                  {t.settings.recommendedBadge} {t.settings.defaultSuffix}
                                 </Text>
                               </View>
                             ) : (
                               <View style={[styles.modelTag, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
                                 <Text style={[styles.modelTagText, { color: COLORS.textMuted }]}>
-                                  BASE
+                                  {t.settings.baseBadge}
                                 </Text>
                               </View>
                             )}
@@ -374,7 +411,7 @@ export const ModelManagerScreen: React.FC = () => {
                         </View>
                         <View style={styles.modelRectangleBottom}>
                           <Text style={styles.modelRectangleMeta} numberOfLines={1}>
-                            {m.sizeFormatted} • {m.quantization} • {m.isFineTuned ? 'Fine-Tuned Athletic Weights' : isGemma4 ? 'Multimodal 4 E2B' : 'Base Instruct Weights'}
+                            {m.sizeFormatted} • {m.quantization} • {m.isFineTuned ? t.settings.fineTunedWeights : isGemma4 ? t.settings.multimodalGemma : t.settings.baseInstructWeights}
                           </Text>
                         </View>
                       </TouchableOpacity>
@@ -388,7 +425,7 @@ export const ModelManagerScreen: React.FC = () => {
                 <View style={{ flex: 1, paddingRight: SPACING.sm }}>
                   <Text style={styles.modelName}>{currentModel.name}</Text>
                   <Text style={styles.quantBadge}>
-                    QUANTIZATION: {currentModel.quantization} (Low Memory)
+                    {t.settings.quantization} {currentModel.quantization} ({t.settings.lowMemory})
                   </Text>
                 </View>
                 <View style={styles.statusBadge}>
@@ -410,13 +447,13 @@ export const ModelManagerScreen: React.FC = () => {
               <View style={styles.specsGrid}>
                 <View style={styles.specItem}>
                   <HardDrive size={13} color={COLORS.textSecondary} />
-                  <Text style={styles.specLabel}>ON-DISK:</Text>
+                  <Text style={styles.specLabel}>{t.settings.onDisk}</Text>
                   <Text style={styles.specValue}>{currentModel.sizeFormatted}</Text>
                 </View>
                 <View style={styles.specItem}>
                   <Terminal size={13} color={COLORS.textSecondary} />
-                  <Text style={styles.specLabel}>CONTEXT:</Text>
-                  <Text style={styles.specValue}>{currentModel.contextLength} tokens</Text>
+                  <Text style={styles.specLabel}>{t.settings.context}</Text>
+                  <Text style={styles.specValue}>{currentModel.contextLength} {t.settings.tokens}</Text>
                 </View>
               </View>
 
@@ -425,7 +462,7 @@ export const ModelManagerScreen: React.FC = () => {
                 <View style={styles.downloadBox}>
                   <View style={styles.progressHeader}>
                     <Text style={styles.downloadingText}>
-                      Streaming GGUF Model Weights...
+                      {t.settings.streamingWeights}
                     </Text>
                     <Text style={styles.downloadPercent}>{downloadProgress}%</Text>
                   </View>
@@ -457,8 +494,8 @@ export const ModelManagerScreen: React.FC = () => {
                     <Download size={15} color={modeColors.accent} />
                     <Text style={[styles.btnText, { color: modeColors.accent }]}>
                       {status === 'ready' || status === 'loaded'
-                        ? 'RE-VERIFY WEIGHTS'
-                        : 'DOWNLOAD MODEL'}
+                        ? t.settings.reverifyWeights
+                        : t.settings.downloadModel}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -469,7 +506,7 @@ export const ModelManagerScreen: React.FC = () => {
                     style={[styles.btn, styles.btnDanger]}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.btnDangerText}>UNLOAD FROM RAM</Text>
+                    <Text style={styles.btnDangerText}>{t.settings.unloadModel}</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
@@ -482,7 +519,7 @@ export const ModelManagerScreen: React.FC = () => {
                   >
                     <Zap size={15} color={COLORS.textDark} />
                     <Text style={[styles.btnText, { color: COLORS.textDark }]}>
-                      LOAD CONTEXT
+                      {t.settings.loadContext}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -490,9 +527,102 @@ export const ModelManagerScreen: React.FC = () => {
             </View>
           )}
 
+          {provider === 'gemini' && (
+            <View style={styles.openAISettingsContainer}>
+              <View style={styles.providerNoteBox}>
+                <Zap size={16} color={modeColors.accent} />
+                <Text style={styles.providerNoteText}>
+                  {t.settings.geminiDesc}
+                </Text>
+              </View>
+
+              <Text style={styles.fieldSectionLabel}>{t.settings.geminiKeyLabel}</Text>
+              <View style={styles.inputRow}>
+                <Key size={14} color={COLORS.textMuted} />
+                <TextInput
+                  value={geminiApiKey}
+                  onChangeText={(val) => {
+                    setGeminiApiKey(val);
+                    setTestResult(null);
+                  }}
+                  placeholder={t.settings.geminiKeyPlaceholder}
+                  placeholderTextColor={COLORS.textMuted}
+                  style={styles.textInput}
+                  secureTextEntry={!showApiKey}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowApiKey(!showApiKey)}
+                  style={styles.eyeBtn}
+                  activeOpacity={0.7}
+                >
+                  {showApiKey ? (
+                    <EyeOff size={14} color={COLORS.textMuted} />
+                  ) : (
+                    <Eye size={14} color={COLORS.textMuted} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={{ marginTop: 8 }}
+                onPress={() => Linking.openURL('https://aistudio.google.com/app/apikey')}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: modeColors.accent, fontSize: 12, fontWeight: '700' }}>
+                  {t.settings.getGeminiKeyLink}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Test Gemini Connection Button */}
+              <TouchableOpacity
+                onPress={handleTestGeminiConnection}
+                disabled={testingConnection}
+                style={[
+                  styles.testConnBtn,
+                  { borderColor: modeColors.accent, marginTop: SPACING.md },
+                ]}
+                activeOpacity={0.8}
+              >
+                {testingConnection ? (
+                  <ActivityIndicator size="small" color={modeColors.accent} />
+                ) : (
+                  <RefreshCw size={14} color={modeColors.accent} />
+                )}
+                <Text style={[styles.testConnBtnText, { color: modeColors.accent }]}>
+                  {testingConnection ? t.settings.testingConnection : t.settings.testConnection}
+                </Text>
+              </TouchableOpacity>
+
+              {testResult && (
+                <View
+                  style={[
+                    styles.testResultBox,
+                    testResult.success ? styles.testResultSuccess : styles.testResultError,
+                  ]}
+                >
+                  {testResult.success ? (
+                    <CheckCircle2 size={14} color={COLORS.success} />
+                  ) : (
+                    <AlertTriangle size={14} color={COLORS.danger} />
+                  )}
+                  <Text
+                    style={[
+                      styles.testResultText,
+                      { color: testResult.success ? COLORS.success : COLORS.danger },
+                    ]}
+                  >
+                    {testResult.message}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {provider === 'openai_compatible' && (
             <View style={styles.openAISettingsContainer}>
-              <Text style={styles.fieldSectionLabel}>QUICK PRESETS</Text>
+              <Text style={styles.fieldSectionLabel}>{t.settings.quickPresets}</Text>
               <View style={styles.presetsRow}>
                 {PRESETS.map((preset) => (
                   <TouchableOpacity
@@ -528,7 +658,7 @@ export const ModelManagerScreen: React.FC = () => {
                 ))}
               </View>
 
-              <Text style={styles.fieldSectionLabel}>BASE API URL</Text>
+              <Text style={styles.fieldSectionLabel}>{t.settings.baseApiUrl}</Text>
               <View style={styles.inputRow}>
                 <Server size={14} color={COLORS.textMuted} />
                 <TextInput
@@ -545,7 +675,7 @@ export const ModelManagerScreen: React.FC = () => {
                 />
               </View>
 
-              <Text style={styles.fieldSectionLabel}>MODEL NAME</Text>
+              <Text style={styles.fieldSectionLabel}>{t.settings.modelName}</Text>
               <View style={styles.inputRow}>
                 <Cpu size={14} color={COLORS.textMuted} />
                 <TextInput
@@ -562,7 +692,7 @@ export const ModelManagerScreen: React.FC = () => {
                 />
               </View>
 
-              <Text style={styles.fieldSectionLabel}>API KEY (OPTIONAL FOR OLLAMA / LM STUDIO)</Text>
+              <Text style={styles.fieldSectionLabel}>{t.settings.apiKeyOptional}</Text>
               <View style={styles.inputRow}>
                 <Key size={14} color={COLORS.textMuted} />
                 <TextInput
@@ -571,7 +701,7 @@ export const ModelManagerScreen: React.FC = () => {
                     updateOpenAIConfig({ apiKey: val });
                     setTestResult(null);
                   }}
-                  placeholder="Leave empty for Ollama or enter Bearer token"
+                  placeholder={t.settings.apiKeyPlaceholder}
                   placeholderTextColor={COLORS.textMuted}
                   style={styles.textInput}
                   secureTextEntry={!showApiKey}
@@ -607,7 +737,7 @@ export const ModelManagerScreen: React.FC = () => {
                   <RefreshCw size={14} color={modeColors.accent} />
                 )}
                 <Text style={[styles.testConnBtnText, { color: modeColors.accent }]}>
-                  {testingConnection ? 'Testing Connection...' : 'Test Connection'}
+                  {testingConnection ? t.settings.testingConnection : t.settings.testConnection}
                 </Text>
               </TouchableOpacity>
 
@@ -691,24 +821,24 @@ export const ModelManagerScreen: React.FC = () => {
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
             <RefreshCw size={16} color={COLORS.purpleAccent} />
-            <Text style={styles.cardTitle}>OVER-THE-AIR (OTA) HOTFIX CHANNEL</Text>
+            <Text style={styles.cardTitle}>{t.settings.otaHotfixTitle}</Text>
           </View>
           <Text style={styles.otaDesc}>
-            Pull instant prompt refinements and UI enhancements without waiting for App Store / Google Play review cycles.
+            {t.settings.otaHotfixDesc}
           </Text>
 
           {/* OTA Channel & Runtime Badges */}
           <View style={styles.otaBadgeRow}>
             <View style={styles.otaBadge}>
-              <Text style={styles.otaBadgeLabel}>CHANNEL</Text>
+              <Text style={styles.otaBadgeLabel}>{t.settings.otaChannel}</Text>
               <Text style={styles.otaBadgeValue}>{otaMetadata.channel.toUpperCase()}</Text>
             </View>
             <View style={styles.otaBadge}>
-              <Text style={styles.otaBadgeLabel}>RUNTIME</Text>
+              <Text style={styles.otaBadgeLabel}>{t.settings.otaRuntime}</Text>
               <Text style={styles.otaBadgeValue}>{otaMetadata.runtimeVersion}</Text>
             </View>
             <View style={styles.otaBadge}>
-              <Text style={styles.otaBadgeLabel}>ENGINE</Text>
+              <Text style={styles.otaBadgeLabel}>{t.settings.otaEngine}</Text>
               <Text style={styles.otaBadgeValue}>EXPO EAS</Text>
             </View>
           </View>
@@ -724,7 +854,7 @@ export const ModelManagerScreen: React.FC = () => {
             ) : (
               <>
                 <RefreshCw size={14} color={COLORS.textPrimary} />
-                <Text style={styles.otaBtnText}>CHECK FOR OTA UPDATES</Text>
+                <Text style={styles.otaBtnText}>{t.settings.checkOtaBtn}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -743,7 +873,7 @@ export const ModelManagerScreen: React.FC = () => {
               activeOpacity={0.8}
             >
               <RotateCcw size={14} color="#000" />
-              <Text style={[styles.otaBtnText, { color: '#000', fontWeight: '800' }]}>RESTART APP TO APPLY UPDATE</Text>
+              <Text style={[styles.otaBtnText, { color: '#000', fontWeight: '800' }]}>{t.settings.restartAppBtn}</Text>
             </TouchableOpacity>
           )}
         </GlassCard>
@@ -752,21 +882,21 @@ export const ModelManagerScreen: React.FC = () => {
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
             <User size={16} color={modeColors.accent} />
-            <Text style={styles.cardTitle}>ATHLETE PROFILE & PARAMETERS</Text>
+            <Text style={styles.cardTitle}>{t.settings.athleteProfileTitle}</Text>
           </View>
           <Text style={styles.otaDesc}>
-            Biological profile and preferred environment calibrate rep targets, rest periods, and Mifflin-St Jeor metabolic equations.
+            {t.settings.athleteProfileDesc}
           </Text>
 
           <View style={{ gap: SPACING.sm }}>
             {/* Biological Sex Selector */}
             <View>
-              <Text style={styles.profileSectionLabel}>BIOLOGICAL SEX</Text>
+              <Text style={styles.profileSectionLabel}>{t.settings.biologicalSex}</Text>
               <View style={styles.pillRow}>
                 {(
                   [
-                    { id: 'male', label: 'Male 👨' },
-                    { id: 'female', label: 'Female 👩' },
+                    { id: 'male', label: t.settings.male },
+                    { id: 'female', label: t.settings.female },
                   ] as const
                 ).map((s) => {
                   const isSelected = (userProfile.sex || 'male') === s.id;
@@ -799,13 +929,13 @@ export const ModelManagerScreen: React.FC = () => {
 
             {/* Equipment Environment Preference */}
             <View>
-              <Text style={styles.profileSectionLabel}>DEFAULT TRAINING ENVIRONMENT</Text>
+              <Text style={styles.profileSectionLabel}>{t.settings.defaultEnvironment}</Text>
               <View style={styles.pillRow}>
                 {(
                   [
-                    { id: 'gym', label: '🏋️ Full Gym' },
-                    { id: 'home', label: '🏠 Home / BW' },
-                    { id: 'both', label: '🔄 Hybrid / Both' },
+                    { id: 'gym', label: t.settings.fullGym },
+                    { id: 'home', label: t.settings.homeBw },
+                    { id: 'both', label: t.settings.hybridBoth },
                   ] as const
                 ).map((eq) => {
                   const isSelected = (userProfile.equipmentPreference || 'both') === eq.id;
@@ -839,7 +969,7 @@ export const ModelManagerScreen: React.FC = () => {
             {/* Height & Weight Display / Edit */}
             <View style={{ marginTop: SPACING.xs }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={styles.profileSectionLabel}>BODY ANTHROPOMETRICS</Text>
+                <Text style={styles.profileSectionLabel}>{t.settings.anthropometrics}</Text>
                 <TouchableOpacity
                   onPress={() => {
                     if (editingMetrics) {
@@ -854,7 +984,7 @@ export const ModelManagerScreen: React.FC = () => {
                   style={{ paddingVertical: 2, paddingHorizontal: 6 }}
                 >
                   <Text style={{ ...TYPOGRAPHY.captionBold, fontSize: 11, color: modeColors.accent }}>
-                    {editingMetrics ? 'SAVE' : 'EDIT'}
+                    {editingMetrics ? t.settings.save : t.settings.edit}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -862,7 +992,7 @@ export const ModelManagerScreen: React.FC = () => {
               {editingMetrics ? (
                 <View style={styles.profileStatsRow}>
                   <View style={styles.profileStatItem}>
-                    <Text style={styles.profileStatLabel}>WEIGHT (KG)</Text>
+                    <Text style={styles.profileStatLabel}>{t.settings.weightKg}</Text>
                     <TextInput
                       style={[styles.textInput, { fontSize: 13, marginTop: 4 }]}
                       keyboardType="decimal-pad"
@@ -873,7 +1003,7 @@ export const ModelManagerScreen: React.FC = () => {
                     />
                   </View>
                   <View style={styles.profileStatItem}>
-                    <Text style={styles.profileStatLabel}>HEIGHT (CM)</Text>
+                    <Text style={styles.profileStatLabel}>{t.settings.heightCm}</Text>
                     <TextInput
                       style={[styles.textInput, { fontSize: 13, marginTop: 4 }]}
                       keyboardType="number-pad"
@@ -887,15 +1017,15 @@ export const ModelManagerScreen: React.FC = () => {
               ) : (
                 <View style={styles.profileStatsRow}>
                   <View style={styles.profileStatItem}>
-                    <Text style={styles.profileStatLabel}>BODY WEIGHT</Text>
+                    <Text style={styles.profileStatLabel}>{t.settings.bodyWeight}</Text>
                     <Text style={styles.profileStatValue}>
-                      {userProfile.weightKg > 0 ? `${userProfile.weightKg} kg` : 'Not Set'}
+                      {userProfile.weightKg > 0 ? `${userProfile.weightKg} kg` : t.settings.notSet}
                     </Text>
                   </View>
                   <View style={styles.profileStatItem}>
-                    <Text style={styles.profileStatLabel}>HEIGHT</Text>
+                    <Text style={styles.profileStatLabel}>{t.settings.height}</Text>
                     <Text style={styles.profileStatValue}>
-                      {userProfile.heightCm > 0 ? `${userProfile.heightCm} cm` : 'Not Set'}
+                      {userProfile.heightCm > 0 ? `${userProfile.heightCm} cm` : t.settings.notSet}
                     </Text>
                   </View>
                 </View>
@@ -908,28 +1038,28 @@ export const ModelManagerScreen: React.FC = () => {
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
             <Database size={16} color={modeColors.accent} />
-            <Text style={styles.cardTitle}>OPEN SOURCE EXERCISE DATASET</Text>
+            <Text style={styles.cardTitle}>{t.settings.repDbTitle}</Text>
           </View>
           <Text style={styles.otaDesc}>
-            Exercise mechanics, metabolic equivalents (MET), and biomechanical coaching cues are powered by RepDB.
+            {t.settings.repDbDesc}
           </Text>
 
           <View style={styles.datasetInfoBox}>
             <View style={styles.datasetInfoRow}>
-              <Text style={styles.datasetInfoLabel}>SOURCE:</Text>
+              <Text style={styles.datasetInfoLabel}>{t.settings.source}</Text>
               <Text style={[styles.datasetInfoVal, { color: modeColors.accent }]}>RepDB (repdb.co)</Text>
             </View>
             <View style={styles.datasetInfoRow}>
-              <Text style={styles.datasetInfoLabel}>MOVEMENTS:</Text>
-              <Text style={styles.datasetInfoVal}>643 Exercises (195 Bodyweight + 448 Gym)</Text>
+              <Text style={styles.datasetInfoLabel}>{t.settings.movementsCount}</Text>
+              <Text style={styles.datasetInfoVal}>{t.settings.movementsDetail}</Text>
             </View>
             <View style={styles.datasetInfoRow}>
-              <Text style={styles.datasetInfoLabel}>CALORIE METRIC:</Text>
-              <Text style={styles.datasetInfoVal}>ACSM Metabolic Equivalent (MET)</Text>
+              <Text style={styles.datasetInfoLabel}>{t.settings.calorieMetric}</Text>
+              <Text style={styles.datasetInfoVal}>{t.settings.calorieMetricDetail}</Text>
             </View>
             <View style={styles.datasetInfoRow}>
-              <Text style={styles.datasetInfoLabel}>ATTRIBUTION:</Text>
-              <Text style={styles.datasetInfoVal}>Exercise data by RepDB (repdb.co)</Text>
+              <Text style={styles.datasetInfoLabel}>{t.settings.attribution}</Text>
+              <Text style={styles.datasetInfoVal}>{t.settings.attributionDetail}</Text>
             </View>
           </View>
         </GlassCard>
@@ -938,10 +1068,10 @@ export const ModelManagerScreen: React.FC = () => {
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
             <ShieldCheck size={16} color={COLORS.success} />
-            <Text style={styles.cardTitle}>LOCAL STORAGE & USER DATA PRIVACY</Text>
+            <Text style={styles.cardTitle}>{t.settings.localStorageTitle}</Text>
           </View>
           <Text style={styles.otaDesc}>
-            All athlete profiles, weight/height metrics, wearable telemetry, and AI chat transcripts are stored 100% locally on this device.
+            {t.settings.localStorageDesc}
           </Text>
 
           {actionNotice && (
@@ -958,7 +1088,7 @@ export const ModelManagerScreen: React.FC = () => {
               activeOpacity={0.8}
             >
               <Trash2 size={13} color={COLORS.textSecondary} />
-              <Text style={styles.storageBtnSecondaryText}>Clear AI Chat</Text>
+              <Text style={styles.storageBtnSecondaryText}>{t.settings.clearChatBtn}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -967,7 +1097,7 @@ export const ModelManagerScreen: React.FC = () => {
               activeOpacity={0.8}
             >
               <RotateCcw size={13} color={COLORS.textSecondary} />
-              <Text style={styles.storageBtnSecondaryText}>Clear Biometrics</Text>
+              <Text style={styles.storageBtnSecondaryText}>{t.settings.clearBiometricsBtn}</Text>
             </TouchableOpacity>
           </View>
 
@@ -977,7 +1107,7 @@ export const ModelManagerScreen: React.FC = () => {
             activeOpacity={0.85}
           >
             <AlertTriangle size={15} color={COLORS.danger} />
-            <Text style={styles.wipeAllBtnText}>Clear All User Data & Reset App</Text>
+            <Text style={styles.wipeAllBtnText}>{t.settings.clearAllBtn}</Text>
           </TouchableOpacity>
         </GlassCard>
       </ScrollView>
@@ -994,12 +1124,12 @@ export const ModelManagerScreen: React.FC = () => {
             <View style={styles.modalIconBox}>
               <AlertTriangle size={28} color={COLORS.danger} />
             </View>
-            <Text style={styles.modalTitle}>Clear All User Data?</Text>
+            <Text style={styles.modalTitle}>{t.settings.clearAllConfirmTitle}</Text>
             <Text style={styles.modalDesc}>
-              This will permanently delete your athlete profile, body weight/height, training goals, fitness telemetry, and AI chat transcripts from this device.
+              {t.settings.clearAllConfirmDesc}
             </Text>
             <Text style={styles.modalWarning}>
-              You will return to the initial onboarding screen. This action cannot be undone.
+              {t.settings.clearAllWarning}
             </Text>
 
             <View style={styles.modalBtnRow}>
@@ -1008,7 +1138,7 @@ export const ModelManagerScreen: React.FC = () => {
                 style={styles.modalCancelBtn}
                 activeOpacity={0.8}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t.common.cancel}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1020,7 +1150,7 @@ export const ModelManagerScreen: React.FC = () => {
                 {isWiping ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.modalDeleteText}>Yes, Clear All Data</Text>
+                  <Text style={styles.modalDeleteText}>{t.settings.confirmClearAllBtn}</Text>
                 )}
               </TouchableOpacity>
             </View>

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useTranslation } from '@/i18n';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -10,6 +11,7 @@ import { Activity, RefreshCw, Moon, Heart } from 'lucide-react-native';
 export const TelemetryBanner: React.FC = () => {
   const { metrics, syncing, syncTelemetry } = useTelemetryStore();
   const { mode } = useCoachStore();
+  const { t } = useTranslation();
   const modeColors = getModeColors(mode);
 
   const isSynced = metrics.lastSyncTimestamp > 0 && metrics.source !== 'manual';
@@ -29,10 +31,14 @@ export const TelemetryBanner: React.FC = () => {
         <View>
           <View style={styles.titleRow}>
             <Text style={styles.readinessText}>
-              {isSynced ? `READINESS ${metrics.readinessScore}/100` : 'NO WEARABLE SYNCED'}
+              {isSynced
+                ? `${t.coach.telemetryBanner.readiness} ${metrics.readinessScore}/100`
+                : t.coach.telemetryBanner.noWearable}
             </Text>
             <Text style={[styles.sourceBadge, { color: modeColors.accent }]}>
-              {isSynced ? metrics.source.replace('_', ' ').toUpperCase() : 'OFFLINE'}
+              {isSynced
+                ? metrics.source.replace('_', ' ').toUpperCase()
+                : t.coach.telemetryBanner.offline}
             </Text>
           </View>
           <View style={styles.metricsRow}>
@@ -40,7 +46,9 @@ export const TelemetryBanner: React.FC = () => {
               <>
                 <View style={styles.metricItem}>
                   <Moon size={11} color={COLORS.textSecondary} />
-                  <Text style={styles.metricText}>{metrics.sleepHours}h Sleep</Text>
+                  <Text style={styles.metricText}>
+                    {metrics.sleepHours}h {t.coach.telemetryBanner.sleep}
+                  </Text>
                 </View>
                 <Text style={styles.divider}>•</Text>
                 <View style={styles.metricItem}>
@@ -55,7 +63,7 @@ export const TelemetryBanner: React.FC = () => {
               </>
             ) : (
               <Text style={styles.metricText}>
-                Tap Sync to connect Health Connect / Apple Health
+                {t.coach.telemetryBanner.tapToSync}
               </Text>
             )}
           </View>

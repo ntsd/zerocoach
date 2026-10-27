@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CalisthenicsStage } from '@/types/telemetry';
+import { useTranslation } from '@/i18n';
 import { COLORS } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -25,6 +26,7 @@ export const SkillTreeCard: React.FC<SkillTreeCardProps> = ({
   onDelete,
   onAskCoach,
 }) => {
+  const { t } = useTranslation();
   const isCompleted = !!stage.completed;
 
   return (
@@ -51,14 +53,16 @@ export const SkillTreeCard: React.FC<SkillTreeCardProps> = ({
         {/* Content Box */}
         <View style={styles.titleCol}>
           <View style={styles.badgeRow}>
-            <Text style={styles.stageBadge}>STAGE {stage.stageNumber}</Text>
+            <Text style={styles.stageBadge}>
+              {t.workout.skillTree.stage.replace('{num}', String(stage.stageNumber))}
+            </Text>
             {stage.isCustom && (
               <View style={styles.customTag}>
-                <Text style={styles.customTagText}>CUSTOM</Text>
+                <Text style={styles.customTagText}>{t.workout.skillTree.custom}</Text>
               </View>
             )}
             {isCompleted && (
-              <Text style={styles.completedTag}>MASTERED</Text>
+              <Text style={styles.completedTag}>{t.workout.skillTree.mastered}</Text>
             )}
           </View>
           <Text
@@ -100,7 +104,7 @@ export const SkillTreeCard: React.FC<SkillTreeCardProps> = ({
 
       {/* Performance Standard Box */}
       <View style={styles.criteriaBox}>
-        <Text style={styles.criteriaLabel}>PERFORMANCE STANDARD:</Text>
+        <Text style={styles.criteriaLabel}>{t.workout.skillTree.performanceStandard}</Text>
         <Text style={styles.criteriaText}>{stage.standard}</Text>
       </View>
     </GlassCard>

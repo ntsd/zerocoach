@@ -7,12 +7,14 @@ import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Moon, Heart, Flame, Footprints, Watch, Scale } from 'lucide-react-native';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useTranslation } from '@/i18n';
 
 interface MetricGridProps {
   metrics: TelemetryMetrics;
 }
 
 export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
+  const { t } = useTranslation();
   const isSynced = metrics.lastSyncTimestamp > 0 && metrics.source !== 'manual';
   const userProfile = useCoachStore((s) => s.userProfile);
 
@@ -44,12 +46,16 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
       <GlassCard style={styles.card}>
         <View style={styles.cardHeader}>
           <Moon size={16} color={COLORS.purpleAccent} />
-          <Text style={styles.cardTitle}>SLEEP ARCHITECTURE</Text>
+          <Text style={styles.cardTitle}>{t.telemetry.sleepArchitecture}</Text>
         </View>
         <Text style={styles.mainValue}>{isSynced ? `${metrics.sleepHours} hrs` : '-- hrs'}</Text>
         <View style={styles.subStats}>
-          <Text style={styles.subText}>{isSynced ? `Deep: ${metrics.deepSleepHours}h` : 'No Wearable'}</Text>
-          <Text style={styles.subText}>{isSynced ? `Quality: ${metrics.sleepQualityScore}%` : 'Sync to Track'}</Text>
+          <Text style={styles.subText}>
+            {isSynced ? t.telemetry.deepSleep.replace('{hours}', String(metrics.deepSleepHours)) : t.telemetry.noWearable}
+          </Text>
+          <Text style={styles.subText}>
+            {isSynced ? t.telemetry.qualityScore.replace('{score}', String(metrics.sleepQualityScore)) : t.telemetry.syncToTrack}
+          </Text>
         </View>
       </GlassCard>
 
@@ -57,12 +63,14 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
       <GlassCard style={styles.card}>
         <View style={styles.cardHeader}>
           <Heart size={16} color={COLORS.danger} />
-          <Text style={styles.cardTitle}>CARDIAC AUTONOMIC</Text>
+          <Text style={styles.cardTitle}>{t.telemetry.cardiacAutonomic}</Text>
         </View>
         <Text style={styles.mainValue}>{isSynced ? `${metrics.restingHeartRate} bpm` : '-- bpm'}</Text>
         <View style={styles.subStats}>
-          <Text style={styles.subText}>{isSynced ? `HRV: ${metrics.heartRateVariability} ms` : 'No Wearable'}</Text>
-          <Text style={styles.subText}>{isSynced ? 'Resting Baseline' : 'Sync to Track'}</Text>
+          <Text style={styles.subText}>
+            {isSynced ? t.telemetry.hrvMs.replace('{ms}', String(metrics.heartRateVariability)) : t.telemetry.noWearable}
+          </Text>
+          <Text style={styles.subText}>{isSynced ? t.telemetry.restingBaseline : t.telemetry.syncToTrack}</Text>
         </View>
       </GlassCard>
 
@@ -70,12 +78,12 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
       <GlassCard style={styles.card}>
         <View style={styles.cardHeader}>
           <Flame size={16} color={COLORS.warning} />
-          <Text style={styles.cardTitle}>ACTIVE EXPENDITURE</Text>
+          <Text style={styles.cardTitle}>{t.telemetry.activeExpenditure}</Text>
         </View>
         <Text style={styles.mainValue}>{isSynced ? `${metrics.activeCalories} kcal` : '-- kcal'}</Text>
         <View style={styles.subStats}>
-          <Text style={styles.subText}>{isSynced ? 'Burned Today' : 'Standard Baseline'}</Text>
-          <Text style={styles.subText}>{isSynced ? 'Adaptive Intake' : 'Sync to Track'}</Text>
+          <Text style={styles.subText}>{isSynced ? t.telemetry.burnedToday : t.telemetry.standardBaseline}</Text>
+          <Text style={styles.subText}>{isSynced ? t.telemetry.adaptiveIntake : t.telemetry.syncToTrack}</Text>
         </View>
       </GlassCard>
 
@@ -83,14 +91,16 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
       <GlassCard style={styles.card}>
         <View style={styles.cardHeader}>
           <Footprints size={16} color={COLORS.strict.accent} />
-          <Text style={styles.cardTitle}>DAILY MOVEMENT</Text>
+          <Text style={styles.cardTitle}>{t.telemetry.dailyMovement}</Text>
         </View>
         <Text style={styles.mainValue}>
           {isSynced ? metrics.steps.toLocaleString() : '--'}
         </Text>
         <View style={styles.subStats}>
           <Text style={styles.subText}>
-            {isSynced ? `Source: ${metrics.source.replace('_', ' ').toUpperCase()}` : 'Sync Wearable'}
+            {isSynced
+              ? t.telemetry.sourceLabel.replace('{source}', metrics.source.replace('_', ' ').toUpperCase())
+              : t.telemetry.syncWearable}
           </Text>
         </View>
       </GlassCard>
@@ -99,18 +109,18 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
       <GlassCard style={[styles.card, styles.fullWidthCard]}>
         <View style={styles.cardHeader}>
           <Scale size={16} color={COLORS.strict.accent} />
-          <Text style={styles.cardTitle}>BODY ANTHROPOMETRICS</Text>
+          <Text style={styles.cardTitle}>{t.telemetry.bodyAnthropometrics}</Text>
         </View>
         <View style={styles.bodyMetricsRow}>
           <View style={styles.metricItem}>
-            <Text style={styles.metricSubLabel}>BODY WEIGHT</Text>
+            <Text style={styles.metricSubLabel}>{t.telemetry.bodyWeight}</Text>
             <Text style={styles.mainValue}>
               {displayWeight ? `${displayWeight} kg` : '-- kg'}
             </Text>
           </View>
           <View style={styles.metricDivider} />
           <View style={styles.metricItem}>
-            <Text style={styles.metricSubLabel}>HEIGHT</Text>
+            <Text style={styles.metricSubLabel}>{t.telemetry.height}</Text>
             <Text style={styles.mainValue}>
               {displayHeight ? `${displayHeight} cm` : '-- cm'}
             </Text>
@@ -119,10 +129,10 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
         <View style={styles.subStats}>
           <Text style={styles.subText}>
             {isFromHealthConnect
-              ? 'Synced from Health Connect'
+              ? t.telemetry.syncedFromHealthConnect
               : isFromProfile
-              ? 'From Athlete Profile (Companion app did not sync weight)'
-              : 'Sync from Health Connect or set in Profile'}
+              ? t.telemetry.fromAthleteProfile
+              : t.telemetry.syncFromHealthConnectOrProfile}
           </Text>
         </View>
       </GlassCard>

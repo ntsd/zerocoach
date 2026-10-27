@@ -4,6 +4,7 @@ import { GlassCard } from '../common/GlassCard';
 import { NutritionDailySummary, DAILY_RDA_TARGETS } from '../../types/nutrition';
 import { COLORS } from '../../theme/colors';
 import { Sparkles, ChevronDown, ChevronUp, ShieldAlert, Award } from 'lucide-react-native';
+import { useTranslation } from '@/i18n';
 
 interface MicronutrientScorecardProps {
   summary: NutritionDailySummary;
@@ -18,22 +19,23 @@ interface NutrientItemConfig {
 }
 
 export const MicronutrientScorecard: React.FC<MicronutrientScorecardProps> = ({ summary }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const vitamins: NutrientItemConfig[] = [
-    { label: 'Vitamin A', current: summary.totalVitaminA_mcg, unit: 'mcg', target: DAILY_RDA_TARGETS.vitaminA_mcg },
-    { label: 'Vitamin C', current: summary.totalVitaminC_mg, unit: 'mg', target: DAILY_RDA_TARGETS.vitaminC_mg },
-    { label: 'Vitamin D', current: summary.totalVitaminD_mcg, unit: 'mcg', target: DAILY_RDA_TARGETS.vitaminD_mcg },
-    { label: 'Vitamin B12', current: summary.totalVitaminB12_mcg, unit: 'mcg', target: DAILY_RDA_TARGETS.vitaminB12_mcg },
+    { label: t.nutrition.vitamins.vitaminA, current: summary.totalVitaminA_mcg, unit: 'mcg', target: DAILY_RDA_TARGETS.vitaminA_mcg },
+    { label: t.nutrition.vitamins.vitaminC, current: summary.totalVitaminC_mg, unit: 'mg', target: DAILY_RDA_TARGETS.vitaminC_mg },
+    { label: t.nutrition.vitamins.vitaminD, current: summary.totalVitaminD_mcg, unit: 'mcg', target: DAILY_RDA_TARGETS.vitaminD_mcg },
+    { label: t.nutrition.vitamins.vitaminB12, current: summary.totalVitaminB12_mcg, unit: 'mcg', target: DAILY_RDA_TARGETS.vitaminB12_mcg },
   ];
 
   const minerals: NutrientItemConfig[] = [
-    { label: 'Iron', current: summary.totalIron_mg, unit: 'mg', target: DAILY_RDA_TARGETS.iron_mg },
-    { label: 'Calcium', current: summary.totalCalcium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.calcium_mg },
-    { label: 'Magnesium', current: summary.totalMagnesium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.magnesium_mg },
-    { label: 'Potassium', current: summary.totalPotassium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.potassium_mg },
-    { label: 'Zinc', current: summary.totalZinc_mg, unit: 'mg', target: DAILY_RDA_TARGETS.zinc_mg },
-    { label: 'Sodium', current: summary.totalSodium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.sodium_mg_limit, isLimit: true },
+    { label: t.nutrition.vitamins.iron, current: summary.totalIron_mg, unit: 'mg', target: DAILY_RDA_TARGETS.iron_mg },
+    { label: t.nutrition.vitamins.calcium, current: summary.totalCalcium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.calcium_mg },
+    { label: t.nutrition.vitamins.magnesium, current: summary.totalMagnesium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.magnesium_mg },
+    { label: t.nutrition.vitamins.potassium, current: summary.totalPotassium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.potassium_mg },
+    { label: t.nutrition.vitamins.zinc, current: summary.totalZinc_mg, unit: 'mg', target: DAILY_RDA_TARGETS.zinc_mg },
+    { label: t.nutrition.vitamins.sodium, current: summary.totalSodium_mg, unit: 'mg', target: DAILY_RDA_TARGETS.sodium_mg_limit, isLimit: true },
   ];
 
   // Calculate composite score (percentage of key micronutrients met)
@@ -51,15 +53,15 @@ export const MicronutrientScorecard: React.FC<MicronutrientScorecardProps> = ({ 
     if (item.isLimit) {
       if (item.current > item.target) {
         barColor = '#EF4444';
-        statusText = 'High';
+        statusText = t.nutrition.scorecard.high;
       } else {
         barColor = '#10B981';
-        statusText = 'Under Limit';
+        statusText = t.nutrition.scorecard.underLimit;
       }
     } else {
       if (pct >= 100) {
         barColor = '#10B981';
-        statusText = 'Optimal';
+        statusText = t.nutrition.scorecard.optimal;
       } else if (pct >= 50) {
         barColor = '#F59E0B';
         statusText = `${pct}%`;
@@ -104,9 +106,9 @@ export const MicronutrientScorecard: React.FC<MicronutrientScorecardProps> = ({ 
             <Sparkles size={16} color="#00F0FF" />
           </View>
           <View>
-            <Text style={styles.title}>Micronutrient Bio-Profile</Text>
+            <Text style={styles.title}>{t.nutrition.scorecard.title}</Text>
             <Text style={styles.subtitle}>
-              {metCount} of {trackableItems.length} essential targets achieved ({overallPercentage}%)
+              {t.nutrition.scorecard.subtitle.replace('{met}', String(metCount)).replace('{total}', String(trackableItems.length)).replace('{pct}', String(overallPercentage))}
             </Text>
           </View>
         </View>
@@ -129,16 +131,16 @@ export const MicronutrientScorecard: React.FC<MicronutrientScorecardProps> = ({ 
           {/* Explanation note */}
           <View style={styles.infoBanner}>
             <Text style={styles.infoText}>
-              ZeroCoach aggregates lab-assayed USDA whole foods & Open Food Facts data to track full vitamins and minerals.
+              {t.nutrition.scorecard.infoText}
             </Text>
           </View>
 
           {/* Key Vitamins */}
-          <Text style={styles.sectionHeading}>KEY VITAMINS (RDA)</Text>
+          <Text style={styles.sectionHeading}>{t.nutrition.scorecard.vitaminsHeading}</Text>
           <View style={styles.grid}>{vitamins.map(renderMeter)}</View>
 
           {/* Key Minerals */}
-          <Text style={[styles.sectionHeading, { marginTop: 16 }]}>KEY MINERALS & ELECTROLYTES</Text>
+          <Text style={[styles.sectionHeading, { marginTop: 16 }]}>{t.nutrition.scorecard.mineralsHeading}</Text>
           <View style={styles.grid}>{minerals.map(renderMeter)}</View>
         </View>
       )}

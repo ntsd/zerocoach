@@ -55,25 +55,17 @@ export const QWEN_3_INSTRUCT_MODEL: ModelMetadata = {
 };
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [
-  GEMMA_4_E2B_MODEL,
   ZEROCOACH_ATHLETIC_MODEL,
+  GEMMA_4_E2B_MODEL,
   QWEN_3_INSTRUCT_MODEL,
 ];
 
 /**
  * Resolves the default model based on physical device RAM.
- * - Devices with >= 6GB RAM default to Gemma 4 E2B (~3.11 GB weights)
- * - Devices with < 6GB RAM default to Qwen 3 1.7B (~1.05 GB weights) to prevent OOM
+ * - Defaults to ZeroCoach Athletic Qwen 3 1.7B (~1.05 GB weights) for optimal sports science fine-tuning and fast download.
  */
 export function getDefaultModelByMemory(): ModelMetadata {
-  const memoryInfo = getDeviceMemoryInfo();
-  if (!memoryInfo.isHighMemory) {
-    console.log(
-      `[useModelStore] Device RAM (${memoryInfo.totalMemoryGb ?? '<6'} GB) is under 6GB. Defaulting to lightweight Qwen 3 1.7B.`
-    );
-    return ZEROCOACH_ATHLETIC_MODEL;
-  }
-  return GEMMA_4_E2B_MODEL;
+  return ZEROCOACH_ATHLETIC_MODEL;
 }
 
 const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
@@ -137,13 +129,21 @@ export const useModelStore = create<ModelState>()(
       },
 
       setGeminiApiKey: (key: string) => {
-        set({ geminiApiKey: key.trim() });
+        const clean = key.trim();
+        set({ geminiApiKey: clean });
+        llmService.updateGeminiConfig({ apiKey: clean });
       },
 
       testOpenAIConnection: async () => {
         const config = get().openAIConfig;
         llmService.updateOpenAIConfig(config);
         return llmService.testOpenAIConnection();
+      },
+
+      testGeminiConnection: async () => {
+        const key = get().geminiApiKey;
+        llmService.updateGeminiConfig({ apiKey: key });
+        return llmService.testGeminiConnection();
       },
 
       downloadModel: async () => {
@@ -316,6 +316,9 @@ export const useModelStore = create<ModelState>()(
           const finalState = useModelStore.getState();
           llmService.setProvider(finalState.provider);
           llmService.updateOpenAIConfig(finalState.openAIConfig);
+          if (finalState.geminiApiKey) {
+            llmService.updateGeminiConfig({ apiKey: finalState.geminiApiKey });
+          }
 
           // Automatically ensure on-device model is on disk and loaded into RAM on native devices
           setTimeout(() => {

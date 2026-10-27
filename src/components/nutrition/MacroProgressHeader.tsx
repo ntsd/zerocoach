@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { GlassCard } from '../common/GlassCard';
 import { DateNavigationBar } from '../common/DateNavigationBar';
 import { DailyNutritionLog, NutritionDailySummary } from '../../types/nutrition';
+import { useTranslation } from '../../i18n';
 import { COLORS } from '../../theme/colors';
 import { Flame, Target } from 'lucide-react-native';
 
@@ -23,6 +24,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
   onNextDay,
   onToday,
 }) => {
+  const { t } = useTranslation();
   const calProgress = Math.min(100, summary.calorieProgressPercent);
   const remaining = Math.max(0, dailyLog.targetCalories - summary.totalCalories);
 
@@ -47,7 +49,9 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
               <Text style={styles.calorieTargetText}>/ {dailyLog.targetCalories} kcal</Text>
             </View>
             <Text style={styles.calorieSubtext}>
-              {remaining > 0 ? `${remaining} kcal remaining` : 'Target reached!'}
+              {remaining > 0
+                ? `${remaining} ${t.nutrition.header.caloriesRemaining}`
+                : t.nutrition.header.targetReached}
             </Text>
           </View>
 
@@ -75,7 +79,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           {/* Protein */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>PROTEIN</Text>
+              <Text style={styles.macroLabel}>{t.nutrition.header.protein}</Text>
               <Text style={[styles.macroValue, { color: '#10B981' }]}>
                 {Math.round(summary.totalProtein)}g
               </Text>
@@ -94,7 +98,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           {/* Carbs */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>CARBS</Text>
+              <Text style={styles.macroLabel}>{t.nutrition.header.carbs}</Text>
               <Text style={[styles.macroValue, { color: '#38BDF8' }]}>
                 {Math.round(summary.totalCarbs)}g
               </Text>
@@ -113,7 +117,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           {/* Fat */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>FAT</Text>
+              <Text style={styles.macroLabel}>{t.nutrition.header.fat}</Text>
               <Text style={[styles.macroValue, { color: '#F59E0B' }]}>
                 {Math.round(summary.totalFat)}g
               </Text>
@@ -132,7 +136,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           {/* Fiber */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>FIBER</Text>
+              <Text style={styles.macroLabel}>{t.nutrition.scorecard.fiber}</Text>
               <Text style={[styles.macroValue, { color: '#A855F7' }]}>
                 {Math.round(summary.totalFiber)}g
               </Text>

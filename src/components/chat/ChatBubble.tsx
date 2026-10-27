@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ChatMessage } from '@/types/chat';
+import { useTranslation } from '@/i18n';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -19,6 +20,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   onNavigateToNutrition,
   onNavigateToWorkout,
 }) => {
+  const { t } = useTranslation();
   const isUser = message.role === 'user';
   const modeColors = getModeColors(message.modeAtCreation);
 
@@ -41,6 +43,11 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
       /prescribed exercises|workout plan|sets ×|scapular retraction|progressive overload|bodyweight cues/i.test(message.content)
     );
 
+  const modeBadgeText =
+    message.modeAtCreation === 'strict'
+      ? `${t.mode.strict.toUpperCase()} ${t.tabs.coach.toUpperCase()}`
+      : `${t.mode.comfortable.toUpperCase()} ${t.tabs.coach.toUpperCase()}`;
+
   return (
     <View
       style={[
@@ -53,12 +60,12 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           <View style={styles.badgeRow}>
             <ZeroCoachLogo size={13} mode={message.modeAtCreation} />
             <Text style={[styles.coachBadge, { color: modeColors.accent }]}>
-              {message.modeAtCreation.toUpperCase()} COACH
+              {modeBadgeText}
             </Text>
           </View>
           {message.tokensPerSecond ? (
             <Text style={styles.tokSec}>
-              {message.tokensPerSecond} tok/s (on-device)
+              {message.tokensPerSecond} {t.coach.tokSecOnDevice}
             </Text>
           ) : null}
         </View>
@@ -96,7 +103,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           >
             <Utensils size={12} color={modeColors.accent} />
             <Text style={[styles.actionChipText, { color: modeColors.accent }]}>
-              Log Food in Nutrition Tracker
+              {t.coach.logFoodAction}
             </Text>
             <ChevronRight size={12} color={modeColors.accent} />
           </TouchableOpacity>
@@ -116,7 +123,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           >
             <Dumbbell size={12} color={modeColors.accent} />
             <Text style={[styles.actionChipText, { color: modeColors.accent }]}>
-              View Workout & Progressions
+              {t.coach.viewWorkoutAction}
             </Text>
             <ChevronRight size={12} color={modeColors.accent} />
           </TouchableOpacity>

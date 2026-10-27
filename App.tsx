@@ -170,6 +170,7 @@ export default function App() {
                             isActive ? styles.tabLabelActive : styles.tabLabelInactive,
                             isActive && { color: modeColors.accent },
                           ]}
+                          numberOfLines={1}
                         >
                           {tab.label}
                         </Text>

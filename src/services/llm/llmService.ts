@@ -1,6 +1,5 @@
 import { Platform } from 'react-native';
 import { CompletionRequest, CompletionResult, LLMEngine, TokenCallback } from './types';
-import { SimulatorEngine } from './simulatorEngine';
 import { LlamaRNEngine } from './llamaRNEngine';
 import { OpenAICompatibleEngine, OpenAICompatibleEngineConfig } from './openAICompatibleEngine';
 import { GeminiEngine, GeminiEngineConfig } from './geminiEngine';
@@ -8,14 +7,12 @@ import { LLMProviderType } from '@/types/model';
 import { useModelStore } from '@/store/useModelStore';
 
 export class LLMService {
-  private simulator: SimulatorEngine;
   private nativeEngine: LlamaRNEngine;
   private openAIEngine: OpenAICompatibleEngine;
   private geminiEngine: GeminiEngine;
   private provider: LLMProviderType = 'on_device';
 
   constructor() {
-    this.simulator = new SimulatorEngine();
     this.nativeEngine = new LlamaRNEngine();
     this.openAIEngine = new OpenAICompatibleEngine();
     this.geminiEngine = new GeminiEngine();
@@ -65,22 +62,46 @@ export class LLMService {
     return this.nativeEngine.getLoadedModelPath();
   }
 
+  public isReady(): boolean {
+    if (this.provider === 'gemini') {
+      const geminiKey = useModelStore.getState().geminiApiKey;
+      if (geminiKey && geminiKey.trim()) {
+        this.geminiEngine.updateConfig({ apiKey: geminiKey.trim() });
+      }
+      return this.geminiEngine.isReady();
+    }
+
+    if (this.provider === 'openai_compatible') {
+      return this.openAIEngine.isReady();
+    }
+
+    // provider === 'on_device'
+    return Platform.OS !== 'web' && this.nativeEngine.isReady();
+  }
+
   public getActiveEngine(): LLMEngine {
     // 1. Explicit Gemini Provider
     if (this.provider === 'gemini') {
       const geminiKey = useModelStore.getState().geminiApiKey;
-      if (geminiKey) {
-        this.geminiEngine.updateConfig({ apiKey: geminiKey });
+      if (geminiKey && geminiKey.trim()) {
+        this.geminiEngine.updateConfig({ apiKey: geminiKey.trim() });
       }
       if (this.geminiEngine.isReady()) {
         return this.geminiEngine;
       }
-      return this.simulator;
+      throw new Error(
+        'Google Gemini API key is missing. Please set your Gemini API key in Settings.'
+      );
     }
 
     // 2. Explicit OpenAI-Compatible Provider
     if (this.provider === 'openai_compatible') {
-      return this.openAIEngine;
+      if (this.openAIEngine.isReady()) {
+        return this.openAIEngine;
+      }
+      throw new Error(
+        'OpenAI endpoint URL is missing. Please configure your OpenAI settings in Settings.'
+      );
     }
 
     // 3. On-Device Mode:
@@ -89,25 +110,33 @@ export class LLMService {
       return this.nativeEngine;
     }
 
-    // Auto-fallback to Gemini if key is provided and local weights are not loaded yet
-    const geminiKey = useModelStore.getState().geminiApiKey;
-    if (geminiKey && geminiKey.trim()) {
-      this.geminiEngine.updateConfig({ apiKey: geminiKey.trim() });
-      if (this.geminiEngine.isReady()) {
-        return this.geminiEngine;
-      }
-    }
-
-    // Otherwise use sovereign context simulator
-    return this.simulator;
+    throw new Error(
+      'On-device model weights are not loaded. Please download and load the model in Settings, or select Google Gemini.'
+    );
   }
 
-  public getActiveEngineName(): 'on_device' | 'gemini' | 'openai' | 'simulator' {
-    const active = this.getActiveEngine();
-    if (active === this.nativeEngine) return 'on_device';
-    if (active === this.geminiEngine) return 'gemini';
-    if (active === this.openAIEngine) return 'openai';
-    return 'simulator';
+  public getActiveEngineName(): 'on_device' | 'gemini' | 'openai' | 'none' {
+    if (this.provider === 'gemini') {
+      return this.isReady() ? 'gemini' : 'none';
+    }
+    if (this.provider === 'openai_compatible') {
+      return this.isReady() ? 'openai' : 'none';
+    }
+    if (Platform.OS !== 'web' && this.nativeEngine.isReady()) {
+      return 'on_device';
+    }
+    return 'none';
+  }
+
+  public getActiveModelName(): string {
+    const modelState = useModelStore.getState();
+    if (this.provider === 'gemini') {
+      return 'Google Gemini 2.5 Flash';
+    }
+    if (this.provider === 'openai_compatible') {
+      return modelState.openAIConfig.modelName || 'OpenAI Compatible';
+    }
+    return modelState.currentModel?.name || 'ZeroCoach Athletic AI';
   }
 
   public async initialize(modelPath?: string): Promise<boolean> {
@@ -118,7 +147,7 @@ export class LLMService {
         return true;
       }
     }
-    return this.simulator.initialize();
+    return false;
   }
 
   public async streamCompletion(
@@ -132,14 +161,12 @@ export class LLMService {
   public stopCompletion(): void {
     this.nativeEngine.stopCompletion();
     this.geminiEngine.stopCompletion();
-    this.simulator.stopCompletion();
     this.openAIEngine.stopCompletion();
   }
 
   public async unload(): Promise<void> {
     await this.nativeEngine.unload();
     await this.geminiEngine.unload();
-    await this.simulator.unload();
     await this.openAIEngine.unload();
   }
 }

@@ -121,6 +121,7 @@ export default function App() {
                 <CoachChatScreen
                   onNavigateToWorkout={() => setActiveTab('workout')}
                   onNavigateToNutrition={() => setActiveTab('nutrition')}
+                  onNavigateToSettings={() => setActiveTab('settings')}
                 />
               )}
               {activeTab === 'nutrition' && <NutritionScreen />}

@@ -24,18 +24,31 @@ import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
 import { useTranslation } from '@/i18n';
-import { Send, Square, Trash2 } from 'lucide-react-native';
+import {
+  Send,
+  Square,
+  Trash2,
+  Cpu,
+  Zap,
+  Globe,
+  AlertTriangle,
+  ChevronRight,
+  Settings,
+} from 'lucide-react-native';
+import { llmService } from '@/services/llm/llmService';
 
 interface CoachChatScreenProps {
   onNavigateToWorkout?: () => void;
   onNavigateToProgressions?: () => void;
   onNavigateToNutrition?: () => void;
+  onNavigateToSettings?: () => void;
 }
 
 export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
   onNavigateToWorkout,
   onNavigateToProgressions,
   onNavigateToNutrition,
+  onNavigateToSettings,
 }) => {
   const { t } = useTranslation();
   const [inputText, setInputText] = useState('');
@@ -53,10 +66,98 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
   } = useChatStore();
 
   const { mode } = useCoachStore();
-  const { provider, status, downloadProgress, currentModel } = useModelStore();
+  const {
+    provider,
+    status,
+    downloadProgress,
+    currentModel,
+    geminiApiKey,
+    openAIConfig,
+  } = useModelStore();
   const modeColors = getModeColors(mode);
 
+  const isModelReady =
+    provider === 'gemini'
+      ? Boolean(geminiApiKey && geminiApiKey.trim())
+      : provider === 'openai_compatible'
+      ? Boolean(openAIConfig?.baseUrl && openAIConfig.baseUrl.trim())
+      : status === 'loaded' && (Platform.OS === 'web' || llmService.isNativeReady());
+
+  const getModelDisplayInfo = () => {
+    if (provider === 'gemini') {
+      const hasKey = Boolean(geminiApiKey && geminiApiKey.trim());
+      return {
+        name: 'Google Gemini 2.5 Flash',
+        badge: hasKey ? 'CLOUD ACTIVE' : 'API KEY MISSING',
+        isReady: hasKey,
+        icon: Zap,
+        accentColor: '#00F0FF',
+      };
+    }
+    if (provider === 'openai_compatible') {
+      const hasUrl = Boolean(openAIConfig?.baseUrl && openAIConfig.baseUrl.trim());
+      return {
+        name: openAIConfig.modelName || 'OpenAI Compatible',
+        badge: hasUrl ? 'REMOTE ACTIVE' : 'URL MISSING',
+        isReady: hasUrl,
+        icon: Globe,
+        accentColor: modeColors.accent,
+      };
+    }
+    // on_device
+    const modelName = currentModel?.name || 'ZeroCoach Athletic AI';
+    if (status === 'loaded') {
+      return {
+        name: modelName,
+        badge: 'LOADED (METAL/GPU)',
+        isReady: true,
+        icon: Cpu,
+        accentColor: COLORS.success,
+      };
+    }
+    if (status === 'downloading') {
+      return {
+        name: modelName,
+        badge: `DOWNLOADING (${downloadProgress}%)`,
+        isReady: false,
+        icon: Cpu,
+        accentColor: COLORS.warning,
+      };
+    }
+    if (status === 'loading') {
+      return {
+        name: modelName,
+        badge: 'ALLOCATING RAM...',
+        isReady: false,
+        icon: Cpu,
+        accentColor: COLORS.warning,
+      };
+    }
+    if (status === 'ready') {
+      return {
+        name: modelName,
+        badge: 'DOWNLOADED (NOT IN RAM)',
+        isReady: false,
+        icon: Cpu,
+        accentColor: COLORS.warning,
+      };
+    }
+    return {
+      name: modelName,
+      badge: 'NOT LOADED',
+      isReady: false,
+      icon: Cpu,
+      accentColor: COLORS.danger,
+    };
+  };
+
+  const modelInfo = getModelDisplayInfo();
+
   const handleSend = async (textToSend?: string) => {
+    if (!isModelReady) {
+      onNavigateToSettings?.();
+      return;
+    }
     const raw = textToSend !== undefined ? textToSend : inputText;
     const text = raw.trim();
     if (!text || isGenerating) return;
@@ -150,6 +251,64 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           </View>
         </View>
 
+        {/* Active Model Indicator Pill */}
+        <TouchableOpacity
+          style={[
+            styles.modelStatusBar,
+            {
+              borderColor: modelInfo.isReady
+                ? `${modelInfo.accentColor}35`
+                : `${COLORS.warning}45`,
+            },
+          ]}
+          onPress={onNavigateToSettings}
+          activeOpacity={0.8}
+        >
+          <View style={styles.modelStatusLeft}>
+            <View
+              style={[
+                styles.modelStatusDot,
+                {
+                  backgroundColor: modelInfo.isReady
+                    ? COLORS.success
+                    : status === 'downloading' || status === 'loading'
+                    ? COLORS.warning
+                    : COLORS.danger,
+                },
+              ]}
+            />
+            <modelInfo.icon size={13} color={modelInfo.accentColor} />
+            <Text style={styles.modelStatusName} numberOfLines={1}>
+              {modelInfo.name}
+            </Text>
+          </View>
+          <View style={styles.modelStatusRight}>
+            <View
+              style={[
+                styles.modelStatusBadge,
+                {
+                  backgroundColor: modelInfo.isReady
+                    ? `${COLORS.success}18`
+                    : `${modelInfo.accentColor}18`,
+                  borderColor: modelInfo.isReady
+                    ? `${COLORS.success}40`
+                    : `${modelInfo.accentColor}40`,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modelStatusBadgeText,
+                  { color: modelInfo.isReady ? COLORS.success : modelInfo.accentColor },
+                ]}
+              >
+                {modelInfo.badge}
+              </Text>
+            </View>
+            <Settings size={12} color={COLORS.textMuted} />
+          </View>
+        </TouchableOpacity>
+
         {/* Live Telemetry Banner */}
         <TelemetryBanner />
 
@@ -217,32 +376,86 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
         {/* Active Streaming Token Indicator */}
         {isGenerating && <StreamingIndicator />}
 
-        {/* Quick Suggestion Chips (hidden when keyboard is open to maximize screen space for chat & input) */}
-        {!isKeyboardVisible && (
+        {/* Quick Suggestion Chips (hidden when keyboard is open or model is not loaded) */}
+        {!isKeyboardVisible && isModelReady && (
           <QuickPromptChips
-            disabled={isGenerating}
+            disabled={isGenerating || !isModelReady}
             onSelectPrompt={(prompt) => handleSend(prompt)}
           />
+        )}
+
+        {/* Model Required Warning Banner (shown when model is not ready to chat) */}
+        {!isModelReady && (
+          <TouchableOpacity
+            style={[
+              styles.modelAlertCard,
+              {
+                borderColor:
+                  status === 'downloading' || status === 'loading'
+                    ? `${COLORS.warning}50`
+                    : `${COLORS.danger}50`,
+              },
+            ]}
+            onPress={onNavigateToSettings}
+            activeOpacity={0.8}
+          >
+            <AlertTriangle
+              size={18}
+              color={
+                status === 'downloading' || status === 'loading'
+                  ? COLORS.warning
+                  : COLORS.danger
+              }
+            />
+            <View style={styles.modelAlertContent}>
+              <Text style={styles.modelAlertTitle}>
+                {provider === 'on_device'
+                  ? status === 'downloading'
+                    ? `Downloading Model (${downloadProgress}%)...`
+                    : status === 'loading'
+                    ? 'Allocating Model into RAM...'
+                    : status === 'ready'
+                    ? 'Model Downloaded. Tap to Load into RAM'
+                    : 'On-Device Model Not Loaded'
+                  : provider === 'gemini'
+                  ? 'Google Gemini API Key Required'
+                  : 'OpenAI Endpoint Required'}
+              </Text>
+              <Text style={styles.modelAlertSub}>
+                {provider === 'on_device'
+                  ? status === 'downloading' || status === 'loading'
+                    ? 'Chat will automatically unlock once the model is loaded.'
+                    : 'Tap here to download weights or switch to Gemini in Settings.'
+                  : 'Tap here to enter your API key in Settings.'}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
         )}
 
         {/* Input Bar */}
         <View
           style={[
             styles.inputContainer,
-            { borderColor: `${modeColors.accent}30` },
+            { borderColor: isModelReady ? `${modeColors.accent}30` : `${COLORS.danger}30` },
             isKeyboardVisible && styles.inputContainerKeyboardActive,
           ]}
         >
           <TextInput
             ref={textInputRef}
-            style={styles.textInput}
+            style={[
+              styles.textInput,
+              !isModelReady && styles.textInputDisabled,
+            ]}
             onFocus={() => {
               setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }, 120);
             }}
             placeholder={
-              mode === 'strict'
+              !isModelReady
+                ? t.coach.modelNotLoadedPlaceholder
+                : mode === 'strict'
                 ? t.coach.chatPlaceholderStrict
                 : t.coach.chatPlaceholderComfort
             }
@@ -251,12 +464,12 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
             onChangeText={handleTextChange}
             onKeyPress={handleKeyPress}
             onSubmitEditing={() => {
-              handleSend();
+              if (isModelReady) handleSend();
             }}
             returnKeyType="send"
             blurOnSubmit={false}
             multiline
-            editable={!isGenerating}
+            editable={!isGenerating && isModelReady}
           />
 
           {isGenerating ? (
@@ -270,20 +483,25 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           ) : (
             <TouchableOpacity
               onPress={() => handleSend()}
-              disabled={!inputText.trim()}
+              disabled={!isModelReady || !inputText.trim()}
               style={[
                 styles.actionButton,
                 {
-                  backgroundColor: inputText.trim()
-                    ? modeColors.accent
-                    : COLORS.cardSecondary,
+                  backgroundColor:
+                    isModelReady && inputText.trim()
+                      ? modeColors.accent
+                      : COLORS.cardSecondary,
                 },
               ]}
               activeOpacity={0.8}
             >
               <Send
                 size={16}
-                color={inputText.trim() ? COLORS.textDark : COLORS.textMuted}
+                color={
+                  isModelReady && inputText.trim()
+                    ? COLORS.textDark
+                    : COLORS.textMuted
+                }
               />
             </TouchableOpacity>
           )}
@@ -423,5 +641,84 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     fontSize: 11,
     fontWeight: '600',
+  },
+  modelStatusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  modelStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flex: 1,
+    marginRight: 8,
+  },
+  modelStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  modelStatusName: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    flexShrink: 1,
+  },
+  modelStatusRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modelStatusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+  },
+  modelStatusBadgeText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  modelAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.xs,
+    gap: SPACING.sm,
+  },
+  modelAlertContent: {
+    flex: 1,
+  },
+  modelAlertTitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  modelAlertSub: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  textInputDisabled: {
+    color: COLORS.textMuted,
+    opacity: 0.7,
   },
 });

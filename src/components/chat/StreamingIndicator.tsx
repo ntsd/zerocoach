@@ -27,14 +27,15 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
   }, []);
 
   const engineType = llmService.getActiveEngineName();
+  const activeModel = llmService.getActiveModelName();
   const engineLabel =
     engineType === 'gemini'
-      ? 'GOOGLE GEMINI STREAMING'
+      ? 'GEMINI 2.5 FLASH STREAMING'
       : engineType === 'openai'
-      ? 'OPENAI STREAMING'
+      ? `${activeModel.toUpperCase()} STREAMING`
       : engineType === 'on_device'
-      ? t.coach.onDeviceStreaming
-      : 'SOVEREIGN STREAMING (~38 tok/s)';
+      ? `${activeModel.toUpperCase()} (METAL/GPU)`
+      : `${activeModel.toUpperCase()} STREAMING`;
 
   return (
     <View style={styles.container}>

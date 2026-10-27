@@ -12,8 +12,8 @@ import { useModelStore } from './useModelStore';
 const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
   role: 'assistant',
-  content: `### ⚡ ZeroCoach Ready
-On-device AI active. All your training and biometrics stay 100% private on your phone.
+  content: `### ⚡ ZeroCoach AI
+Private on-device AI & sports science coach.
 
 Ask me to suggest food for your remaining macros, adjust your training plan, or guide your skill progression.`,
   timestamp: Date.now(),
@@ -31,6 +31,19 @@ export const useChatStore = create<ChatState>()(
       sendMessage: async (text: string) => {
         const trimmed = text.trim();
         if (!trimmed || get().isGenerating) return;
+
+        const modelState = useModelStore.getState();
+        if (!llmService.isReady()) {
+          console.warn('[useChatStore] Cannot send message: LLM model is not ready/loaded.');
+          const err =
+            modelState.provider === 'on_device'
+              ? 'On-device model is not loaded. Please download or load the model in Settings.'
+              : modelState.provider === 'gemini'
+              ? 'Gemini API key is missing. Please configure your API key in Settings.'
+              : 'OpenAI endpoint is not configured. Please check Settings.';
+          set({ error: err, isGenerating: false });
+          return;
+        }
 
         const coachState = useCoachStore.getState();
         const telemetryState = useTelemetryStore.getState();
@@ -56,7 +69,6 @@ export const useChatStore = create<ChatState>()(
         });
 
         // Dynamic system prompt construction tailored to model parameter capacity
-        const modelState = useModelStore.getState();
         const isCompactModel =
           modelState.provider === 'on_device' &&
           (modelState.currentModel.sizeBytes < 500000000 ||

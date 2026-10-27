@@ -148,22 +148,132 @@ export function extractExplicitWeight(text: string): number | null {
   return null;
 }
 
+// Normalizes common typos and variations for unit words
+const UNIT_TYPO_MAP: Record<string, string> = {
+  pirces: 'piece',
+  pirce: 'piece',
+  peices: 'piece',
+  peice: 'piece',
+  pices: 'piece',
+  pice: 'piece',
+  piece: 'piece',
+  pieces: 'piece',
+  pc: 'piece',
+  pcs: 'piece',
+  filet: 'piece',
+  filets: 'piece',
+  fillet: 'piece',
+  fillets: 'piece',
+  steak: 'piece',
+  steaks: 'piece',
+  patty: 'piece',
+  patties: 'piece',
+  egg: 'egg',
+  eggs: 'egg',
+  slice: 'slice',
+  slices: 'slice',
+  can: 'can',
+  cans: 'can',
+  cup: 'cup',
+  cups: 'cup',
+  scoop: 'scoop',
+  scoops: 'scoop',
+  tbsp: 'tbsp',
+  tablespoon: 'tbsp',
+  tablespoons: 'tbsp',
+  tsp: 'tsp',
+  teaspoon: 'tsp',
+  teaspoons: 'tsp',
+};
+
+/**
+ * Extracts the single piece / unit weight from USDA serving unit description
+ * e.g. "100g (or 1 steak ~200g)" -> 200g
+ * e.g. "100g (~2 large eggs)" -> 50g
+ * e.g. "100g (or 1 palm-sized filet ~150g)" -> 150g
+ */
+export function extractPieceWeightFromServing(servingUnitName?: string, fallbackGrams = 100): number {
+  if (!servingUnitName) return fallbackGrams;
+
+  // Pattern 1: e.g. '100g (~2 large eggs)' -> 100 / 2 = 50g
+  const eggMultiMatch = servingUnitName.match(/100g\s*\(\s*~\s*(\d+)\s+large\s+eggs?\s*\)/i);
+  if (eggMultiMatch) {
+    const count = parseInt(eggMultiMatch[1], 10);
+    return count > 0 ? Math.round(100 / count) : 50;
+  }
+
+  // Pattern 2: e.g. '1/2 medium avocado ~75g' -> whole avocado ~150g
+  const halfMatch = servingUnitName.match(/1\/2\s+[a-z\s]+~(\d+)g/i);
+  if (halfMatch) {
+    return parseInt(halfMatch[1], 10) * 2;
+  }
+
+  // Pattern 3: e.g. '~200g', 'filet ~150g', 'thigh ~90g', 'banana ~118g'
+  const tildeMatch = servingUnitName.match(/~(\d+)\s*g/i);
+  if (tildeMatch) {
+    return parseInt(tildeMatch[1], 10);
+  }
+
+  return fallbackGrams;
+}
+
+/**
+ * Extracts unit count and unit word from input text with typo tolerance
+ * e.g. "steak 2 pirces" -> { qty: 2, unit: 'piece' }
+ * e.g. "2 pieces steak" -> { qty: 2, unit: 'piece' }
+ * e.g. "steak 2 pcs" -> { qty: 2, unit: 'piece' }
+ * e.g. "2 eggs" -> { qty: 2, unit: 'egg' }
+ */
+export function extractUnitAndQuantity(text: string): { qty: number; unit: string } | null {
+  if (!text) return null;
+  const lower = text.toLowerCase().trim();
+
+  const unitPattern = Object.keys(UNIT_TYPO_MAP).join('|');
+
+  // Match 1: '<qty> <unit>' anywhere e.g. '2 pirces', '1 piece', '2 pcs', '2 eggs'
+  const match1 = lower.match(new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*(?:x\\s*)?(' + unitPattern + ')\\b', 'i'));
+  if (match1) {
+    const rawUnit = match1[2].toLowerCase();
+    return { qty: parseFloat(match1[1]), unit: UNIT_TYPO_MAP[rawUnit] || rawUnit };
+  }
+
+  // Match 2: '<unit> <qty>' e.g. 'pieces 2'
+  const match2 = lower.match(new RegExp('\\b(' + unitPattern + ')\\s+(\\d+(?:\\.\\d+)?)\\b', 'i'));
+  if (match2) {
+    const rawUnit = match2[1].toLowerCase();
+    return { qty: parseFloat(match2[2]), unit: UNIT_TYPO_MAP[rawUnit] || rawUnit };
+  }
+
+  // Match 3: '<qty>x' e.g. '2x'
+  const match3 = lower.match(/\b(\d+(?:\.\d+)?)\s*x\b/i);
+  if (match3) {
+    return { qty: parseFloat(match3[1]), unit: 'piece' };
+  }
+
+  // Match 4: trailing number e.g. 'steak 2', 'egg 3'
+  const match4 = lower.match(/\b([a-z]+)\s+(\d+(?:\.\d+)?)$/i);
+  if (match4 && !['g', 'gm', 'gram', 'grams', 'kg', 'oz', 'lb', 'lbs'].includes(match4[1])) {
+    return { qty: parseFloat(match4[2]), unit: 'piece' };
+  }
+
+  // Match 5: leading number e.g. '2 steak'
+  const match5 = lower.match(/^(\d+(?:\.\d+)?)\s+([a-z]+)$/i);
+  if (match5 && !['g', 'gm', 'gram', 'grams', 'kg', 'oz', 'lb', 'lbs'].includes(match5[2])) {
+    return { qty: parseFloat(match5[1]), unit: 'piece' };
+  }
+
+  return null;
+}
+
 // Find best matching USDA food for a single ingredient string
 export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGrams: number } | null {
   const lower = text.toLowerCase().trim();
 
-  // Extract explicit weight if specified (e.g. "250g", "0.25kg", "8oz", "1 lb")
+  // 1. Explicit weight if specified (e.g. "250g", "0.25kg", "8oz", "1 lb")
   let parsedGrams = extractExplicitWeight(lower) || 0;
 
-  // Extract unit quantities like "2 eggs", "1 avocado", "2 slices bread"
-  const unitMatch = lower.match(/^(\d+(?:\.\d+)?)\s+([a-z]+)/);
-  if (!parsedGrams && unitMatch) {
-    const qty = parseFloat(unitMatch[1]);
-    const unitWord = unitMatch[2];
-    if (UNIT_WEIGHT_MAP[unitWord]) {
-      parsedGrams = qty * UNIT_WEIGHT_MAP[unitWord];
-    }
-  }
+  // 2. Unit quantity if specified (e.g. "steak 2 pirces", "2 eggs", "steak 1 piece")
+  const unitInfo = !parsedGrams ? extractUnitAndQuantity(lower) : null;
 
   // Look for USDA item whose name or category matches
   let bestMatch: FoodItem | null = null;
@@ -187,7 +297,16 @@ export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGr
   }
 
   if (bestMatch && maxScore >= 3) {
-    const grams = parsedGrams > 0 ? parsedGrams : bestMatch.servingSizeGrams || 100;
+    if (!parsedGrams && unitInfo) {
+      if (unitInfo.unit === 'piece' || unitInfo.unit === 'egg') {
+        const pieceWeight = extractPieceWeightFromServing(bestMatch.servingUnitName, bestMatch.servingSizeGrams || 100);
+        parsedGrams = unitInfo.qty * pieceWeight;
+      } else if (UNIT_WEIGHT_MAP[unitInfo.unit]) {
+        parsedGrams = unitInfo.qty * UNIT_WEIGHT_MAP[unitInfo.unit];
+      }
+    }
+
+    const grams = parsedGrams > 0 ? parsedGrams : (bestMatch.servingSizeGrams || 100);
     return { food: bestMatch, matchedGrams: grams };
   }
 
@@ -282,7 +401,9 @@ export function decomposeMealText(inputText: string): MealDecompositionResult {
   const nutrientsPer100g = scaleNutrients(totalNutrients, totalGrams > 0 ? (100 / totalGrams) * 100 : 100);
 
   const dishTitle =
-    rawClean.length > 40
+    ingredients.length === 1 && ingredients[0].matchedFoodItem
+      ? ingredients[0].matchedFoodItem.name
+      : rawClean.length > 40
       ? rawClean.slice(0, 37) + '...'
       : rawClean.charAt(0).toUpperCase() + rawClean.slice(1);
 
@@ -316,6 +437,17 @@ export async function decomposeMealWithGemma(
   const clean = inputText.trim();
   if (!clean) {
     return decomposeMealText('Prepared Meal');
+  }
+
+  // FAST-PATH: If all components directly match bundled USDA foods with complete confidence,
+  // return the USDA decomposition immediately (< 5ms, 0 battery, no hallucination, exact micros).
+  const directDecomp = decomposeMealText(clean);
+  const allMatched =
+    directDecomp.ingredients.length > 0 &&
+    directDecomp.ingredients.every((i) => !!i.matchedFoodItem);
+
+  if (allMatched) {
+    return directDecomp;
   }
 
   try {

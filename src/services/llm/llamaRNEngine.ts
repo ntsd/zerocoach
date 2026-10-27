@@ -159,7 +159,20 @@ export class LlamaRNEngine implements LLMEngine {
         fullPrompt = `<|im_start|>system\n${sysPrompt}<|im_end|>\n`;
         for (let i = 0; i < recentMessages.length; i++) {
           const msg = recentMessages[i];
-          fullPrompt += `<|im_start|>${msg.role}\n${msg.content.trim()}<|im_end|>\n`;
+          let content = msg.content.trim();
+          // For multimodal inference, inject <__media__> into the user message turn
+          // This prevents llama.rn from appending the marker after the assistant turn
+          if (
+            msg.role === 'user' &&
+            i === recentMessages.length - 1 &&
+            request.mediaPaths &&
+            request.mediaPaths.length > 0
+          ) {
+            if (!content.includes('<__media__>')) {
+              content = `<__media__>\n${content}`;
+            }
+          }
+          fullPrompt += `<|im_start|>${msg.role}\n${content}<|im_end|>\n`;
         }
         fullPrompt += `<|im_start|>assistant\n`;
       } else {

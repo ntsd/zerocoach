@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
 import { useCoachStore } from '@/store/useCoachStore';
+import { llmService } from '@/services/llm/llmService';
 import { updateService } from '@/services/updates/updateService';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
@@ -535,12 +536,16 @@ export const ModelManagerScreen: React.FC = () => {
                   <View style={styles.projectorHeader}>
                     <Eye size={14} color={modeColors.accent} />
                     <Text style={styles.projectorTitle}>Vision Projector (Offline Camera)</Text>
-                    {isMmprojDownloaded && (
+                    {isMmprojDownloaded && llmService.isMultimodalReady() ? (
                       <View style={styles.projectorActiveBadge}>
                         <CheckCircle2 size={11} color="#00F0FF" />
-                        <Text style={styles.projectorActiveBadgeText}>ACTIVE</Text>
+                        <Text style={styles.projectorActiveBadgeText}>ACTIVE IN RAM</Text>
                       </View>
-                    )}
+                    ) : isMmprojDownloaded ? (
+                      <View style={[styles.projectorActiveBadge, { borderColor: '#FFB800' }]}>
+                        <Text style={[styles.projectorActiveBadgeText, { color: '#FFB800' }]}>DOWNLOADED</Text>
+                      </View>
+                    ) : null}
                   </View>
                   <Text style={styles.projectorDesc}>
                     Enables 100% offline food plate recognition directly from your device camera using Qwen 3 VL ({currentModel.mmprojSizeFormatted || '445 MB'}).
@@ -564,21 +569,38 @@ export const ModelManagerScreen: React.FC = () => {
                       </View>
                     </View>
                   ) : (
-                    <TouchableOpacity
-                      onPress={() => downloadMmproj()}
-                      style={[
-                        styles.btn,
-                        { borderColor: `${modeColors.accent}40`, marginTop: 10 },
-                      ]}
-                      activeOpacity={0.8}
-                    >
-                      <Download size={14} color={modeColors.accent} />
-                      <Text style={[styles.btnText, { color: modeColors.accent }]}>
-                        {isMmprojDownloaded
-                          ? 'RE-VERIFY VISION PROJECTOR'
-                          : `DOWNLOAD VISION PROJECTOR (${currentModel.mmprojSizeFormatted || '445 MB'})`}
-                      </Text>
-                    </TouchableOpacity>
+                    <View style={{ gap: 8, marginTop: 10 }}>
+                      {isMmprojDownloaded && !llmService.isMultimodalReady() && (
+                        <TouchableOpacity
+                          onPress={() => loadModel()}
+                          style={[
+                            styles.btn,
+                            { backgroundColor: modeColors.accent, borderColor: modeColors.accent },
+                          ]}
+                          activeOpacity={0.8}
+                        >
+                          <Zap size={14} color={COLORS.textDark} />
+                          <Text style={[styles.btnText, { color: COLORS.textDark }]}>
+                            ACTIVATE OFFLINE VISION (LOAD CONTEXT)
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        onPress={() => downloadMmproj()}
+                        style={[
+                          styles.btn,
+                          { borderColor: `${modeColors.accent}40` },
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <Download size={14} color={modeColors.accent} />
+                        <Text style={[styles.btnText, { color: modeColors.accent }]}>
+                          {isMmprojDownloaded
+                            ? 'RE-VERIFY VISION PROJECTOR'
+                            : `DOWNLOAD VISION PROJECTOR (${currentModel.mmprojSizeFormatted || '445 MB'})`}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               )}

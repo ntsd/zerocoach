@@ -70,8 +70,19 @@ export class LLMService {
     return this.nativeEngine.isMultimodalEnabled();
   }
 
-  public async analyzeImageWithLocalVision(imageUri: string, prompt?: string): Promise<string> {
-    const cleanPath = decodeURIComponent(imageUri.replace(/^file:\/\//, ''));
+  public async analyzeImageWithLocalVision(
+    imageUri: string,
+    prompt?: string,
+    base64Data?: string | null
+  ): Promise<string> {
+    // If base64 data is available, feed data URI directly to rn-mtmd to bypass Android POSIX fopen limitations
+    let mediaTarget: string;
+    if (base64Data && base64Data.length > 50) {
+      mediaTarget = `data:image/jpeg;base64,${base64Data}`;
+    } else {
+      mediaTarget = decodeURIComponent(imageUri.replace(/^file:\/\//, ''));
+    }
+
     const userPrompt =
       prompt ||
       'Identify the meal plate or food dish in the image. Return a single concise string listing the ingredients and realistic weights in grams, separated by commas (e.g., "180g grilled chicken breast, 150g jasmine rice, 80g steamed broccoli").';
@@ -81,8 +92,8 @@ export class LLMService {
         systemPrompt:
           'You are a clinical sports nutritionist. Identify the meal plate or food dish in the image. Return ingredients with portion weights in grams.',
         messages: [{ role: 'user', content: userPrompt }],
-        mediaPaths: [cleanPath],
-        temperature: 0.7,
+        mediaPaths: [mediaTarget],
+        temperature: 0.6,
         maxTokens: 250,
       },
       () => {}

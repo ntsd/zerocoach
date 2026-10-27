@@ -32,6 +32,7 @@ import {
   extractNutritionFromLabelPhoto,
 } from '../../services/nutrition/nutritionLabelExtractor';
 import { useModelStore, QWEN3_VL_2B_MODEL } from '../../store/useModelStore';
+import { llmService } from '../../services/llm/llmService';
 import { calculateNutrientsForGrams } from '../../store/useNutritionStore';
 import { useTranslation } from '../../i18n';
 import { COLORS } from '../../theme/colors';
@@ -90,6 +91,10 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   const isMmprojDownloading = useModelStore((state) => state.isMmprojDownloading);
   const mmprojDownloadProgress = useModelStore((state) => state.mmprojDownloadProgress);
   const downloadMmproj = useModelStore((state) => state.downloadMmproj);
+  const status = useModelStore((state) => state.status);
+  const loadModel = useModelStore((state) => state.loadModel);
+  const downloadProgress = useModelStore((state) => state.downloadProgress);
+  const isLocalVisionReady = llmService.isMultimodalReady();
   const isQwenVLActive = currentModel?.id?.includes('vl') || currentModel?.id?.includes('qwen');
 
   const geminiApiKey = useModelStore((state) => state.geminiApiKey);
@@ -858,16 +863,20 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           <View style={styles.plateSnapBadge}>
                             <Sparkles size={11} color="#00F0FF" />
                             <Text style={styles.plateSnapBadgeText}>
-                              {isMmprojDownloaded
-                                ? 'QWEN 3 VL (100% OFFLINE VISION)'
+                              {isLocalVisionReady
+                                ? 'QWEN 3 VL (100% OFFLINE VISION READY)'
+                                : isMmprojDownloaded && status !== 'loaded'
+                                ? 'QWEN 3 VL (READY TO ACTIVATE)'
                                 : hasAnyVision
                                 ? t.nutrition.cloudAcceleratedBadge
-                                : 'QWEN 3 VL (LOCAL)'}
+                                : 'QWEN 3 VL (OFFLINE VISION)'}
                             </Text>
                           </View>
                           <Text style={styles.plateSnapModelName}>
-                            {isMmprojDownloaded
+                            {isLocalVisionReady
                               ? 'Qwen 3 VL Offline Vision'
+                              : isMmprojDownloaded && status !== 'loaded'
+                              ? 'Offline Vision (Tap to Activate)'
                               : hasGeminiVisionKey
                               ? 'AI Studio Gemini'
                               : hasOpenAIVision
@@ -880,20 +889,61 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           {t.nutrition.snapFoodDesc}
                         </Text>
 
-                        {/* If projector is missing and no cloud key, show one-tap download */}
-                        {!isMmprojDownloaded && !hasAnyVision && currentModel.mmprojDownloadUrl && (
+                        {/* If projector is missing or not activated, show action prompt */}
+                        {!isLocalVisionReady && !hasAnyVision && currentModel.mmprojDownloadUrl && (
                           <View style={styles.projectorDownloadPrompt}>
-                            <Text style={styles.projectorDownloadTitle}>Offline Vision Projector (445 MB) Needed</Text>
-                            <Text style={styles.projectorDownloadSub}>
-                              Download Qwen 3 VL's Vision Projector to recognize meals from camera 100% offline, or type your meal description above.
+                            <Text style={styles.projectorDownloadTitle}>
+                              {isMmprojDownloaded
+                                ? 'Offline Vision Ready to Activate'
+                                : 'Offline Vision Projector (445 MB) Needed'}
                             </Text>
-                            {isMmprojDownloading ? (
+                            <Text style={styles.projectorDownloadSub}>
+                              {isMmprojDownloaded
+                                ? 'Vision weights are stored on disk. Tap Activate to load Qwen 3 VL multimodal into RAM for offline camera plate recognition.'
+                                : 'Download Qwen 3 VL\'s Vision Projector to recognize meals from camera 100% offline, or type your meal description above.'}
+                            </Text>
+                            {isMmprojDownloading || status === 'downloading' || status === 'loading' ? (
                               <View style={styles.projectorProgressContainer}>
-                                <Text style={styles.projectorProgressText}>Downloading Projector: {mmprojDownloadProgress}%</Text>
+                                <Text style={styles.projectorProgressText}>
+                                  {status === 'loading'
+                                    ? 'Activating Qwen 3 VL Vision in RAM...'
+                                    : status === 'downloading'
+                                    ? `Downloading Base Model: ${downloadProgress}%`
+                                    : `Downloading Projector: ${mmprojDownloadProgress}%`}
+                                </Text>
                                 <View style={styles.projectorProgressBarBg}>
-                                  <View style={[styles.projectorProgressBarFill, { width: `${mmprojDownloadProgress}%` }]} />
+                                  <View
+                                    style={[
+                                      styles.projectorProgressBarFill,
+                                      {
+                                        width: `${
+                                          status === 'loading'
+                                            ? 100
+                                            : status === 'downloading'
+                                            ? downloadProgress
+                                            : mmprojDownloadProgress
+                                        }%`,
+                                      },
+                                    ]}
+                                  />
                                 </View>
                               </View>
+                            ) : isMmprojDownloaded && status !== 'loaded' ? (
+                              <TouchableOpacity
+                                style={styles.downloadProjectorBtn}
+                                onPress={async () => {
+                                  await loadModel();
+                                  if (capturedImageUri) {
+                                    processCapturedFoodPhoto(capturedImageUri, capturedBase64);
+                                  }
+                                }}
+                                activeOpacity={0.8}
+                              >
+                                <Zap size={14} color="#080B10" />
+                                <Text style={styles.downloadProjectorBtnText}>
+                                  ACTIVATE OFFLINE VISION (LOAD MODEL)
+                                </Text>
+                              </TouchableOpacity>
                             ) : (
                               <TouchableOpacity
                                 style={styles.downloadProjectorBtn}
@@ -978,11 +1028,15 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                             <Text style={styles.photoErrorTitle}>{t.nutrition.cantIdentifyFood}</Text>
                             <Text style={styles.photoErrorSub}>{photoAnalysisError}</Text>
                             <View style={styles.photoErrorActionsRow}>
-                              {!isMmprojDownloaded && currentModel.mmprojDownloadUrl && (
+                              {!isLocalVisionReady && currentModel.mmprojDownloadUrl && (
                                 <TouchableOpacity
                                   style={styles.downloadProjectorSmallBtn}
                                   onPress={async () => {
-                                    await downloadMmproj();
+                                    if (!isMmprojDownloaded) {
+                                      await downloadMmproj();
+                                    } else {
+                                      await loadModel();
+                                    }
                                     if (capturedImageUri) {
                                       processCapturedFoodPhoto(capturedImageUri, capturedBase64);
                                     }
@@ -991,7 +1045,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                                 >
                                   <Download size={12} color="#00F0FF" />
                                   <Text style={styles.downloadProjectorSmallBtnText}>
-                                    Download Projector ({currentModel.mmprojSizeFormatted || '445 MB'})
+                                    {!isMmprojDownloaded
+                                      ? `Download Projector (${currentModel.mmprojSizeFormatted || '445 MB'})`
+                                      : 'Activate Offline Vision'}
                                   </Text>
                                 </TouchableOpacity>
                               )}

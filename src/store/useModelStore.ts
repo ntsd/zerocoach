@@ -20,8 +20,6 @@ export const QWEN3_VL_2B_MODEL: ModelMetadata = {
   quantization: 'Q4_K_M',
   downloadUrl:
     'https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/Qwen3VL-2B-Instruct-Q4_K_M.gguf',
-  fallbackDownloadUrl:
-    'https://huggingface.co/bartowski/Qwen2-VL-2B-Instruct-GGUF/resolve/main/Qwen2-VL-2B-Instruct-Q4_K_M.gguf',
   mmprojDownloadUrl:
     'https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf',
   mmprojSizeBytes: 445053216,
@@ -258,7 +256,7 @@ export const useModelStore = create<ModelState>()(
                 const mmprojNativePath = mmprojFile.uri.replace(/^file:\/\//, '');
                 console.log(`[useModelStore] Initializing multimodal vision projector: ${mmprojNativePath}`);
                 const mmSuccess = await llmService.initMultimodal(mmprojNativePath);
-                set({ isMmprojDownloaded: true });
+                set({ isMmprojDownloaded: Boolean(mmSuccess) });
                 console.log(`[useModelStore] Vision projector loaded: ${mmSuccess}`);
               } else {
                 set({ isMmprojDownloaded: false });
@@ -281,10 +279,35 @@ export const useModelStore = create<ModelState>()(
         if (!model.mmprojDownloadUrl) {
           throw new Error('No multimodal vision projector available for this model.');
         }
+        if (!Paths.document) throw new Error('Filesystem document path not available');
+
+        const destinationFile = new File(Paths.document, `${model.id}-mmproj.gguf`);
+        const minExpectedBytes = Math.round((model.mmprojSizeBytes || 445000000) * 0.85);
+
+        // 1. Ensure matching base model weights are downloaded first (vision projector requires base model context)
+        const baseModelFile = new File(Paths.document, `${model.id}.gguf`);
+        const minBaseBytes = Math.round(model.sizeBytes * 0.85);
+        if (!baseModelFile.exists || baseModelFile.size < minBaseBytes) {
+          console.log(`[useModelStore] Base model ${model.name} weights not found. Downloading base model first...`);
+          await get().downloadModel();
+        }
+
+        // 2. If projector already exists on disk and is verified, initialize directly
+        if (destinationFile.exists && destinationFile.size >= minExpectedBytes) {
+          console.log(`[useModelStore] Vision Projector already verified on disk (${destinationFile.size} bytes). Initializing...`);
+          if (get().status !== 'loaded') {
+            await get().loadModel();
+          } else {
+            const nativeMmprojPath = destinationFile.uri.replace(/^file:\/\//, '');
+            const mmSuccess = await llmService.initMultimodal(nativeMmprojPath);
+            set({ isMmprojDownloaded: Boolean(mmSuccess) });
+          }
+          return;
+        }
+
+        // 3. Download the projector
         set({ isMmprojDownloading: true, mmprojDownloadProgress: 0, errorMessage: null });
         try {
-          if (!Paths.document) throw new Error('Filesystem document path not available');
-          const destinationFile = new File(Paths.document, `${model.id}-mmproj.gguf`);
           const tempPartFile = new File(Paths.document, `${model.id}-mmproj.gguf.part`);
           if (tempPartFile.exists) tempPartFile.delete();
 
@@ -302,21 +325,31 @@ export const useModelStore = create<ModelState>()(
             },
           });
 
-          const minExpectedBytes = Math.round((model.mmprojSizeBytes || 445000000) * 0.85);
           if (tempPartFile.exists && tempPartFile.size >= minExpectedBytes) {
             if (destinationFile.exists) destinationFile.delete();
             await tempPartFile.move(destinationFile);
             console.log(`[useModelStore] Vision Projector verified (${destinationFile.size} bytes)!`);
-            set({ isMmprojDownloading: false, mmprojDownloadProgress: 100, isMmprojDownloaded: true });
-            const nativeMmprojPath = destinationFile.uri.replace(/^file:\/\//, '');
-            await llmService.initMultimodal(nativeMmprojPath);
+            set({ isMmprojDownloading: false, mmprojDownloadProgress: 100 });
+
+            if (get().status !== 'loaded') {
+              await get().loadModel();
+            } else {
+              const nativeMmprojPath = destinationFile.uri.replace(/^file:\/\//, '');
+              const mmSuccess = await llmService.initMultimodal(nativeMmprojPath);
+              set({ isMmprojDownloaded: Boolean(mmSuccess) });
+              console.log(`[useModelStore] Vision projector loaded: ${mmSuccess}`);
+            }
           } else {
             if (tempPartFile.exists) tempPartFile.delete();
             throw new Error('Vision Projector download was incomplete.');
           }
         } catch (err: any) {
           console.error('[useModelStore] Failed to download mmproj:', err);
-          set({ isMmprojDownloading: false, errorMessage: err?.message || 'Failed to download vision projector' });
+          set({
+            isMmprojDownloading: false,
+            isMmprojDownloaded: false,
+            errorMessage: err?.message || 'Failed to download vision projector',
+          });
         }
       },
 
@@ -340,6 +373,15 @@ export const useModelStore = create<ModelState>()(
             console.log(`[useModelStore] ${state.currentModel.name} context is already active in RAM.`);
             if (state.status !== 'loaded') {
               set({ status: 'loaded' });
+            }
+            if (state.currentModel.mmprojDownloadUrl && !llmService.isMultimodalReady()) {
+              const mmprojFile = new File(Paths.document, `${state.currentModel.id}-mmproj.gguf`);
+              const minMmprojBytes = Math.round((state.currentModel.mmprojSizeBytes || 445000000) * 0.85);
+              if (mmprojFile.exists && mmprojFile.size >= minMmprojBytes) {
+                const mmprojNativePath = mmprojFile.uri.replace(/^file:\/\//, '');
+                const mmSuccess = await llmService.initMultimodal(mmprojNativePath);
+                set({ isMmprojDownloaded: Boolean(mmSuccess) });
+              }
             }
             return;
           }
@@ -417,16 +459,22 @@ export const useModelStore = create<ModelState>()(
                 legacyGemma.delete();
               }
               const oldQwenFile = new File(Paths.document, 'qwen3-vl-2b-instruct-q4_k_m.gguf');
-              if (oldQwenFile.exists && oldQwenFile.size < 1000000000) {
-                console.log(`[useModelStore] Deleting superseded Qwen file (${oldQwenFile.size} bytes)...`);
+              if (oldQwenFile.exists) {
+                console.log(`[useModelStore] Deleting superseded Qwen2 file (${oldQwenFile.size} bytes)...`);
                 oldQwenFile.delete();
               }
-              // Check if Vision Projector exists on disk
+              const oldMmprojFile = new File(Paths.document, 'qwen3-vl-2b-instruct-q4_k_m-mmproj.gguf');
+              if (oldMmprojFile.exists) {
+                oldMmprojFile.delete();
+              }
+              // Check if Vision Projector AND base model weights both exist on disk
+              const baseModelFile = new File(Paths.document, `${QWEN3_VL_2B_MODEL.id}.gguf`);
+              const minBaseBytes = Math.round(QWEN3_VL_2B_MODEL.sizeBytes * 0.85);
               const mmprojFile = new File(Paths.document, `${QWEN3_VL_2B_MODEL.id}-mmproj.gguf`);
               const minMmprojBytes = Math.round((QWEN3_VL_2B_MODEL.mmprojSizeBytes || 445000000) * 0.85);
-              if (mmprojFile.exists && mmprojFile.size >= minMmprojBytes) {
-                useModelStore.setState({ isMmprojDownloaded: true });
-              }
+              const hasBase = baseModelFile.exists && baseModelFile.size >= minBaseBytes;
+              const hasProj = mmprojFile.exists && mmprojFile.size >= minMmprojBytes;
+              useModelStore.setState({ isMmprojDownloaded: hasBase && hasProj });
             }
           } catch (e) {
             console.warn('[useModelStore] Failed to clean up legacy weights:', e);

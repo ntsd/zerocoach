@@ -43,10 +43,22 @@ export async function analyzeMealPhoto(
   }
 
   // 1. Check for Local Multimodal Vision (Qwen 3 VL with mmproj)
+  if (!llmService.isMultimodalReady() && Platform.OS !== 'web') {
+    try {
+      const state = useModelStore.getState();
+      if (state.provider === 'on_device' && state.status !== 'loading' && state.status !== 'downloading') {
+        console.log('[PhotoMealAnalyzer] Local vision not active in memory. Attempting auto-load from disk...');
+        await state.loadModel();
+      }
+    } catch (e) {
+      console.warn('[PhotoMealAnalyzer] Auto-load local vision failed:', e);
+    }
+  }
+
   if (llmService.isMultimodalReady()) {
     try {
       console.log('[PhotoMealAnalyzer] Analyzing photo with on-device Qwen 3 VL vision...');
-      const visionOutput = await llmService.analyzeImageWithLocalVision(photoUri);
+      const visionOutput = await llmService.analyzeImageWithLocalVision(photoUri, undefined, base64Data);
       console.log('[PhotoMealAnalyzer] Qwen 3 VL vision output:', visionOutput);
 
       if (
@@ -203,18 +215,24 @@ export async function analyzeMealPhoto(
     }
   }
 
-  // 4. No vision provider configured or Vision Projector not downloaded
+  // 4. No vision provider configured or Vision Projector not downloaded / loaded
   const modelState = useModelStore.getState();
   const hasMmproj = Boolean(modelState.currentModel.mmprojDownloadUrl);
   const isMmprojMissing = hasMmproj && !modelState.isMmprojDownloaded;
+  const isModelNotLoaded = modelState.status !== 'loaded';
+
+  let errorMessage = 'Google AI Studio API key required for photo plate recognition. Add your free key in Settings, or describe ingredients in text for local Qwen 3 VL analysis.';
+  if (isMmprojMissing) {
+    errorMessage = 'Vision Projector (445 MB) required for offline camera recognition with Qwen 3 VL. Download it below, add a free Gemini API key in Settings, or describe the meal in text above.';
+  } else if (hasMmproj && isModelNotLoaded) {
+    errorMessage = 'Qwen 3 VL Vision is downloaded but not active in memory. Tap "ACTIVATE OFFLINE VISION" below to load into RAM.';
+  }
 
   return {
     canIdentify: false,
     requiresVisionProjector: isMmprojMissing,
-    requiresApiKey: !hasMmproj,
+    requiresApiKey: !hasMmproj && !modelState.isMmprojDownloaded,
     source: 'unidentified',
-    errorMessage: isMmprojMissing
-      ? 'Vision Projector (445 MB) required for offline camera recognition with Qwen 3 VL. Download it below, add a free Gemini API key in Settings, or describe the meal in text above.'
-      : 'Google AI Studio API key required for photo plate recognition. Add your free key in Settings, or describe ingredients in text for local Qwen 3 VL analysis.',
+    errorMessage,
   };
 }

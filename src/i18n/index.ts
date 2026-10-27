@@ -238,6 +238,13 @@ export const TRANSLATIONS = {
       otaEngine: 'ENGINE',
       checkOtaBtn: 'Check Updates',
       restartAppBtn: 'Restart to Apply',
+      otaModalTitle: 'NEW UPDATE READY',
+      otaModalBadge: 'OVER-THE-AIR UPDATE',
+      otaModalDesc:
+        'A new version of ZeroCoach is downloaded with the latest athletic AI refinements, USDA database updates, and bug fixes. Restart now to apply.',
+      otaModalRestartBtn: 'Restart & Apply Now',
+      otaModalLaterBtn: 'Later',
+      otaModalApplying: 'Restarting...',
       athleteProfileTitle: 'ATHLETE PROFILE',
       athleteProfileDesc:
         'Biological profile and environment calibrate rep targets, rest periods, and metabolic equations.',
@@ -1008,6 +1015,13 @@ export const TRANSLATIONS = {
       otaEngine: 'ระบบจัดการ',
       checkOtaBtn: 'ตรวจหาอัปเดต',
       restartAppBtn: 'รีสตาร์ทเพื่ออัปเดต',
+      otaModalTitle: 'มีอัปเดตใหม่พร้อมใช้งาน',
+      otaModalBadge: 'อัปเดตไร้สาย (OTA)',
+      otaModalDesc:
+        'ZeroCoach เวอร์ชันใหม่ดาวน์โหลดเสร็จสิ้นแล้ว พร้อมการปรับปรุงโค้ช AI ฐานข้อมูลโภชนาการ และแก้ไขข้อบกพร่อง รีสตาร์ทตอนนี้เพื่อใช้งานได้ทันที',
+      otaModalRestartBtn: 'รีสตาร์ทเพื่ออัปเดตทันที',
+      otaModalLaterBtn: 'ไว้ทีหลัง',
+      otaModalApplying: 'กำลังรีสตาร์ท...',
       athleteProfileTitle: 'โปรไฟล์นักกีฬา',
       athleteProfileDesc:
         'ข้อมูลสรีระและสถานที่ฝึกช่วยปรับเป้าหมายครั้งฝึกและเวลาพักให้แม่นยำ',

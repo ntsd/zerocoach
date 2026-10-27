@@ -22,6 +22,8 @@ import { ProgressionsScreen } from '@/screens/ProgressionsScreen';
 import { ModelManagerScreen } from '@/screens/ModelManagerScreen';
 import { NutritionScreen } from '@/screens/NutritionScreen';
 import { AnalyzeScreen } from '@/screens/AnalyzeScreen';
+import { updateService } from '@/services/updates/updateService';
+import { OtaUpdateModal } from '@/components/updates/OtaUpdateModal';
 import { useTranslation } from '@/i18n';
 import {
   MessageSquare,
@@ -38,8 +40,11 @@ export default function App() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [showOtaModal, setShowOtaModal] = useState(false);
+  const [hasDismissedOta, setHasDismissedOta] = useState(false);
   const { mode, hasCompletedOnboarding } = useCoachStore();
   const modeColors = getModeColors(mode);
+  const otaMetadata = updateService.getUpdateMetadata();
 
   useEffect(() => {
     // Automatically download and load default model into RAM on native devices
@@ -49,20 +54,48 @@ export default function App() {
     if (hasCompletedOnboarding) {
       useTelemetryStore.getState().syncTelemetry();
     }
+
+    // Automatically check for OTA updates on app startup
+    const checkStartupOta = async () => {
+      try {
+        // Short pause to let UI mount and critical init settle
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const result = await updateService.checkForUpdate();
+        if (result.isAvailable && result.canReload) {
+          setShowOtaModal(true);
+        }
+      } catch (err) {
+        console.warn('[App] Startup OTA check error:', err);
+      }
+    };
+
+    checkStartupOta();
   }, [hasCompletedOnboarding]);
 
   useEffect(() => {
-    if (!hasCompletedOnboarding) return;
-
-    // Automatically sync fresh biometrics when returning to foreground
+    // Automatically sync fresh biometrics & check for updates when returning to foreground
     const sub = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
-        useTelemetryStore.getState().syncTelemetry();
+        if (hasCompletedOnboarding) {
+          useTelemetryStore.getState().syncTelemetry();
+        }
+
+        // Only check if user hasn't dismissed the update modal in this session
+        if (!hasDismissedOta) {
+          updateService
+            .checkForUpdate()
+            .then((res) => {
+              if (res.isAvailable && res.canReload) {
+                setShowOtaModal(true);
+              }
+            })
+            .catch(() => {});
+        }
       }
     });
 
     return () => sub.remove();
-  }, [hasCompletedOnboarding]);
+  }, [hasCompletedOnboarding, hasDismissedOta]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -183,6 +216,20 @@ export default function App() {
             )}
           </>
         )}
+
+        {/* Over-The-Air Update Available Popup */}
+        <OtaUpdateModal
+          visible={showOtaModal}
+          onClose={() => {
+            setShowOtaModal(false);
+            setHasDismissedOta(true);
+          }}
+          onApplyUpdate={async () => {
+            await updateService.applyUpdate();
+          }}
+          channel={otaMetadata.channel}
+          runtimeVersion={otaMetadata.runtimeVersion}
+        />
       </View>
     </SafeAreaProvider>
   );

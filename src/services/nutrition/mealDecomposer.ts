@@ -265,6 +265,14 @@ export function extractUnitAndQuantity(text: string): { qty: number; unit: strin
   return null;
 }
 
+const MATCH_STOP_WORDS = new Set([
+  'cooked', 'raw', 'fresh', 'large', 'medium', 'small', 'cup', 'cups',
+  'piece', 'pieces', 'slice', 'slices', 'dish', 'dishes', 'bowl', 'bowls',
+  'plate', 'plates', 'serving', 'servings', 'scoop', 'scoops', 'tbsp', 'tsp',
+  'tablespoon', 'tablespoons', 'teaspoon', 'teaspoons', 'can', 'cans',
+  'gram', 'grams', 'g', 'kg', 'oz', 'lb', 'lbs', 'or', 'and', 'with', 'the', 'of', 'in', 'on', 'a', 'an'
+]);
+
 // Find best matching USDA food for a single ingredient string
 export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGrams: number } | null {
   const lower = text.toLowerCase().trim();
@@ -275,28 +283,70 @@ export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGr
   // 2. Unit quantity if specified (e.g. "steak 2 pirces", "2 eggs", "steak 1 piece")
   const unitInfo = !parsedGrams ? extractUnitAndQuantity(lower) : null;
 
-  // Look for USDA item whose name or category matches
+  // Clean numbers, punctuation, and unit stopwords from query
+  const queryTokens = lower
+    .replace(/[0-9.]+/g, ' ')
+    .split(/[\s,()]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 2 && !MATCH_STOP_WORDS.has(w));
+
   let bestMatch: FoodItem | null = null;
-  let maxScore = 0;
+  let maxScore = -1;
 
-  for (const food of usdaWholeFoods) {
+  for (let i = 0; i < usdaWholeFoods.length; i++) {
+    const food = usdaWholeFoods[i];
     const nameLower = food.name.toLowerCase();
-    const nameTokens = nameLower.split(/\s+/);
-    let score = 0;
+    const nameTokens = new Set(nameLower.split(/[\s,()\/]+/).filter((w) => w.length > 2));
 
-    for (const token of nameTokens) {
-      if (token.length > 2 && lower.includes(token)) {
-        score += token.length;
+    let score = 0;
+    let matchedTokensCount = 0;
+
+    for (const qToken of queryTokens) {
+      let matched = false;
+      for (const nToken of nameTokens) {
+        if (nToken === qToken) {
+          score += 20 + qToken.length * 2;
+          matched = true;
+          break;
+        } else if (nToken === qToken + 's' || qToken === nToken + 's') {
+          score += 15 + qToken.length * 2;
+          matched = true;
+          break;
+        } else if (nToken.startsWith(qToken) || qToken.startsWith(nToken)) {
+          if (Math.min(nToken.length, qToken.length) >= 4) {
+            score += 10;
+            matched = true;
+            break;
+          }
+        }
       }
+      if (matched) matchedTokensCount++;
     }
 
-    if (score > maxScore) {
-      maxScore = score;
-      bestMatch = food;
+    if (matchedTokensCount > 0) {
+      // Prioritize curated staple whole foods (IDs starting with 'usda-' and not 'usda-sr-')
+      if (food.id && !food.id.startsWith('usda-sr-')) {
+        score += 30;
+      }
+      // Bonus if all query tokens matched
+      if (matchedTokensCount === queryTokens.length) {
+        score += 25;
+      }
+      // If query does not mention 'white' / 'whites', penalize egg whites over whole eggs
+      if (!lower.includes('white') && nameLower.includes('white') && lower.includes('egg')) {
+        score -= 20;
+      }
+      // Penalize excessively long processed product titles for simple queries
+      score -= Math.min(nameTokens.size, 15);
+
+      if (score > maxScore) {
+        maxScore = score;
+        bestMatch = food;
+      }
     }
   }
 
-  if (bestMatch && maxScore >= 3) {
+  if (bestMatch && maxScore >= 5) {
     if (!parsedGrams && unitInfo) {
       if (unitInfo.unit === 'piece' || unitInfo.unit === 'egg') {
         const pieceWeight = extractPieceWeightFromServing(bestMatch.servingUnitName, bestMatch.servingSizeGrams || 100);

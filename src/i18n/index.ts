@@ -444,6 +444,11 @@ export const TRANSLATIONS = {
         sodium: 'Sodium',
         zinc: 'Zinc',
       },
+      decomposedIngredientsTitle: 'USDA Decomposed Ingredients',
+      decomposedIngredientsSub: 'Decomposed with AI and matched to USDA whole foods',
+      usdaVerifiedBadge: 'USDA VERIFIED',
+      aiEstimatedBadge: 'AI ESTIMATED',
+      aiSnapPhotoBadge: 'MEAL PHOTO',
     },
     coach: {
       brandTitle: 'ZEROCOACH',
@@ -1221,6 +1226,11 @@ export const TRANSLATIONS = {
         sodium: 'โซเดียม',
         zinc: 'สังกะสี',
       },
+      decomposedIngredientsTitle: 'ส่วนผสมแยกย่อยจากฐานข้อมูล USDA',
+      decomposedIngredientsSub: 'วิเคราะห์ด้วย AI และจับคู่กับฐานข้อมูลอาหาร USDA',
+      usdaVerifiedBadge: 'USDA รับรอง',
+      aiEstimatedBadge: 'AI ประมาณการ',
+      aiSnapPhotoBadge: 'ภาพถ่ายมื้ออาหาร',
     },
     coach: {
       brandTitle: 'ZEROCOACH',

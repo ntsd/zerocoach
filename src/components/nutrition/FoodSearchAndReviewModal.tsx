@@ -241,8 +241,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
       if (analysis.canIdentify && analysis.decomposition) {
         setPhotoAnalysisError(null);
         setNlpInput(analysis.ingredientsText || '');
+        if (uri) {
+          analysis.decomposition.asFoodItem.imageUrl = uri;
+        }
         setDecompositionResult(analysis.decomposition);
-        selectFoodForReview(analysis.decomposition.asFoodItem, analysis.decomposition.totalGrams);
+        selectFoodForReview(analysis.decomposition.asFoodItem, analysis.decomposition.totalGrams, analysis.decomposition);
       } else {
         setPhotoAnalysisError(analysis.errorMessage || "Can't identify food from the image. Please describe the meal above.");
       }
@@ -381,7 +384,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
         result.asFoodItem.imageUrl = capturedImageUri;
       }
       setDecompositionResult(result);
-      selectFoodForReview(result.asFoodItem, result.totalGrams);
+      selectFoodForReview(result.asFoodItem, result.totalGrams, result);
     } catch (err) {
       console.warn('[FoodSearchModal] Gemma decomposition error:', err);
       const fallback = decomposeMealText(nlpInput);
@@ -389,14 +392,23 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
         fallback.asFoodItem.imageUrl = capturedImageUri;
       }
       setDecompositionResult(fallback);
-      selectFoodForReview(fallback.asFoodItem, fallback.totalGrams);
+      selectFoodForReview(fallback.asFoodItem, fallback.totalGrams, fallback);
     } finally {
       setIsAnalyzingText(false);
     }
   };
 
-  const selectFoodForReview = (food: FoodItem, defaultGrams?: number) => {
+  const selectFoodForReview = (
+    food: FoodItem,
+    defaultGrams?: number,
+    decomp?: MealDecompositionResult | null
+  ) => {
     setReviewFood(food);
+    if (decomp !== undefined) {
+      setDecompositionResult(decomp);
+    } else if (food.source !== 'ai_decomposed') {
+      setDecompositionResult(null);
+    }
     const initialGrams = defaultGrams ?? food.packageQuantityGrams ?? food.servingSizeGrams ?? 100;
     setConsumedGrams(initialGrams);
   };
@@ -449,6 +461,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
               onPress={() => {
                 if (reviewFood) {
                   setReviewFood(null);
+                  setDecompositionResult(null);
                 } else {
                   setPhotoAnalysisError(null);
                   onClose();
@@ -466,6 +479,22 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
               <ScrollView style={styles.reviewContent} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
               {/* Food Header Card */}
               <View style={styles.reviewHeaderCard}>
+                {(capturedImageUri || reviewFood.imageUrl) && (
+                  <View style={styles.reviewImageContainer}>
+                    <Image
+                      source={{ uri: capturedImageUri || reviewFood.imageUrl! }}
+                      style={styles.reviewImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.reviewImageBadge}>
+                      <Camera size={12} color="#00F0FF" />
+                      <Text style={styles.reviewImageBadgeText}>
+                        {t.nutrition.aiSnapPhotoBadge}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 <View style={styles.reviewTitleRow}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
                     <Text style={styles.reviewFoodName}>{reviewFood.name}</Text>
@@ -493,7 +522,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         {reviewFood.source === 'usda_bundled'
                           ? 'USDA Whole Food'
                           : reviewFood.source === 'ai_decomposed'
-                          ? 'AI Decomposed'
+                          ? 'AI Decomposed (USDA)'
                           : 'Open Food Facts'}
                       </Text>
                     </View>
@@ -637,6 +666,111 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     ))}
                 </ScrollView>
               </View>
+
+              {/* USDA Decomposed Ingredients Breakdown Card */}
+              {decompositionResult &&
+                decompositionResult.ingredients &&
+                decompositionResult.ingredients.length > 0 && (
+                  <View style={styles.decomposedIngredientsCard}>
+                    <View style={styles.decomposedCardHeader}>
+                      <View style={styles.decomposedCardTitleLeft}>
+                        <View style={styles.decomposedIconWrap}>
+                          <Sparkles size={16} color="#00F0FF" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.decomposedCardTitle}>
+                            {t.nutrition.decomposedIngredientsTitle}
+                          </Text>
+                          <Text style={styles.decomposedCardSub}>
+                            {t.nutrition.decomposedIngredientsSub}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.decomposedCountBadge}>
+                        <Text style={styles.decomposedCountBadgeText}>
+                          {decompositionResult.ingredients.length} {t.nutrition.meals.itemsCount || 'ITEMS'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.decomposedList}>
+                      {decompositionResult.ingredients.map((ing, idx) => {
+                        const scale =
+                          decompositionResult.totalGrams && decompositionResult.totalGrams > 0
+                            ? consumedGrams / decompositionResult.totalGrams
+                            : 1;
+                        const currentGrams = Math.round(ing.quantityGrams * scale);
+                        const currentCals = Math.round(ing.nutrients.calories * scale);
+                        const currentProt = Math.round(ing.nutrients.proteinGrams * scale * 10) / 10;
+                        const currentCarbs = Math.round(ing.nutrients.carbsGrams * scale * 10) / 10;
+                        const currentFat = Math.round(ing.nutrients.fatGrams * scale * 10) / 10;
+
+                        const isUsda = !!ing.matchedFoodItem;
+                        const displayName = ing.matchedFoodItem ? ing.matchedFoodItem.name : ing.name;
+
+                        return (
+                          <View
+                            key={`decomp_${idx}`}
+                            style={[
+                              styles.ingredientRow,
+                              idx === decompositionResult.ingredients.length - 1 && styles.ingredientRowLast,
+                            ]}
+                          >
+                            <View style={styles.ingredientIconCol}>
+                              <View
+                                style={[
+                                  styles.ingredientIconWrap,
+                                  isUsda ? styles.ingredientIconWrapUsda : styles.ingredientIconWrapAi,
+                                ]}
+                              >
+                                {isUsda ? (
+                                  <ShieldCheck size={14} color="#10B981" />
+                                ) : (
+                                  <Sparkles size={14} color="#F59E0B" />
+                                )}
+                              </View>
+                            </View>
+
+                            <View style={styles.ingredientInfoCol}>
+                              <Text style={styles.ingredientNameText} numberOfLines={2}>
+                                {displayName}
+                              </Text>
+                              <View style={styles.ingredientMetaRow}>
+                                <View
+                                  style={[
+                                    styles.ingredientSourceBadge,
+                                    isUsda ? styles.ingredientSourceBadgeUsda : styles.ingredientSourceBadgeAi,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.ingredientSourceBadgeText,
+                                      isUsda ? { color: '#10B981' } : { color: '#F59E0B' },
+                                    ]}
+                                  >
+                                    {isUsda ? t.nutrition.usdaVerifiedBadge : t.nutrition.aiEstimatedBadge}
+                                  </Text>
+                                </View>
+                                <Text style={styles.ingredientGramsText}>{currentGrams}g</Text>
+                              </View>
+                            </View>
+
+                            <View style={styles.ingredientNutrientCol}>
+                              <Text style={styles.ingredientCalsText}>{currentCals} kcal</Text>
+                              <Text style={styles.ingredientMacrosText}>
+                                <Text style={{ color: '#10B981' }}>P:{currentProt}g</Text>
+                                {'  '}
+                                <Text style={{ color: '#38BDF8' }}>C:{currentCarbs}g</Text>
+                                {'  '}
+                                <Text style={{ color: '#F59E0B' }}>F:{currentFat}g</Text>
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
 
               {/* Dynamic Macro & Micronutrient Summary */}
               <View style={styles.nutrientsSummaryCard}>
@@ -2683,5 +2817,176 @@ const styles = StyleSheet.create({
     color: '#00F0FF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  reviewImageContainer: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 12,
+    position: 'relative',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  reviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  reviewImageBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(8, 11, 16, 0.85)',
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.4)',
+  },
+  reviewImageBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#00F0FF',
+    letterSpacing: 0.5,
+  },
+  decomposedIngredientsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+  },
+  decomposedCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  decomposedCardTitleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    paddingRight: 8,
+  },
+  decomposedIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  decomposedCardTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  decomposedCardSub: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  decomposedCountBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  decomposedCountBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
+  decomposedList: {
+    gap: 8,
+  },
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    gap: 10,
+  },
+  ingredientRowLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 2,
+  },
+  ingredientIconCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ingredientIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ingredientIconWrapUsda: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  },
+  ingredientIconWrapAi: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  ingredientInfoCol: {
+    flex: 1,
+  },
+  ingredientNameText: {
+    color: COLORS.textPrimary,
+    fontSize: 12.5,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  ingredientMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
+  },
+  ingredientSourceBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  ingredientSourceBadgeUsda: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  ingredientSourceBadgeAi: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  ingredientSourceBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  ingredientGramsText: {
+    color: '#00F0FF',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  ingredientNutrientCol: {
+    alignItems: 'flex-end',
+  },
+  ingredientCalsText: {
+    color: '#FF6B35',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  ingredientMacrosText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

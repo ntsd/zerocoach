@@ -60,3 +60,5 @@ scripts/demo/*.mp4
 scripts/demo/*.png
 scripts/demo/scenes/
 .argent/
+
+.agents

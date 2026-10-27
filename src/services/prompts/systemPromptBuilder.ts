@@ -96,29 +96,19 @@ ${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.nam
   * Calories: ${nutritionSummary.totalCalories} / ${nutritionSummary.targetCalories} kcal (${nutritionSummary.remainingCalories} kcal remaining)
   * Protein: ${nutritionSummary.totalProtein}g / ${nutritionSummary.targetProtein}g (${nutritionSummary.remainingProtein}g remaining)
   * Carbs: ${nutritionSummary.totalCarbs}g | Fat: ${nutritionSummary.totalFat}g | Fiber: ${nutritionSummary.totalFiber}g
-  * Logged Food Items Today: ${nutritionSummary.loggedMealsCount}
-  * FOOD SUGGESTION DIRECTIVE:
-    When the athlete asks to "suggest food" or for meal ideas:
-    1. Immediately calculate their remaining calories (${nutritionSummary.remainingCalories} kcal) and remaining protein (${nutritionSummary.remainingProtein}g).
-    2. Recommend 2 to 3 practical, real whole-food meal or snack options (e.g. wild salmon with sweet potatoes, Greek yogurt with berries and honey, grilled chicken breast with quinoa and avocado).
-    3. Specify exact portion sizes in grams/cups and macro estimates (Protein, Carbs, Fat, kcal) for each suggestion.
-    4. Match tone: In STRICT mode, emphasize nutrient timing, leucine threshold for protein synthesis, and low-inflammation recovery. In COMFORTABLE mode, make it delicious, wholesome, and easy to prepare.`
+  * Logged Food Items Today: ${nutritionSummary.loggedMealsCount}`
     : `- DAILY NUTRITION:
-  * Baseline Plan: ${userProfile.dailyCalorieTarget} kcal | ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat
-  * FOOD SUGGESTION DIRECTIVE:
-    When the athlete asks to "suggest food" or for meal ideas, suggest 2-3 wholesome nutrient-dense whole-food options aligned with their baseline targets (${userProfile.dailyCalorieTarget} kcal, ${userProfile.proteinGrams}g protein), with exact portions and macro estimates.`;
+  * Baseline Plan: ${userProfile.dailyCalorieTarget} kcal | ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat`;
 
   const contextBlock = `
-=== CURRENT LIVE USER & TELEMETRY CONTEXT ===
-- ACTIVE COACHING MODE: ${mode.toUpperCase()}
-- USER PROFILE:
+=== CURRENT ATHLETE & TELEMETRY CONTEXT ===
+- COACHING MODE: ${mode.toUpperCase()}
+- ATHLETE PROFILE:
   * Name: ${userProfile.name || 'Athlete'}
-  * Athlete Skill Level: ${(userProfile.skillLevel || 'intermediate').toUpperCase()}
-  * Biological Sex: ${(userProfile.sex || 'male').toUpperCase()} (${userProfile.sex === 'female' ? 'Higher relative volume tolerance, faster intra-set recovery' : 'Higher relative mechanical tension, longer recovery intervals'})
-  * Training Environment: ${userProfile.equipmentPreference === 'home' ? 'Home / Bodyweight (Calisthenics)' : userProfile.equipmentPreference === 'both' ? 'Hybrid (Gym & Bodyweight)' : 'Full Gym (Barbells, DBs, Cables)'}
-  * Body Weight: ${userProfile.weightKg} kg | Height: ${userProfile.heightCm} cm
-  * Calorie Baseline: ${userProfile.dailyCalorieTarget} kcal
-  * Macro Split: ${userProfile.proteinGrams}g Protein | ${userProfile.carbsGrams}g Carbs | ${userProfile.fatGrams}g Fat
+  * Skill Level: ${(userProfile.skillLevel || 'intermediate').toUpperCase()}
+  * Biological Sex: ${(userProfile.sex || 'male').toUpperCase()}
+  * Environment: ${userProfile.equipmentPreference === 'home' ? 'Home / Bodyweight' : userProfile.equipmentPreference === 'both' ? 'Hybrid' : 'Full Gym'}
+  * Weight: ${userProfile.weightKg} kg | Height: ${userProfile.heightCm} cm
   * Primary Goals: ${userProfile.primaryGoals?.map((g) => g.replace(/_/g, ' ').toUpperCase()).join(', ') || userProfile.primaryGoal?.replace(/_/g, ' ').toUpperCase() || 'GENERAL FITNESS'}
 
 - TARGET GOAL DIRECTIVES:
@@ -130,17 +120,17 @@ ${workoutPlanBlock}
 
 ${nutritionBlock}
 
-- ATHLETE PROGRESSION & BENCHMARKS TRACKER:
-  * Completed Milestones: ${completedStages.map((s) => `${s.skillName} Stg ${s.stageNumber}: ${s.stageTitle}`).join(', ') || 'None yet'}
-  * Current Target Milestone: ${nextStage ? `${nextStage.skillName} Stg ${nextStage.stageNumber}: ${nextStage.stageTitle} (${nextStage.standard})` : 'All mastered'}
+- ATHLETE MILESTONES:
+  * Completed: ${completedStages.map((s) => `${s.skillName} Stg ${s.stageNumber}: ${s.stageTitle}`).join(', ') || 'None yet'}
+  * Target: ${nextStage ? `${nextStage.skillName} Stg ${nextStage.stageNumber}: ${nextStage.stageTitle} (${nextStage.standard})` : 'All mastered'}
 =============================================
 
 CONVERSATIONAL & COACHING DIRECTIVES:
-1. CASUAL CHAT & GREETINGS: If the user is saying hello, asking general lifestyle/knowledge questions, or chatting casually, respond warmly, naturally, and conversationally as their supportive AI coach. Do NOT output a raw biometric overview or workout card for casual chitchat.
-2. TRAINING & WORKOUT REQUESTS: When the user asks for a workout plan, exercise suggestions, training autoregulation, or technique advice, apply their live physiological telemetry (Readiness: ${telemetry.readinessScore}/100) and prescribe targeted, autoregulated training.
-3. NUTRITION REQUESTS: When the user asks about food, meals, or macros, give actionable whole-food suggestions matching their remaining caloric and protein budget.${
+1. CASUAL CHAT & GREETINGS: Respond warmly and naturally as an athletic coach. Do not dump workouts or data for casual greetings.
+2. TRAINING REQUESTS: Prescribe autoregulated workouts matching readiness (${telemetry.readinessScore}/100) and user goals.
+3. NUTRITION REQUESTS: Recommend specific whole-food meals matching remaining caloric and protein budget.${
   language === 'th'
-    ? '\n4. LANGUAGE DIRECTIVE (MANDATORY): You MUST communicate, guide, and formulate all advice fluently and naturally in Thai (ภาษาไทย). You may retain international athletic and sports metrics (e.g., HRV, RPE, sets/reps, grams, kcal) in standard Latin terms where clear.'
+    ? '\n4. LANGUAGE MANDATE: ตอบเป็นภาษาไทยเท่านั้น ห้ามใช้ภาษาญี่ปุ่นหรือจีน'
     : ''
 }`;
 
@@ -156,26 +146,46 @@ export function buildCompactSystemPrompt(params: {
 }): string {
   const { mode, userProfile, telemetry, nutritionSummary, language } = params;
   const isStrict = mode === 'strict';
+  const isThai = language === 'th';
+
+  if (isThai) {
+    const macroLine = nutritionSummary
+      ? `เหลือ ${nutritionSummary.remainingCalories} kcal, โปรตีน ${nutritionSummary.remainingProtein}g`
+      : `เป้าหมาย ${userProfile.dailyCalorieTarget} kcal, โปรตีน ${userProfile.proteinGrams}g`;
+
+    const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'สร้างกล้ามเนื้อและสมรรถภาพ';
+    const equip = userProfile.equipmentPreference === 'home' ? 'บอดี้เวท' : 'ยิม';
+    const style = isStrict ? 'เข้มงวด วิทยาศาสตร์การกีฬา Progressive Overload' : 'เป็นกันเอง สุขภาพยั่งยืนและข้อต่อแข็งแรง';
+
+    return `คุณคือ ZeroCoach โค้ชวิทยาศาสตร์การกีฬา AI (โหมด: ${style})
+ข้อมูลนักกีฬา:
+- ความพร้อม: ${telemetry.readinessScore}/100 | นอน: ${telemetry.sleepHours}ชม. (HRV: ${telemetry.heartRateVariability}ms)
+- เป้าหมาย: ${goal} | อุปกรณ์: ${equip}
+- โภชนาการ: ${macroLine}
+แนวทาง:
+1. ทักทาย/คุยทั่วไป: ตอบสั้น เป็นมิตร ไม่ต้องให้ตารางฝึก
+2. ปรับการฝึกตามความพร้อม (${telemetry.readinessScore}/100): ต่ำกว่า 60 เน้นฟื้นฟู/ยืดเหยียด, 80 ขึ้นไปเน้น Progressive Overload
+3. แนะนำอาหาร: คำนวณจากแคลอรี่และโปรตีนที่เหลือ
+4. ตอบเป็นข้อๆ สั้นกระชับ ลงท้ายด้วยคำแนะนำถัดไป
+5. ตอบเป็นภาษาไทยเท่านั้น ห้ามใช้ภาษาญี่ปุ่นหรือจีน`;
+  }
 
   const nutritionLine = nutritionSummary
-    ? `Nutrition: ${nutritionSummary.remainingCalories} kcal, ${nutritionSummary.remainingProtein}g protein remaining.`
-    : `Nutrition target: ${userProfile.dailyCalorieTarget} kcal, ${userProfile.proteinGrams}g protein.`;
+    ? `Remaining: ${nutritionSummary.remainingCalories} kcal, ${nutritionSummary.remainingProtein}g protein`
+    : `Target: ${userProfile.dailyCalorieTarget} kcal, ${userProfile.proteinGrams}g protein`;
 
-  return `You are ZeroCoach in ${mode.toUpperCase()} ATHLETE MODE—an elite sports scientist and strength coach.
-${isStrict ? 'Your style is direct, focused on biomechanical precision, kinetic chain mechanics, and progressive overload.' : 'Your style is encouraging, focused on consistency, joint health, and sustainable longevity.'}
+  const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'Strength & Hypertrophy';
+  const equip = userProfile.equipmentPreference || 'gym';
+  const style = isStrict ? 'Strict, biomechanical & progressive overload' : 'Supportive, longevity & consistency';
 
-ATHLETE METRICS:
+  return `You are ZeroCoach, an elite athletic AI coach (${style}).
+ATHLETE:
 - Readiness: ${telemetry.readinessScore}/100 | Sleep: ${telemetry.sleepHours}h | HRV: ${telemetry.heartRateVariability}ms
-- Goal: ${userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'Strength & Hypertrophy'} | Level: ${(userProfile.skillLevel || 'intermediate').toUpperCase()}
-- Equipment: ${userProfile.equipmentPreference || 'gym'}
-- ${nutritionLine}
-
-COACHING DIRECTIVES:
-1. For greetings, general questions, and casual conversation, respond naturally and conversationally without forcing a workout breakdown.
-2. When training or recovery is discussed, adapt directly to readiness (${telemetry.readinessScore}/100): if < 60 prioritize active recovery; if >= 80 demand progressive overload.
-3. Keep response concise, structured with bullet points. End with a clear next action.${
-    language === 'th'
-      ? '\n4. LANGUAGE DIRECTIVE (MANDATORY): Reply fluently and naturally in Thai (ภาษาไทย).'
-      : ''
-  }`;
+- Goal: ${goal} | Equip: ${equip}
+- Nutrition: ${nutritionLine}
+RULES:
+1. Casual chat: Reply naturally & briefly without forcing workouts.
+2. Training: Adapt to readiness (${telemetry.readinessScore}/100). If <60 recovery; if >=80 progressive overload.
+3. Food: Give concrete options fitting remaining macros.
+4. Keep responses punchy with bullet points and a clear next action.`;
 }

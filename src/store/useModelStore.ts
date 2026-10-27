@@ -12,18 +12,18 @@ import {
 import { llmService } from '@/services/llm/llmService';
 import { getDeviceMemoryInfo } from '@/services/device/deviceMemory';
 
-export const GEMMA_4_E2B_MODEL: ModelMetadata = {
-  id: 'gemma-4-e2b-it-q4_k_m',
-  name: 'Gemma 4 E2B Instruct (Multimodal Default)',
-  sizeBytes: 3110000000,
-  sizeFormatted: '3.11 GB',
+export const QWEN3_VL_2B_MODEL: ModelMetadata = {
+  id: 'qwen3-vl-2b-instruct-q4_k_m',
+  name: 'Qwen 3 VL 2B Instruct (Vision Multimodal Default)',
+  sizeBytes: 986047232,
+  sizeFormatted: '986 MB',
   quantization: 'Q4_K_M',
   downloadUrl:
-    'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf',
+    'https://huggingface.co/bartowski/Qwen2-VL-2B-Instruct-GGUF/resolve/main/Qwen2-VL-2B-Instruct-Q4_K_M.gguf',
   fallbackDownloadUrl:
-    'https://huggingface.co/ggml-org/gemma-4-E2B-GGUF/resolve/main/gemma-4-E2B-Q4_K_M.gguf',
+    'https://huggingface.co/lmstudio-community/Qwen2-VL-2B-Instruct-GGUF/resolve/main/Qwen2-VL-2B-Instruct-Q4_K_M.gguf',
   isFineTuned: false,
-  contextLength: 4096,
+  contextLength: 2048,
 };
 
 export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
@@ -55,17 +55,17 @@ export const QWEN_3_INSTRUCT_MODEL: ModelMetadata = {
 };
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [
+  QWEN3_VL_2B_MODEL,
   ZEROCOACH_ATHLETIC_MODEL,
-  GEMMA_4_E2B_MODEL,
   QWEN_3_INSTRUCT_MODEL,
 ];
 
 /**
  * Resolves the default model based on physical device RAM.
- * - Defaults to ZeroCoach Athletic Qwen 3 1.7B (~1.05 GB weights) for optimal sports science fine-tuning and fast download.
+ * - Defaults to Qwen 3 VL 2B (~1.11 GB weights) for vision & multimodal execution with native Thai support.
  */
 export function getDefaultModelByMemory(): ModelMetadata {
-  return ZEROCOACH_ATHLETIC_MODEL;
+  return QWEN3_VL_2B_MODEL;
 }
 
 const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
@@ -156,10 +156,15 @@ export const useModelStore = create<ModelState>()(
             );
           }
           const destinationFile = new File(Paths.document, `${model.id}.gguf`);
-          console.log(`[useModelStore] Downloading ${model.name} to: ${destinationFile.uri}`);
+          const tempPartFile = new File(Paths.document, `${model.id}.gguf.part`);
+          if (tempPartFile.exists) {
+            tempPartFile.delete();
+          }
+
+          console.log(`[useModelStore] Downloading ${model.name} to temporary file: ${tempPartFile.uri}`);
 
           const downloadWithUrl = async (url: string) => {
-            return await File.downloadFileAsync(url, destinationFile, {
+            return await File.downloadFileAsync(url, tempPartFile, {
               idempotent: true,
               onProgress: (progress) => {
                 if (progress.totalBytes > 0) {
@@ -193,12 +198,21 @@ export const useModelStore = create<ModelState>()(
             }
           }
 
-          if (downloaded && (downloaded.exists || downloaded.uri)) {
-            console.log(`[useModelStore] Download complete! Auto-loading ${model.name} into memory...`);
+          // Verify downloaded file integrity before moving to final destination
+          const minExpectedBytes = Math.round(model.sizeBytes * 0.85);
+          if (tempPartFile.exists && tempPartFile.size >= minExpectedBytes) {
+            if (destinationFile.exists) {
+              destinationFile.delete();
+            }
+            await tempPartFile.move(destinationFile);
+            console.log(`[useModelStore] Download verified (${destinationFile.size} bytes)! Auto-loading ${model.name}...`);
             set({ status: 'ready', downloadProgress: 100 });
             await get().loadModel();
           } else {
-            throw new Error('Model download did not return a valid file.');
+            if (tempPartFile.exists) {
+              tempPartFile.delete();
+            }
+            throw new Error(`Model download was incomplete (${tempPartFile.size || 0} / ${model.sizeBytes} bytes).`);
           }
         } catch (err: any) {
           console.error('[useModelStore] Download error:', err);
@@ -214,8 +228,13 @@ export const useModelStore = create<ModelState>()(
             throw new Error('Paths.document not accessible');
           }
           const destinationFile = new File(Paths.document, `${model.id}.gguf`);
-          if (!destinationFile.exists) {
-            throw new Error(`${model.name} weights not downloaded yet. Please tap "DOWNLOAD MODEL" first.`);
+          const minExpectedBytes = Math.round(model.sizeBytes * 0.85);
+          if (!destinationFile.exists || destinationFile.size < minExpectedBytes) {
+            if (destinationFile.exists) {
+              console.warn(`[useModelStore] Deleting incomplete model file (${destinationFile.size} bytes)...`);
+              destinationFile.delete();
+            }
+            throw new Error(`${model.name} weights not downloaded or incomplete. Please tap "DOWNLOAD MODEL" first.`);
           }
           const nativePath = destinationFile.uri.replace(/^file:\/\//, '');
           console.log(`[useModelStore] Initializing llama.rn with: ${nativePath}`);
@@ -263,11 +282,17 @@ export const useModelStore = create<ModelState>()(
             return;
           }
 
-          if (destinationFile.exists) {
-            console.log(`[useModelStore] ${state.currentModel.name} file exists on disk. Automatically loading into RAM...`);
+          const minExpectedBytes = Math.round(state.currentModel.sizeBytes * 0.85);
+          if (destinationFile.exists && destinationFile.size < minExpectedBytes) {
+            console.warn(`[useModelStore] Found incomplete file on disk (${destinationFile.size} bytes). Deleting...`);
+            destinationFile.delete();
+          }
+
+          if (destinationFile.exists && destinationFile.size >= minExpectedBytes) {
+            console.log(`[useModelStore] ${state.currentModel.name} file verified on disk (${destinationFile.size} bytes). Automatically loading into RAM...`);
             await get().loadModel();
           } else {
-            console.log(`[useModelStore] ${state.currentModel.name} not on disk. Automatically starting download & load...`);
+            console.log(`[useModelStore] ${state.currentModel.name} not on disk or was corrupt. Automatically starting download & load...`);
             await get().downloadModel();
           }
         } catch (err) {
@@ -292,16 +317,12 @@ export const useModelStore = create<ModelState>()(
             downloadProgress: 0,
           };
 
-          if ((hydratedState.provider as string) === 'simulator') {
-            updates.provider = 'on_device';
-          }
-
-          // Default on-device model based on phone memory (Gemma 4 E2B on >=6GB RAM, Qwen 3 1.7B on <6GB RAM)
+          // Default to Qwen 3 VL 2B Instruct. Automatically migrate any legacy Gemma or older model ID.
           const defaultModel = getDefaultModelByMemory();
           if (
             !hydratedState.userSelectedModelId ||
-            hydratedState.currentModel?.id === 'zerocoach-athletic-q4_0' ||
-            hydratedState.currentModel?.id === 'gemma-2-2b-it-q4_k_m'
+            hydratedState.currentModel?.id?.includes('gemma') ||
+            hydratedState.currentModel?.id === 'zerocoach-athletic-q4_0'
           ) {
             updates.currentModel = defaultModel;
             updates.userSelectedModelId = defaultModel.id;
@@ -318,6 +339,25 @@ export const useModelStore = create<ModelState>()(
           llmService.updateOpenAIConfig(finalState.openAIConfig);
           if (finalState.geminiApiKey) {
             llmService.updateGeminiConfig({ apiKey: finalState.geminiApiKey });
+          }
+
+          // Clean up legacy Gemma 4 E2B weights (3.11 GB) from disk to reclaim mobile storage
+          try {
+            if (Paths.document) {
+              const legacyGemma = new File(Paths.document, 'gemma-4-e2b-it-q4_k_m.gguf');
+              if (legacyGemma.exists) {
+                console.log('[useModelStore] Deleting legacy Gemma weights (3.11 GB) to reclaim device storage...');
+                legacyGemma.delete();
+              }
+              // Also delete incomplete/corrupted Qwen weights (< 800 MB) left from interrupted downloads
+              const qwenFile = new File(Paths.document, `${QWEN3_VL_2B_MODEL.id}.gguf`);
+              if (qwenFile.exists && qwenFile.size < 800000000) {
+                console.log(`[useModelStore] Deleting incomplete Qwen file (${qwenFile.size} bytes) to allow clean re-download...`);
+                qwenFile.delete();
+              }
+            }
+          } catch (e) {
+            console.warn('[useModelStore] Failed to clean up legacy weights:', e);
           }
 
           // Automatically ensure on-device model is on disk and loaded into RAM on native devices

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatMessage, ChatState } from '@/types/chat';
+import { AppLanguage } from '@/types/coach';
 import { useCoachStore } from './useCoachStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { useNutritionStore } from './useNutritionStore';
@@ -68,11 +69,16 @@ export const useChatStore = create<ChatState>()(
           error: null,
         });
 
+        // Auto-detect Thai input or explicit Thai language setting to prevent model cross-lingual drift
+        const hasThaiInPrompt =
+          /[\u0E00-\u0E7F]/.test(trimmed) ||
+          updatedMessages.some((m) => m.role === 'user' && /[\u0E00-\u0E7F]/.test(m.content));
+        const effectiveLanguage: AppLanguage =
+          coachState.language === 'th' || hasThaiInPrompt ? 'th' : 'en';
+
         // Dynamic system prompt construction tailored to model parameter capacity
-        const isCompactModel =
-          modelState.provider === 'on_device' &&
-          (modelState.currentModel.sizeBytes < 500000000 ||
-            modelState.currentModel.id === 'zerocoach-athletic-q4_0');
+        // All on-device quantized models use compact prompts (~200 tokens) to ensure fast inference and avoid context exhaustion
+        const isCompactModel = modelState.provider === 'on_device';
 
         const nutritionSummary = {
           totalCalories: currentNutritionSummary.totalCalories,
@@ -93,7 +99,7 @@ export const useChatStore = create<ChatState>()(
               userProfile: coachState.userProfile,
               telemetry: telemetryState.metrics,
               nutritionSummary,
-              language: coachState.language,
+              language: effectiveLanguage,
             })
           : buildSystemPrompt({
               mode: coachState.mode,
@@ -101,14 +107,37 @@ export const useChatStore = create<ChatState>()(
               telemetry: telemetryState.metrics,
               activeStages: telemetryState.calisthenicsStages,
               nutritionSummary,
-              language: coachState.language,
+              language: effectiveLanguage,
             });
 
-        // Limit context to last 6 messages to protect mobile memory budget
-        const contextMessages = updatedMessages.slice(-6).map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+        // Filter out welcome banner, error notices, and cross-lingual Japanese drift from prompt context
+        const filteredHistory = updatedMessages
+          .filter((m) => {
+            if (m.id === 'welcome-msg') return false;
+            if (m.content.startsWith('⚠️')) return false;
+            // If user communicates in Thai, omit any previous Japanese hallucination from LLM prompt history
+            if (
+              effectiveLanguage === 'th' &&
+              m.role === 'assistant' &&
+              /[\u3040-\u309F\u30A0-\u30FF]/.test(m.content)
+            ) {
+              return false;
+            }
+            return true;
+          })
+          .slice(-4);
+
+        // Compress older assistant turns to conserve prompt tokens for fast on-device prefill
+        const contextMessages = filteredHistory.map((m, idx) => {
+          let content = m.content.trim();
+          if (m.role === 'assistant' && idx < filteredHistory.length - 1 && content.length > 240) {
+            content = content.slice(0, 240) + '...';
+          }
+          return {
+            role: m.role,
+            content,
+          };
+        });
 
         try {
           let streamedText = '';
@@ -116,6 +145,7 @@ export const useChatStore = create<ChatState>()(
             {
               systemPrompt,
               messages: contextMessages,
+              temperature: effectiveLanguage === 'th' ? 0.2 : 0.6,
             },
             (token: string) => {
               streamedText += token;
@@ -141,7 +171,15 @@ export const useChatStore = create<ChatState>()(
           });
         } catch (err: any) {
           console.error('[ChatStore] Error generating response:', err);
+          const errorMsg: ChatMessage = {
+            id: `msg-err-${Date.now()}`,
+            role: 'assistant',
+            content: `⚠️ ${err?.message || 'Inference error encountered. Please try again.'}`,
+            timestamp: Date.now(),
+            modeAtCreation: coachState.mode,
+          };
           set({
+            messages: [...updatedMessages, errorMsg],
             isGenerating: false,
             streamingMessage: '',
             error: err?.message || 'Inference error encountered.',
@@ -164,7 +202,7 @@ export const useChatStore = create<ChatState>()(
 
       stopGeneration: () => {
         llmService.stopCompletion();
-        set({ isGenerating: false });
+        set({ isGenerating: false, streamingMessage: '' });
       },
     }),
     {

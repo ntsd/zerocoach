@@ -18,7 +18,6 @@ import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { ModeSwitch } from '@/components/common/ModeSwitch';
-import { TelemetryBanner } from '@/components/chat/TelemetryBanner';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
@@ -308,9 +307,6 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
             <Settings size={12} color={COLORS.textMuted} />
           </View>
         </TouchableOpacity>
-
-        {/* Live Telemetry Banner */}
-        <TelemetryBanner />
 
         {/* Automatic Model Download & RAM Context Allocation Banner */}
         {provider === 'on_device' && Platform.OS !== 'web' && status === 'downloading' && (

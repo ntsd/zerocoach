@@ -359,7 +359,7 @@ export const ModelManagerScreen: React.FC = () => {
                 <View style={styles.modelCardGrid}>
                   {(availableModels || []).map((m) => {
                     const isSelected = currentModel.id === m.id;
-                    const isGemma4 = m.id.includes('gemma-4');
+                    const isQwenVL = m.id.includes('vl');
                     return (
                       <TouchableOpacity
                         key={m.id}
@@ -393,7 +393,7 @@ export const ModelManagerScreen: React.FC = () => {
                                   {t.settings.experimentalBadge}
                                 </Text>
                               </View>
-                            ) : isGemma4 ? (
+                            ) : isQwenVL ? (
                               <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
                                 <Text style={[styles.modelTagText, { color: modeColors.accent }]}>
                                   {t.settings.recommendedBadge} {t.settings.defaultSuffix}
@@ -411,7 +411,7 @@ export const ModelManagerScreen: React.FC = () => {
                         </View>
                         <View style={styles.modelRectangleBottom}>
                           <Text style={styles.modelRectangleMeta} numberOfLines={1}>
-                            {m.sizeFormatted} • {m.quantization} • {m.isFineTuned ? t.settings.fineTunedWeights : isGemma4 ? t.settings.multimodalGemma : t.settings.baseInstructWeights}
+                            {m.sizeFormatted} • {m.quantization} • {m.isFineTuned ? t.settings.fineTunedWeights : isQwenVL ? 'Vision Multimodal' : t.settings.baseInstructWeights}
                           </Text>
                         </View>
                       </TouchableOpacity>

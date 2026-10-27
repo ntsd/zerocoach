@@ -31,7 +31,7 @@ import { analyzeMealPhoto } from '../../services/nutrition/photoMealAnalyzer';
 import {
   extractNutritionFromLabelPhoto,
 } from '../../services/nutrition/nutritionLabelExtractor';
-import { useModelStore, GEMMA_4_E2B_MODEL } from '../../store/useModelStore';
+import { useModelStore, QWEN3_VL_2B_MODEL } from '../../store/useModelStore';
 import { calculateNutrientsForGrams } from '../../store/useNutritionStore';
 import { useTranslation } from '../../i18n';
 import { COLORS } from '../../theme/colors';
@@ -84,7 +84,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   const currentModel = useModelStore((state) => state.currentModel);
   const selectModel = useModelStore((state) => state.selectModel);
-  const isGemmaActive = currentModel?.id?.includes('gemma');
+  const isQwenVLActive = currentModel?.id?.includes('vl') || currentModel?.id?.includes('qwen');
 
   const geminiApiKey = useModelStore((state) => state.geminiApiKey);
   const openAIConfig = useModelStore((state) => state.openAIConfig);
@@ -779,8 +779,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   contentContainerStyle={styles.tabScrollContent}
                   showsVerticalScrollIndicator={false}
                 >
-                  {/* Warning banner when Qwen is active and no vision key is configured */}
-                  {!isGemmaActive && !hasAnyVision && (
+                  {/* Warning banner when text model is active and no vision key is configured */}
+                  {!isQwenVLActive && !hasAnyVision && (
                     <View style={styles.qwenAlertCard}>
                       <View style={styles.qwenAlertHeader}>
                         <AlertCircle size={15} color={COLORS.warning} />
@@ -790,11 +790,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <View style={styles.qwenActionRow}>
                         <TouchableOpacity
                           style={styles.qwenActionBtn}
-                          onPress={() => selectModel(GEMMA_4_E2B_MODEL)}
+                          onPress={() => selectModel(QWEN3_VL_2B_MODEL)}
                           activeOpacity={0.8}
                         >
                           <Zap size={13} color="#080B10" />
-                          <Text style={styles.qwenActionBtnText}>{t.nutrition.switchToGemmaBtn}</Text>
+                          <Text style={styles.qwenActionBtnText}>Switch to Qwen 3 VL</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -807,7 +807,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                       <View style={styles.gemmaPill}>
                         <Sparkles size={11} color="#00F0FF" />
                         <Text style={styles.gemmaPillText}>
-                          {isGemmaActive ? t.nutrition.localGemmaBadge : hasAnyVision ? t.nutrition.cloudAcceleratedBadge : 'ZEROCOACH AI'}
+                          {isQwenVLActive ? 'QWEN 3 VL (ON-DEVICE)' : hasAnyVision ? t.nutrition.cloudAcceleratedBadge : 'ZEROCOACH AI'}
                         </Text>
                       </View>
                     </View>
@@ -837,7 +837,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   </View>
 
                   {/* Part 2: Photo Snap Card */}
-                  {(hasAnyVision || isGemmaActive) && (
+                  {(hasAnyVision || isQwenVLActive) && (
                     <>
                       {/* Divider */}
                       <View style={styles.snapDividerRow}>
@@ -852,11 +852,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           <View style={styles.plateSnapBadge}>
                             <Sparkles size={11} color="#00F0FF" />
                             <Text style={styles.plateSnapBadgeText}>
-                              {hasAnyVision ? t.nutrition.cloudAcceleratedBadge : t.nutrition.localGemmaBadge}
+                              {hasAnyVision ? t.nutrition.cloudAcceleratedBadge : 'QWEN 3 VL (LOCAL)'}
                             </Text>
                           </View>
                           <Text style={styles.plateSnapModelName}>
-                            {hasGeminiVisionKey ? 'AI Studio Gemini' : hasOpenAIVision ? 'OpenAI Vision' : t.nutrition.plateRecognition}
+                            {hasGeminiVisionKey ? 'AI Studio Gemini' : hasOpenAIVision ? 'OpenAI Vision' : 'Qwen 3 VL Vision'}
                           </Text>
                         </View>
                         <Text style={styles.plateSnapTitle}>{t.nutrition.snapFoodTitle}</Text>

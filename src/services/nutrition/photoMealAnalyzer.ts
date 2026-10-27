@@ -172,6 +172,6 @@ export async function analyzeMealPhoto(
     requiresApiKey: true,
     source: 'unidentified',
     errorMessage:
-      'Google AI Studio API key required for photo plate recognition. Add your free key in Settings, or describe ingredients in text for local Gemma 4 E2B analysis.',
+      'Google AI Studio API key required for photo plate recognition. Add your free key in Settings, or describe ingredients in text for local Qwen 3 VL analysis.',
   };
 }

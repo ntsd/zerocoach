@@ -14,7 +14,7 @@ export interface DeviceMemoryInfo {
   totalMemoryBytes: number | null;
   totalMemoryGb: number | null;
   isHighMemory: boolean;
-  recommendedModelId: 'gemma-4-e2b-it-q4_k_m' | 'zerocoach-athletic-qwen3-1.7b-q4_k_m';
+  recommendedModelId: 'qwen3-vl-2b-instruct-q4_k_m' | 'zerocoach-athletic-qwen3-1.7b-q4_k_m';
   deviceName: string | null;
 }
 
@@ -28,13 +28,13 @@ export function getDeviceMemoryInfo(): DeviceMemoryInfo {
 
   const deviceName = Device.modelName || Device.deviceName || Platform.OS;
 
-  // Web or simulators without reported memory default to high-memory capacity
+  // Web or simulators default to Qwen 3 VL
   if (!totalMemory || totalMemory <= 0) {
     return {
       totalMemoryBytes: null,
       totalMemoryGb: null,
       isHighMemory: true,
-      recommendedModelId: 'gemma-4-e2b-it-q4_k_m',
+      recommendedModelId: 'qwen3-vl-2b-instruct-q4_k_m',
       deviceName,
     };
   }
@@ -47,7 +47,7 @@ export function getDeviceMemoryInfo(): DeviceMemoryInfo {
     totalMemoryGb,
     isHighMemory,
     recommendedModelId: isHighMemory
-      ? 'gemma-4-e2b-it-q4_k_m'
+      ? 'qwen3-vl-2b-instruct-q4_k_m'
       : 'zerocoach-athletic-qwen3-1.7b-q4_k_m',
     deviceName,
   };

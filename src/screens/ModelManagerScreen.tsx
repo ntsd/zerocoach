@@ -46,6 +46,8 @@ import {
   clearChatHistoryOnly,
   clearBiometricsAndProgressionsOnly,
 } from '@/services/storage/userDataService';
+import { useTranslation } from '@/i18n';
+import { getDeviceMemoryInfo } from '@/services/device/deviceMemory';
 
 const PRESETS = [
   { label: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.5-flash-lite' },
@@ -70,7 +72,9 @@ export const ModelManagerScreen: React.FC = () => {
     testOpenAIConnection,
   } = useModelStore();
 
-  const { mode, userProfile, updateProfile } = useCoachStore();
+  const { mode, userProfile, updateProfile, language, setLanguage } = useCoachStore();
+  const { t } = useTranslation();
+  const memoryInfo = getDeviceMemoryInfo();
   const modeColors = getModeColors(mode);
   const [otaStatus, setOtaStatus] = useState<string | null>(null);
   const [checkingOta, setCheckingOta] = useState(false);
@@ -160,22 +164,77 @@ export const ModelManagerScreen: React.FC = () => {
           <View>
             <View style={styles.titleRow}>
               <Settings size={20} color={modeColors.accent} />
-              <Text style={styles.title}>SETTINGS & ENGINE</Text>
+              <Text style={styles.title}>{t.settings.headerTitle}</Text>
             </View>
             <Text style={styles.subtitle}>
-              Inference Provider • Local Privacy • Device Storage
+              {t.settings.subtitle}
             </Text>
           </View>
         </View>
+
+        {/* App Language Card */}
+        <GlassCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Globe size={16} color={modeColors.accent} />
+            <Text style={styles.cardTitle}>{t.settings.languageSection}</Text>
+          </View>
+          <Text style={styles.otaDesc}>
+            {t.settings.languageDesc}
+          </Text>
+
+          <View style={styles.providerTabs}>
+            <TouchableOpacity
+              onPress={() => setLanguage('en')}
+              style={[
+                styles.providerTab,
+                language === 'en' && {
+                  borderColor: modeColors.accent,
+                  backgroundColor: `${modeColors.accent}15`,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.providerTabText,
+                  language === 'en' && { color: modeColors.accent, fontWeight: '700' },
+                ]}
+              >
+                🇺🇸 English (US)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setLanguage('th')}
+              style={[
+                styles.providerTab,
+                language === 'th' && {
+                  borderColor: modeColors.accent,
+                  backgroundColor: `${modeColors.accent}15`,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.providerTabText,
+                  language === 'th' && { color: modeColors.accent, fontWeight: '700' },
+                ]}
+              >
+                🇹🇭 ภาษาไทย (Thai)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </GlassCard>
 
         {/* Inference Provider Selector Card */}
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
             <Sparkles size={16} color={modeColors.accent} />
-            <Text style={styles.cardTitle}>INFERENCE ENGINE & PROVIDER</Text>
+            <Text style={styles.cardTitle}>{t.settings.providerTitle}</Text>
           </View>
           <Text style={styles.otaDesc}>
-            Select how ZeroCoach answers your workout and nutrition questions.
+            {t.settings.providerDesc}
           </Text>
 
           {/* Provider Tabs */}
@@ -198,7 +257,7 @@ export const ModelManagerScreen: React.FC = () => {
                   provider === 'on_device' && { color: modeColors.accent, fontWeight: '700' },
                 ]}
               >
-                On-Device
+                {t.settings.onDeviceProvider}
               </Text>
             </TouchableOpacity>
 
@@ -220,7 +279,7 @@ export const ModelManagerScreen: React.FC = () => {
                   provider === 'openai_compatible' && { color: modeColors.accent, fontWeight: '700' },
                 ]}
               >
-                OpenAI-Compatible
+                {t.settings.openaiProvider}
               </Text>
             </TouchableOpacity>
           </View>
@@ -228,6 +287,26 @@ export const ModelManagerScreen: React.FC = () => {
           {/* Active Provider Description & Configuration */}
           {provider === 'on_device' && (
             <View style={styles.onDeviceSettingsContainer}>
+              {/* Phone Memory & Auto Allocation Banner */}
+              <View style={styles.memoryStatusBox}>
+                <View style={styles.memoryStatusHeader}>
+                  <HardDrive size={13} color={modeColors.accent} />
+                  <Text style={styles.memoryStatusTitle}>
+                    {t.settings.memoryDetected}{' '}
+                    {memoryInfo.totalMemoryGb
+                      ? `${memoryInfo.totalMemoryGb} GB RAM`
+                      : Platform.OS === 'web'
+                      ? 'Web Environment'
+                      : 'Physical Device'}
+                  </Text>
+                </View>
+                <Text style={styles.memoryStatusDesc}>
+                  {memoryInfo.isHighMemory
+                    ? t.settings.memoryHighNotice
+                    : t.settings.memoryLowNotice}
+                </Text>
+              </View>
+
               <View style={styles.providerNoteBox}>
                 <Cpu size={14} color={modeColors.accent} />
                 <Text style={styles.providerNoteText}>
@@ -239,10 +318,11 @@ export const ModelManagerScreen: React.FC = () => {
 
               {/* Rectangular Model Selector Cards */}
               <View style={{ marginBottom: SPACING.md }}>
-                <Text style={styles.fieldSectionLabel}>SELECT ON-DEVICE MODEL</Text>
+                <Text style={styles.fieldSectionLabel}>{t.settings.modelCatalogTitle}</Text>
                 <View style={styles.modelCardGrid}>
                   {(availableModels || []).map((m) => {
                     const isSelected = currentModel.id === m.id;
+                    const isGemma4 = m.id.includes('gemma-4');
                     return (
                       <TouchableOpacity
                         key={m.id}
@@ -272,11 +352,21 @@ export const ModelManagerScreen: React.FC = () => {
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             {m.isFineTuned ? (
                               <View style={[styles.modelTag, { backgroundColor: `${COLORS.warning}22` }]}>
-                                <Text style={[styles.modelTagText, { color: COLORS.warning }]}>EXPERIMENTAL</Text>
+                                <Text style={[styles.modelTagText, { color: COLORS.warning }]}>
+                                  {t.settings.experimentalBadge}
+                                </Text>
+                              </View>
+                            ) : isGemma4 ? (
+                              <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
+                                <Text style={[styles.modelTagText, { color: modeColors.accent }]}>
+                                  {t.settings.recommendedBadge} (DEFAULT)
+                                </Text>
                               </View>
                             ) : (
-                              <View style={[styles.modelTag, { backgroundColor: `${modeColors.accent}22` }]}>
-                                <Text style={[styles.modelTagText, { color: modeColors.accent }]}>RECOMMENDED</Text>
+                              <View style={[styles.modelTag, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
+                                <Text style={[styles.modelTagText, { color: COLORS.textMuted }]}>
+                                  BASE
+                                </Text>
                               </View>
                             )}
                             {isSelected && <CheckCircle2 size={14} color={modeColors.accent} />}
@@ -284,7 +374,7 @@ export const ModelManagerScreen: React.FC = () => {
                         </View>
                         <View style={styles.modelRectangleBottom}>
                           <Text style={styles.modelRectangleMeta} numberOfLines={1}>
-                            {m.sizeFormatted} • {m.quantization} • {m.isFineTuned ? 'Custom Fine-Tuned Weights' : 'Baseline 2B Instruct Weights'}
+                            {m.sizeFormatted} • {m.quantization} • {m.isFineTuned ? 'Fine-Tuned Athletic Weights' : isGemma4 ? 'Multimodal 4 E2B' : 'Base Instruct Weights'}
                           </Text>
                         </View>
                       </TouchableOpacity>
@@ -551,19 +641,19 @@ export const ModelManagerScreen: React.FC = () => {
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
             <Sparkles size={16} color="#00F0FF" />
-            <Text style={styles.cardTitle}>AI FOOD SNAP & VISION</Text>
+            <Text style={styles.cardTitle}>{t.settings.aiSnapSection}</Text>
           </View>
           <Text style={styles.otaDesc}>
-            ZeroCoach Athletic Intelligence is an on-device model. Google Gemini provides multimodal vision to recognize food dishes and portion weights from photos (1,500 snaps/day free, no credit card).
+            {t.settings.aiSnapDesc}
           </Text>
 
-          <Text style={[styles.fieldSectionLabel, { marginTop: 12 }]}>GOOGLE GEMINI API KEY</Text>
+          <Text style={[styles.fieldSectionLabel, { marginTop: 12 }]}>{t.settings.geminiKeyLabel}</Text>
           <View style={styles.inputRow}>
             <Key size={14} color={COLORS.textMuted} />
             <TextInput
               value={geminiApiKey}
               onChangeText={setGeminiApiKey}
-              placeholder="Paste AIzaSy... API key"
+              placeholder={t.settings.geminiKeyPlaceholder}
               placeholderTextColor={COLORS.textMuted}
               style={styles.textInput}
               secureTextEntry={!showApiKey}
@@ -589,7 +679,7 @@ export const ModelManagerScreen: React.FC = () => {
             activeOpacity={0.7}
           >
             <Text style={{ color: '#00F0FF', fontSize: 12, fontWeight: '700' }}>
-              Get Free Gemini API Key at Google AI Studio ↗
+              {t.settings.getGeminiKeyLink}
             </Text>
           </TouchableOpacity>
         </GlassCard>
@@ -1560,5 +1650,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textPrimary,
     marginTop: 2,
+  },
+  memoryStatusBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  memoryStatusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  memoryStatusTitle: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
+    color: COLORS.textPrimary,
+  },
+  memoryStatusDesc: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    lineHeight: 16,
   },
 });

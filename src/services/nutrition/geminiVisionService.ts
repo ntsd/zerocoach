@@ -22,7 +22,7 @@ export async function analyzeFoodWithGemini(
   if (!cleanKey) {
     return {
       success: false,
-      errorMessage: 'Google Gemini API key is missing. Add your free key in Settings.',
+      errorMessage: 'Google AI Studio API key is missing. Add your free key in Settings.',
     };
   }
 

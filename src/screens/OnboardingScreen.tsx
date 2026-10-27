@@ -40,7 +40,9 @@ import {
   RefreshCw,
   Zap,
   Info,
+  Globe,
 } from 'lucide-react-native';
+import { useTranslation } from '@/i18n';
 
 export const COMMON_TRAINING_GOALS: Array<{
   id: TrainingGoal;
@@ -79,7 +81,8 @@ interface OnboardingScreenProps {
 }
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
-  const { completeOnboarding } = useCoachStore();
+  const { completeOnboarding, language, setLanguage } = useCoachStore();
+  const { t } = useTranslation();
   const { setManualTelemetry } = useTelemetryStore();
 
   // Wizard Steps (1: Telemetry Sync, 2: Mode, 3: Profile & Goals, 4: Nutrition & Macros)
@@ -354,91 +357,138 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
         >
           {/* ===================================================================
               STEP 1: FITNESS TELEMETRY & WEARABLE SYNC (1st PAGE)
-              =================================================================== */}
-          {currentStep === 1 && (
-            <View style={styles.stepContainer}>
-              <View style={styles.titleBox}>
-                <Text style={styles.mainTitle}>Connect Fitness Telemetry</Text>
-                <Text style={styles.subtitle}>
-                  Sync with your fitness app via local health hub to automatically pull your Weight, Height, Active Burn, and Sleep. Or continue without a wearable:
-                </Text>
-              </View>
-
-              {/* Mode Toggle: Sync App vs No App */}
-              <View style={styles.telemetryToggleRow}>
-                <TouchableOpacity
-                  onPress={() => setHasFitnessApp(true)}
-                  style={[
-                    styles.toggleBtn,
-                    hasFitnessApp && styles.toggleBtnActive,
-                    hasFitnessApp && { borderColor: modeColors.accent },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Watch size={16} color={hasFitnessApp ? modeColors.accent : COLORS.textMuted} />
-                  <Text
-                    style={[
-                      styles.toggleBtnText,
-                      hasFitnessApp && { color: modeColors.accent, fontWeight: '700' },
-                    ]}
-                  >
-                    Fitness App Sync
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => {
-                    setHasFitnessApp(false);
-                    setSyncedSource(null);
-                    setSleepHours(null);
-                    setSleepQuality(null);
-                    setRestingHeartRate(null);
-                    setSteps(null);
-                    setActiveCalories(null);
-                  }}
-                  style={[
-                    styles.toggleBtn,
-                    !hasFitnessApp && styles.toggleBtnActive,
-                    !hasFitnessApp && { borderColor: modeColors.accent },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <User size={16} color={!hasFitnessApp ? modeColors.accent : COLORS.textMuted} />
-                  <Text
-                    style={[
-                      styles.toggleBtnText,
-                      !hasFitnessApp && { color: modeColors.accent, fontWeight: '700' },
-                    ]}
-                  >
-                    No Fitness App (Skip)
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {hasFitnessApp ? (
-                <GlassCard style={styles.formCard}>
-                  {/* Supported Native Health Hubs */}
-                  <View style={styles.providersRow}>
-                    <Text style={styles.providerBadge}>Health Connect</Text>
-                    <Text style={styles.providerBadge}>Apple Health</Text>
+              {/* ===================================================================
+                  STEP 1: FITNESS TELEMETRY & WEARABLE SYNC (1st PAGE)
+                  =================================================================== */}
+              {currentStep === 1 && (
+                <View style={styles.stepContainer}>
+                  {/* Language Selector on 1st Page of Onboarding */}
+                  <View style={styles.languageSelectContainer}>
+                    <View style={styles.languageSelectHeader}>
+                      <Globe size={14} color={modeColors.accent} />
+                      <Text style={styles.languageSelectLabel}>
+                        {t.onboarding.langPrompt}
+                      </Text>
+                    </View>
+                    <View style={styles.languageToggleRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.langBtn,
+                          language === 'en' && [styles.langBtnActive, { borderColor: modeColors.accent }],
+                        ]}
+                        onPress={() => setLanguage('en')}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.langBtnText,
+                            language === 'en' && { color: modeColors.accent, fontWeight: '700' },
+                          ]}
+                        >
+                          🇺🇸 English
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.langBtn,
+                          language === 'th' && [styles.langBtnActive, { borderColor: modeColors.accent }],
+                        ]}
+                        onPress={() => setLanguage('th')}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.langBtnText,
+                            language === 'th' && { color: modeColors.accent, fontWeight: '700' },
+                          ]}
+                        >
+                          🇹🇭 ภาษาไทย
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
-                  {/* Sync Trigger CTA */}
-                  <TouchableOpacity
-                    onPress={handleSyncFitnessApp}
-                    disabled={isSyncing}
-                    style={[styles.syncCTAButton, { backgroundColor: modeColors.accent }]}
-                    activeOpacity={0.85}
-                  >
-                    {isSyncing ? (
-                      <ActivityIndicator size="small" color={COLORS.textDark} />
-                    ) : (
-                      <Zap size={18} color={COLORS.textDark} />
-                    )}
-                    <Text style={styles.syncCTAButtonText}>
-                      {isSyncing ? 'Connecting Local Bridge...' : 'Sync Fitness App Now'}
+                  <View style={styles.titleBox}>
+                    <Text style={styles.mainTitle}>{t.onboarding.step1Title}</Text>
+                    <Text style={styles.subtitle}>
+                      {t.onboarding.step1Sub}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
+
+                  {/* Mode Toggle: Sync App vs No App */}
+                  <View style={styles.telemetryToggleRow}>
+                    <TouchableOpacity
+                      onPress={() => setHasFitnessApp(true)}
+                      style={[
+                        styles.toggleBtn,
+                        hasFitnessApp && styles.toggleBtnActive,
+                        hasFitnessApp && { borderColor: modeColors.accent },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Watch size={16} color={hasFitnessApp ? modeColors.accent : COLORS.textMuted} />
+                      <Text
+                        style={[
+                          styles.toggleBtnText,
+                          hasFitnessApp && { color: modeColors.accent, fontWeight: '700' },
+                        ]}
+                      >
+                        {t.onboarding.syncApp}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setHasFitnessApp(false);
+                        setSyncedSource(null);
+                        setSleepHours(null);
+                        setSleepQuality(null);
+                        setRestingHeartRate(null);
+                        setSteps(null);
+                        setActiveCalories(null);
+                      }}
+                      style={[
+                        styles.toggleBtn,
+                        !hasFitnessApp && styles.toggleBtnActive,
+                        !hasFitnessApp && { borderColor: modeColors.accent },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <User size={16} color={!hasFitnessApp ? modeColors.accent : COLORS.textMuted} />
+                      <Text
+                        style={[
+                          styles.toggleBtnText,
+                          !hasFitnessApp && { color: modeColors.accent, fontWeight: '700' },
+                        ]}
+                      >
+                        {t.onboarding.noApp}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {hasFitnessApp ? (
+                    <GlassCard style={styles.formCard}>
+                      {/* Supported Native Health Hubs */}
+                      <View style={styles.providersRow}>
+                        <Text style={styles.providerBadge}>{t.onboarding.healthHubBadge}</Text>
+                      </View>
+
+                      {/* Sync Trigger CTA */}
+                      <TouchableOpacity
+                        onPress={handleSyncFitnessApp}
+                        disabled={isSyncing}
+                        style={[styles.syncCTAButton, { backgroundColor: modeColors.accent }]}
+                        activeOpacity={0.85}
+                      >
+                        {isSyncing ? (
+                          <ActivityIndicator size="small" color={COLORS.textDark} />
+                        ) : (
+                          <Zap size={18} color={COLORS.textDark} />
+                        )}
+                        <Text style={styles.syncCTAButtonText}>
+                          {isSyncing ? t.onboarding.syncing : t.onboarding.syncBtn}
+                        </Text>
+                      </TouchableOpacity>
 
                   {syncedSource ? (
                     <View style={styles.syncedDetailsBox}>
@@ -1137,7 +1187,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 activeOpacity={0.7}
               >
                 <ArrowLeft size={16} color={COLORS.textSecondary} />
-                <Text style={styles.backBtnText}>Back</Text>
+                <Text style={styles.backBtnText}>{t.common.back}</Text>
               </TouchableOpacity>
             ) : (
               <View style={{ width: 80 }} />
@@ -1156,10 +1206,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               >
                 <Text style={[styles.nextBtnText, !canProceed && styles.disabledBtnText]}>
                   {currentStep === 1 && !isBodyMetricsValid
-                    ? 'Enter Weight & Height'
+                    ? (language === 'th' ? 'ใส่น้ำหนักและส่วนสูง' : 'Enter Weight & Height')
                     : currentStep === 3 && selectedGoals.length === 0
-                    ? 'Select a Training Goal'
-                    : 'Continue'}
+                    ? (language === 'th' ? 'เลือกเป้าหมายการฝึก' : 'Select a Training Goal')
+                    : (language === 'th' ? 'ดำเนินการต่อ' : 'Continue')}
                 </Text>
                 <ArrowRight size={16} color={!canProceed ? COLORS.textMuted : COLORS.textDark} />
               </TouchableOpacity>
@@ -1169,7 +1219,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 style={[styles.nextBtn, { backgroundColor: modeColors.accent }]}
                 activeOpacity={0.8}
               >
-                <Text style={styles.nextBtnText}>Enter ZeroCoach</Text>
+                <Text style={styles.nextBtnText}>
+                  {language === 'th' ? 'เริ่มต้นใช้งาน ZeroCoach' : 'Enter ZeroCoach'}
+                </Text>
                 <Sparkles size={16} color={COLORS.textDark} />
               </TouchableOpacity>
             )}
@@ -1848,5 +1900,48 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: COLORS.textMuted,
     textAlign: 'center',
+  },
+  languageSelectContainer: {
+    marginBottom: SPACING.md,
+    padding: SPACING.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  languageSelectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  languageSelectLabel: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+  },
+  languageToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  langBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langBtnActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.09)',
+  },
+  langBtnText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
 });

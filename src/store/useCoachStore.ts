@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CoachState, CoachingMode, UserProfile, SkillLevel } from '@/types/coach';
+import { CoachState, CoachingMode, UserProfile, SkillLevel, AppLanguage } from '@/types/coach';
 
 const DEFAULT_PROFILE: UserProfile = {
   name: '',
@@ -22,7 +22,10 @@ export const useCoachStore = create<CoachState>()(
     (set) => ({
       hasCompletedOnboarding: false,
       mode: 'strict',
+      language: 'en',
       userProfile: DEFAULT_PROFILE,
+
+      setLanguage: (language: AppLanguage) => set({ language }),
 
       toggleMode: () =>
         set((state) => ({

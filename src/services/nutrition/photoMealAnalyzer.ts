@@ -172,6 +172,6 @@ export async function analyzeMealPhoto(
     requiresApiKey: true,
     source: 'unidentified',
     errorMessage:
-      'Google Gemini API key required. Add your free key from aistudio.google.com to enable instant food plate recognition.',
+      'Google AI Studio API key required for photo plate recognition. Add your free key in Settings, or describe ingredients in text for local Gemma 4 E2B analysis.',
   };
 }

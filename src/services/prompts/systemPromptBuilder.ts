@@ -1,4 +1,4 @@
-import { CoachingMode, UserProfile, TrainingGoal } from '@/types/coach';
+import { CoachingMode, UserProfile, TrainingGoal, AppLanguage } from '@/types/coach';
 import { TelemetryMetrics, CalisthenicsStage } from '@/types/telemetry';
 import { generateAdaptiveWorkoutPlan } from '@/services/workout/workoutPlanGenerator';
 import { STRICT_COACH_BASE_PROMPT } from './strictCoach';
@@ -36,8 +36,9 @@ export function buildSystemPrompt(params: {
   telemetry: TelemetryMetrics;
   activeStages: CalisthenicsStage[];
   nutritionSummary?: NutritionPromptSummary;
+  language?: AppLanguage;
 }): string {
-  const { mode, userProfile, telemetry, activeStages, nutritionSummary } = params;
+  const { mode, userProfile, telemetry, activeStages, nutritionSummary, language } = params;
 
   const basePrompt =
     mode === 'strict' ? STRICT_COACH_BASE_PROMPT : COMFORTABLE_COACH_BASE_PROMPT;
@@ -137,7 +138,11 @@ ${nutritionBlock}
 CONVERSATIONAL & COACHING DIRECTIVES:
 1. CASUAL CHAT & GREETINGS: If the user is saying hello, asking general lifestyle/knowledge questions, or chatting casually, respond warmly, naturally, and conversationally as their supportive AI coach. Do NOT output a raw biometric overview or workout card for casual chitchat.
 2. TRAINING & WORKOUT REQUESTS: When the user asks for a workout plan, exercise suggestions, training autoregulation, or technique advice, apply their live physiological telemetry (Readiness: ${telemetry.readinessScore}/100) and prescribe targeted, autoregulated training.
-3. NUTRITION REQUESTS: When the user asks about food, meals, or macros, give actionable whole-food suggestions matching their remaining caloric and protein budget.`;
+3. NUTRITION REQUESTS: When the user asks about food, meals, or macros, give actionable whole-food suggestions matching their remaining caloric and protein budget.${
+  language === 'th'
+    ? '\n4. LANGUAGE DIRECTIVE (MANDATORY): You MUST communicate, guide, and formulate all advice fluently and naturally in Thai (ภาษาไทย). You may retain international athletic and sports metrics (e.g., HRV, RPE, sets/reps, grams, kcal) in standard Latin terms where clear.'
+    : ''
+}`;
 
   return `${basePrompt}\n${contextBlock}`;
 }
@@ -147,8 +152,9 @@ export function buildCompactSystemPrompt(params: {
   userProfile: UserProfile;
   telemetry: TelemetryMetrics;
   nutritionSummary?: NutritionPromptSummary;
+  language?: AppLanguage;
 }): string {
-  const { mode, userProfile, telemetry, nutritionSummary } = params;
+  const { mode, userProfile, telemetry, nutritionSummary, language } = params;
   const isStrict = mode === 'strict';
 
   const nutritionLine = nutritionSummary
@@ -167,5 +173,9 @@ ATHLETE METRICS:
 COACHING DIRECTIVES:
 1. For greetings, general questions, and casual conversation, respond naturally and conversationally without forcing a workout breakdown.
 2. When training or recovery is discussed, adapt directly to readiness (${telemetry.readinessScore}/100): if < 60 prioritize active recovery; if >= 80 demand progressive overload.
-3. Keep response concise, structured with bullet points. End with a clear next action.`;
+3. Keep response concise, structured with bullet points. End with a clear next action.${
+    language === 'th'
+      ? '\n4. LANGUAGE DIRECTIVE (MANDATORY): Reply fluently and naturally in Thai (ภาษาไทย).'
+      : ''
+  }`;
 }

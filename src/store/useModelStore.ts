@@ -10,22 +10,25 @@ import {
   OpenAICompatibleConfig,
 } from '@/types/model';
 import { llmService } from '@/services/llm/llmService';
+import { getDeviceMemoryInfo } from '@/services/device/deviceMemory';
 
-export const GEMMA_2_MODEL: ModelMetadata = {
-  id: 'gemma-2-2b-it-q4_k_m',
-  name: 'Gemma 2 (2B Instruct Baseline)',
-  sizeBytes: 1640000000,
-  sizeFormatted: '1.64 GB',
+export const GEMMA_4_E2B_MODEL: ModelMetadata = {
+  id: 'gemma-4-e2b-it-q4_k_m',
+  name: 'Gemma 4 E2B Instruct (Multimodal Default)',
+  sizeBytes: 3110000000,
+  sizeFormatted: '3.11 GB',
   quantization: 'Q4_K_M',
   downloadUrl:
-    'https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf',
+    'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf',
+  fallbackDownloadUrl:
+    'https://huggingface.co/ggml-org/gemma-4-E2B-GGUF/resolve/main/gemma-4-E2B-Q4_K_M.gguf',
   isFineTuned: false,
-  contextLength: 2048,
+  contextLength: 4096,
 };
 
 export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
   id: 'zerocoach-athletic-qwen3-1.7b-q4_k_m',
-  name: 'ZeroCoach Athletic (Qwen 3 1.7B Fine-Tuned)',
+  name: 'ZeroCoach Athletic (Qwen 3 1.7B Fine-Tuned) (Experimental)',
   sizeBytes: 1050000000,
   sizeFormatted: '1.05 GB',
   quantization: 'Q4_K_M',
@@ -39,7 +42,7 @@ export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
 
 export const QWEN_3_INSTRUCT_MODEL: ModelMetadata = {
   id: 'qwen3-1.7b-instruct-q4_k_m',
-  name: 'Qwen 3 1.7B Instruct (General + Athletic)',
+  name: 'Qwen 3 1.7B Instruct (Base / No Finetune)',
   sizeBytes: 1217000000,
   sizeFormatted: '1.21 GB',
   quantization: 'Q4_K_M',
@@ -52,10 +55,26 @@ export const QWEN_3_INSTRUCT_MODEL: ModelMetadata = {
 };
 
 export const AVAILABLE_MODELS: ModelMetadata[] = [
+  GEMMA_4_E2B_MODEL,
   ZEROCOACH_ATHLETIC_MODEL,
   QWEN_3_INSTRUCT_MODEL,
-  GEMMA_2_MODEL,
 ];
+
+/**
+ * Resolves the default model based on physical device RAM.
+ * - Devices with >= 6GB RAM default to Gemma 4 E2B (~3.11 GB weights)
+ * - Devices with < 6GB RAM default to Qwen 3 1.7B (~1.05 GB weights) to prevent OOM
+ */
+export function getDefaultModelByMemory(): ModelMetadata {
+  const memoryInfo = getDeviceMemoryInfo();
+  if (!memoryInfo.isHighMemory) {
+    console.log(
+      `[useModelStore] Device RAM (${memoryInfo.totalMemoryGb ?? '<6'} GB) is under 6GB. Defaulting to lightweight Qwen 3 1.7B.`
+    );
+    return ZEROCOACH_ATHLETIC_MODEL;
+  }
+  return GEMMA_4_E2B_MODEL;
+}
 
 const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
   baseUrl: 'http://localhost:11434/v1',
@@ -63,12 +82,14 @@ const DEFAULT_OPENAI_CONFIG: OpenAICompatibleConfig = {
   modelName: 'zerocoach',
 };
 
+const initialDefaultModel = getDefaultModelByMemory();
+
 export const useModelStore = create<ModelState>()(
   persist(
     (set, get) => ({
-      currentModel: ZEROCOACH_ATHLETIC_MODEL,
+      currentModel: initialDefaultModel,
       availableModels: AVAILABLE_MODELS,
-      userSelectedModelId: ZEROCOACH_ATHLETIC_MODEL.id,
+      userSelectedModelId: initialDefaultModel.id,
       status: 'unloaded',
       downloadProgress: 0,
       provider: 'on_device',
@@ -275,17 +296,19 @@ export const useModelStore = create<ModelState>()(
             updates.provider = 'on_device';
           }
 
-          // Default on-device model to ZeroCoach Athletic (Qwen 3 1.7B Fine-Tuned)
+          // Default on-device model based on phone memory (Gemma 4 E2B on >=6GB RAM, Qwen 3 1.7B on <6GB RAM)
+          const defaultModel = getDefaultModelByMemory();
           if (
             !hydratedState.userSelectedModelId ||
             hydratedState.currentModel?.id === 'zerocoach-athletic-q4_0' ||
-            hydratedState.currentModel?.id === 'zerocoach-athletic-qwen3-1.7b-q4_k_m'
+            hydratedState.currentModel?.id === 'gemma-2-2b-it-q4_k_m'
           ) {
-            updates.currentModel = ZEROCOACH_ATHLETIC_MODEL;
-            updates.userSelectedModelId = ZEROCOACH_ATHLETIC_MODEL.id;
+            updates.currentModel = defaultModel;
+            updates.userSelectedModelId = defaultModel.id;
           } else {
             const matched = AVAILABLE_MODELS.find((m) => m.id === hydratedState.currentModel?.id);
-            updates.currentModel = matched || ZEROCOACH_ATHLETIC_MODEL;
+            updates.currentModel = matched || defaultModel;
+            updates.userSelectedModelId = updates.currentModel.id;
           }
 
           useModelStore.setState(updates);

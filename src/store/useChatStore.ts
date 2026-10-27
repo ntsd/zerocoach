@@ -81,6 +81,7 @@ export const useChatStore = create<ChatState>()(
               userProfile: coachState.userProfile,
               telemetry: telemetryState.metrics,
               nutritionSummary,
+              language: coachState.language,
             })
           : buildSystemPrompt({
               mode: coachState.mode,
@@ -88,6 +89,7 @@ export const useChatStore = create<ChatState>()(
               telemetry: telemetryState.metrics,
               activeStages: telemetryState.calisthenicsStages,
               nutritionSummary,
+              language: coachState.language,
             });
 
         // Limit context to last 6 messages to protect mobile memory budget

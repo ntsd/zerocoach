@@ -22,6 +22,7 @@ import { ProgressionsScreen } from '@/screens/ProgressionsScreen';
 import { ModelManagerScreen } from '@/screens/ModelManagerScreen';
 import { NutritionScreen } from '@/screens/NutritionScreen';
 import { AnalyzeScreen } from '@/screens/AnalyzeScreen';
+import { useTranslation } from '@/i18n';
 import {
   MessageSquare,
   Activity,
@@ -34,13 +35,14 @@ import {
 type TabKey = 'coach' | 'nutrition' | 'workout' | 'analyze' | 'settings';
 
 export default function App() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const { mode, hasCompletedOnboarding } = useCoachStore();
   const modeColors = getModeColors(mode);
 
   useEffect(() => {
-    // Automatically download and load Gemma 2 into RAM on native devices
+    // Automatically download and load default model into RAM on native devices
     useModelStore.getState().autoInitOnDeviceModel();
 
     // Automatically sync telemetry from Android Health / HealthKit when onboarded
@@ -78,27 +80,27 @@ export default function App() {
   const TABS = [
     {
       key: 'coach' as const,
-      label: 'COACH',
+      label: t.tabs.coach,
       icon: MessageSquare,
     },
     {
       key: 'nutrition' as const,
-      label: 'NUTRITION',
+      label: t.tabs.nutrition,
       icon: Utensils,
     },
     {
       key: 'workout' as const,
-      label: 'WORKOUT',
+      label: t.tabs.workout,
       icon: Dumbbell,
     },
     {
       key: 'analyze' as const,
-      label: 'ANALYZE',
+      label: t.tabs.analyze,
       icon: TrendingUp,
     },
     {
       key: 'settings' as const,
-      label: 'SETTINGS',
+      label: t.tabs.settings,
       icon: Settings,
     },
   ];

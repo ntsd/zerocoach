@@ -263,7 +263,7 @@ export function decomposeMealText(inputText: string): MealDecompositionResult {
 }
 
 /**
- * Decomposes meal descriptions using Gemma on-device model,
+ * Decomposes meal descriptions using Gemma 4 E2B on-device model,
  * with graceful fallback to USDA whole food heuristics.
  */
 export async function decomposeMealWithGemma(

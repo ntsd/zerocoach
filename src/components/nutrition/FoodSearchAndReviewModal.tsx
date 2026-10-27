@@ -31,8 +31,9 @@ import { analyzeMealPhoto } from '../../services/nutrition/photoMealAnalyzer';
 import {
   extractNutritionFromLabelPhoto,
 } from '../../services/nutrition/nutritionLabelExtractor';
-import { useModelStore } from '../../store/useModelStore';
+import { useModelStore, GEMMA_4_E2B_MODEL } from '../../store/useModelStore';
 import { calculateNutrientsForGrams } from '../../store/useNutritionStore';
+import { useTranslation } from '../../i18n';
 import { COLORS } from '../../theme/colors';
 import {
   X,
@@ -70,6 +71,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   onClose,
   onLogFood,
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ModalTab>('snap');
   const [selectedMealType, setSelectedMealType] = useState<MealType>(initialMealType);
 
@@ -79,6 +81,10 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false);
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);
   const [photoAnalysisError, setPhotoAnalysisError] = useState<string | null>(null);
+
+  const currentModel = useModelStore((state) => state.currentModel);
+  const selectModel = useModelStore((state) => state.selectModel);
+  const isGemmaActive = currentModel?.id?.includes('gemma');
 
   const geminiApiKey = useModelStore((state) => state.geminiApiKey);
   const openAIConfig = useModelStore((state) => state.openAIConfig);
@@ -90,6 +96,15 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
       openAIConfig?.apiKey &&
       openAIConfig.apiKey.trim().length > 0)
   );
+
+  const hasOpenAIVision = Boolean(
+    openAIConfig &&
+    openAIConfig.baseUrl &&
+    openAIConfig.baseUrl.trim().length > 0 &&
+    !openAIConfig.baseUrl.includes('generativelanguage.googleapis.com')
+  );
+
+  const hasAnyVision = hasGeminiVisionKey || hasOpenAIVision;
 
   // Barcode Camera Scanner State
   const [permission, requestPermission] = useCameraPermissions();
@@ -726,7 +741,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   <Text
                     style={[styles.tabText, activeTab === 'snap' && styles.tabTextActive]}
                   >
-                    AI Snap
+                    {t.nutrition.aiSnapTab}
                   </Text>
                 </TouchableOpacity>
 
@@ -739,7 +754,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   <Text
                     style={[styles.tabText, activeTab === 'search' && styles.tabTextActive]}
                   >
-                    Search
+                    {t.nutrition.searchTab}
                   </Text>
                 </TouchableOpacity>
 
@@ -752,30 +767,53 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   <Text
                     style={[styles.tabText, activeTab === 'barcode' && styles.tabTextActive]}
                   >
-                    Barcode
+                    {t.nutrition.barcodeTab}
                   </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Tab 1: AI Snap (Gemma 2 Text + Optional Gemini Vision Photo Snap) */}
+              {/* Tab 1: AI Snap (Gemma 4 E2B Local + Optional AI Studio Vision Photo Snap) */}
               {activeTab === 'snap' && (
                 <ScrollView
                   style={styles.tabContent}
                   contentContainerStyle={styles.tabScrollContent}
                   showsVerticalScrollIndicator={false}
                 >
+                  {/* Warning banner when Qwen is active and no vision key is configured */}
+                  {!isGemmaActive && !hasAnyVision && (
+                    <View style={styles.qwenAlertCard}>
+                      <View style={styles.qwenAlertHeader}>
+                        <AlertCircle size={15} color={COLORS.warning} />
+                        <Text style={styles.qwenAlertTitle}>{t.nutrition.qwenNoticeTitle}</Text>
+                      </View>
+                      <Text style={styles.qwenAlertDesc}>{t.nutrition.qwenNoticeDesc}</Text>
+                      <View style={styles.qwenActionRow}>
+                        <TouchableOpacity
+                          style={styles.qwenActionBtn}
+                          onPress={() => selectModel(GEMMA_4_E2B_MODEL)}
+                          activeOpacity={0.8}
+                        >
+                          <Zap size={13} color="#080B10" />
+                          <Text style={styles.qwenActionBtnText}>{t.nutrition.switchToGemmaBtn}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
                   {/* Part 1: Text Description (ZeroCoach On-Device AI) */}
                   <View style={styles.nlpBox}>
                     <View style={styles.nlpHeaderRow}>
-                      <Text style={styles.nlpLabel}>Describe meal or ingredients:</Text>
+                      <Text style={styles.nlpLabel}>{t.nutrition.describeMealLabel}</Text>
                       <View style={styles.gemmaPill}>
                         <Sparkles size={11} color="#00F0FF" />
-                        <Text style={styles.gemmaPillText}>ZEROCOACH AI</Text>
+                        <Text style={styles.gemmaPillText}>
+                          {isGemmaActive ? t.nutrition.localGemmaBadge : hasAnyVision ? t.nutrition.cloudAcceleratedBadge : 'ZEROCOACH AI'}
+                        </Text>
                       </View>
                     </View>
                     <TextInput
                       style={styles.nlpInput}
-                      placeholder="e.g., 2 scrambled eggs, avocado sourdough toast, and an apple"
+                      placeholder={t.nutrition.describePlaceholder}
                       placeholderTextColor={COLORS.textMuted}
                       value={nlpInput}
                       onChangeText={setNlpInput}
@@ -793,13 +831,13 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         <Sparkles size={16} color="#080B10" />
                       )}
                       <Text style={styles.decomposeBtnText}>
-                        {isAnalyzingText ? 'Analyzing with ZeroCoach AI...' : 'Analyze Meal with ZeroCoach AI'}
+                        {isAnalyzingText ? t.nutrition.analyzingMealBtn : t.nutrition.analyzeMealBtn}
                       </Text>
                     </TouchableOpacity>
                   </View>
 
-                  {/* Part 2: Photo Snap Card (Only shown if Gemini API key is provided) */}
-                  {hasGeminiVisionKey && (
+                  {/* Part 2: Photo Snap Card */}
+                  {(hasAnyVision || isGemmaActive) && (
                     <>
                       {/* Divider */}
                       <View style={styles.snapDividerRow}>
@@ -813,13 +851,17 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         <View style={styles.plateSnapHeader}>
                           <View style={styles.plateSnapBadge}>
                             <Sparkles size={11} color="#00F0FF" />
-                            <Text style={styles.plateSnapBadgeText}>AI VISION</Text>
+                            <Text style={styles.plateSnapBadgeText}>
+                              {hasAnyVision ? t.nutrition.cloudAcceleratedBadge : t.nutrition.localGemmaBadge}
+                            </Text>
                           </View>
-                          <Text style={styles.plateSnapModelName}>Plate Recognition</Text>
+                          <Text style={styles.plateSnapModelName}>
+                            {hasGeminiVisionKey ? 'AI Studio Gemini' : hasOpenAIVision ? 'OpenAI Vision' : 'Plate Recognition'}
+                          </Text>
                         </View>
-                        <Text style={styles.plateSnapTitle}>Snap Meal or Food Plate</Text>
+                        <Text style={styles.plateSnapTitle}>{t.nutrition.snapFoodTitle}</Text>
                         <Text style={styles.plateSnapDesc}>
-                          Take a photo of your cooked dish, plate, drink, or snack. Gemini Vision will identify ingredients and ZeroCoach AI computes portion macros.
+                          {t.nutrition.snapFoodDesc}
                         </Text>
 
                         {/* Camera & Gallery Action Buttons */}
@@ -831,7 +873,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                             disabled={isAnalyzingPhoto || isAnalyzingText}
                           >
                             <Camera size={18} color="#080B10" />
-                            <Text style={styles.cameraPrimaryBtnText}>Snap Meal Plate</Text>
+                            <Text style={styles.cameraPrimaryBtnText}>{t.nutrition.snapPlateBtn}</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -841,7 +883,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                             disabled={isAnalyzingPhoto || isAnalyzingText}
                           >
                             <ImageIcon size={18} color="#00F0FF" />
-                            <Text style={styles.gallerySecondaryBtnText}>Upload Photo</Text>
+                            <Text style={styles.gallerySecondaryBtnText}>{t.nutrition.uploadPhotoBtn}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -2393,5 +2435,48 @@ const styles = StyleSheet.create({
     fontSize: 11,
     flex: 1,
     lineHeight: 15,
+  },
+  qwenAlertCard: {
+    backgroundColor: 'rgba(255, 179, 0, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 179, 0, 0.25)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  qwenAlertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 5,
+  },
+  qwenAlertTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.warning,
+  },
+  qwenAlertDesc: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  qwenActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  qwenActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#00F0FF',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  qwenActionBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#080B10',
   },
 });

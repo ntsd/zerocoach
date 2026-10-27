@@ -29,15 +29,20 @@ export interface UserProfile {
   selectedWorkoutSplit?: string;
 }
 
+export type AppLanguage = 'en' | 'th';
+
 export interface CoachState {
   hasCompletedOnboarding: boolean;
   mode: CoachingMode;
+  language: AppLanguage;
   userProfile: UserProfile;
   toggleMode: () => void;
   setMode: (mode: CoachingMode) => void;
+  setLanguage: (language: AppLanguage) => void;
   setSkillLevel: (level: SkillLevel) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
   completeOnboarding: (profile: UserProfile, mode: CoachingMode) => void;
   resetOnboarding: () => void;
   clearUserData: () => void;
 }
+

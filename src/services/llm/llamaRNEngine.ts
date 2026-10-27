@@ -129,11 +129,9 @@ export class LlamaRNEngine implements LLMEngine {
       if (isQwenOrChatML) {
         const sysPrompt = (request.systemPrompt || 'You are ZeroCoach, an elite athletic coach and sports scientist.').trim();
         fullPrompt = `<|im_start|>system\n${sysPrompt}<|im_end|>\n`;
-        const lastUserIdx = recentMessages.map((m) => m.role).lastIndexOf('user');
         for (let i = 0; i < recentMessages.length; i++) {
           const msg = recentMessages[i];
-          const thaiAnchor = isThaiConversation && i === lastUserIdx ? '\n\n(ตอบเป็นภาษาไทยเท่านั้น)' : '';
-          fullPrompt += `<|im_start|>${msg.role}\n${msg.content.trim()}${thaiAnchor}<|im_end|>\n`;
+          fullPrompt += `<|im_start|>${msg.role}\n${msg.content.trim()}<|im_end|>\n`;
         }
         fullPrompt += `<|im_start|>assistant\n`;
       } else {
@@ -142,13 +140,11 @@ export class LlamaRNEngine implements LLMEngine {
         fullPrompt = '';
         for (const msg of recentMessages) {
           if (msg.role === 'user') {
-            const isThaiMsg = /[\u0E00-\u0E7F]/.test(msg.content);
-            const thaiAnchor = isThaiMsg || isThaiConversation ? '\n\n(ตอบเป็นภาษาไทยเท่านั้น)' : '';
             if (isFirstUser && request.systemPrompt) {
-              fullPrompt += `<start_of_turn>user\n${request.systemPrompt}\n\n${msg.content}${thaiAnchor}<end_of_turn>\n`;
+              fullPrompt += `<start_of_turn>user\n${request.systemPrompt}\n\n${msg.content}<end_of_turn>\n`;
               isFirstUser = false;
             } else {
-              fullPrompt += `<start_of_turn>user\n${msg.content}${thaiAnchor}<end_of_turn>\n`;
+              fullPrompt += `<start_of_turn>user\n${msg.content}<end_of_turn>\n`;
             }
           } else {
             fullPrompt += `<start_of_turn>model\n${msg.content}<end_of_turn>\n`;
@@ -162,15 +158,12 @@ export class LlamaRNEngine implements LLMEngine {
 
       let inThinkTag = false;
 
-      const temperature = request.temperature !== undefined
-        ? request.temperature
-        : isThaiConversation
-          ? 0.2
-          : 0.7;
+      const temperature = request.temperature !== undefined ? request.temperature : 0.6;
+      const topP = 0.9;
+      const topK = 40;
+      const penaltyRepeat = 1.1;
 
-      const topP = isThaiConversation ? 0.8 : 0.9;
-      const topK = isThaiConversation ? 25 : 40;
-      const penaltyRepeat = isThaiConversation ? 1.08 : 1.18;
+      console.log(`[LlamaRNEngine] Sending prompt to llama.rn (${fullPrompt.length} chars, temp: ${temperature})`);
 
       const result = await this.llamaContext.completion(
         {
@@ -180,8 +173,8 @@ export class LlamaRNEngine implements LLMEngine {
           top_p: topP,
           top_k: topK,
           penalty_repeat: penaltyRepeat,
-          penalty_freq: isThaiConversation ? 0.2 : 0.5,
-          penalty_present: isThaiConversation ? 0.2 : 0.4,
+          penalty_freq: 0.1,
+          penalty_present: 0.1,
           stop: [
             '<start_of_turn>',
             '<end_of_turn>',

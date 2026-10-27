@@ -50,23 +50,24 @@ export function buildSystemPrompt(params: {
     .map((g) => GOAL_PROGRAMMING_DIRECTIVES[g])
     .filter(Boolean);
 
-  const hasLiveTelemetry = telemetry.lastSyncTimestamp > 0 && telemetry.source !== 'manual';
+  const hasLiveTelemetry = telemetry.lastSyncTimestamp > 0 && telemetry.source !== 'manual' && telemetry.readinessScore > 0;
+  const effectiveReadiness = hasLiveTelemetry ? telemetry.readinessScore : 75;
   const telemetryBlock = hasLiveTelemetry
     ? `- LIVE BIOMETRIC TELEMETRY (Source: Device Bridge ${telemetry.source.replace(/_/g, ' ').toUpperCase()}):
-  * Daily Readiness Score: ${telemetry.readinessScore}/100
+  * Daily Readiness Score: ${effectiveReadiness}/100
   * Sleep Duration: ${telemetry.sleepHours} hrs (Deep Sleep: ${telemetry.deepSleepHours} hrs, Score: ${telemetry.sleepQualityScore}/100)
   * Resting Heart Rate: ${telemetry.restingHeartRate} bpm
   * Heart Rate Variability (HRV): ${telemetry.heartRateVariability} ms
   * Daily Step Count: ${telemetry.steps.toLocaleString()}
   * Active Energy Burned: ${telemetry.activeCalories} kcal`
     : `- LIVE BIOMETRIC TELEMETRY:
-  * Status: No wearable synced. Program sessions and nutrition dynamically using athlete body metrics and target training goals.`;
+  * Status: Standard athletic baseline (Readiness ${effectiveReadiness}/100). Program sessions and nutrition dynamically using athlete body metrics and target training goals.`;
 
   const equipmentMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const adaptivePlan = generateAdaptiveWorkoutPlan({
     goals: userProfile.primaryGoals || [],
     mode,
-    readinessScore: telemetry.readinessScore,
+    readinessScore: effectiveReadiness,
     weightKg: userProfile.weightKg,
     heightCm: userProfile.heightCm,
     activeStages,
@@ -148,44 +149,62 @@ export function buildCompactSystemPrompt(params: {
   const isStrict = mode === 'strict';
   const isThai = language === 'th';
 
+  const hasLiveTelemetry = telemetry.readinessScore > 0 && telemetry.lastSyncTimestamp > 0;
+  const effectiveReadiness = hasLiveTelemetry ? telemetry.readinessScore : 75;
+
   if (isThai) {
-    const macroLine = nutritionSummary
-      ? `เหลือ ${nutritionSummary.remainingCalories} kcal, โปรตีน ${nutritionSummary.remainingProtein}g`
-      : `เป้าหมาย ${userProfile.dailyCalorieTarget} kcal, โปรตีน ${userProfile.proteinGrams}g`;
+    const macroLine = nutritionSummary && nutritionSummary.remainingCalories > 0
+      ? `แคลอรี่คงเหลือ ${nutritionSummary.remainingCalories} kcal, โปรตีนคงเหลือ ${nutritionSummary.remainingProtein}g`
+      : `เป้าหมายประจำวัน: ${userProfile.dailyCalorieTarget || 2000} kcal, โปรตีน ${userProfile.proteinGrams || 140}g`;
 
     const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'สร้างกล้ามเนื้อและสมรรถภาพ';
     const equip = userProfile.equipmentPreference === 'home' ? 'บอดี้เวท' : 'ยิม';
-    const style = isStrict ? 'เข้มงวด วิทยาศาสตร์การกีฬา Progressive Overload' : 'เป็นกันเอง สุขภาพยั่งยืนและข้อต่อแข็งแรง';
+    const style = isStrict ? 'เข้มงวด แม่นยำตามหลักวิทยาศาสตร์การกีฬา' : 'เป็นกันเอง สุขภาพยั่งยืนและข้อต่อแข็งแรง';
 
-    return `คุณคือ ZeroCoach โค้ชวิทยาศาสตร์การกีฬา AI (โหมด: ${style})
+    const telemetryLine = hasLiveTelemetry
+      ? `ความพร้อมร่างกาย: ${effectiveReadiness}/100, นอน ${telemetry.sleepHours}ชม. (HRV: ${telemetry.heartRateVariability}ms)`
+      : `ความพร้อมร่างกาย: ${effectiveReadiness}/100 (พร้อมฝึกซ้อมตามปกติ)`;
+
+    return `คุณคือ ZeroCoach โค้ชวิทยาศาสตร์การกีฬาและฟิตเนสส่วนตัว (สไตล์: ${style})
+คุณเป็นผู้เชี่ยวชาญด้านเวทเทรนนิ่ง เพาะกาย คาลิสเทนิกส์ และโภชนาการการกีฬา
+
 ข้อมูลนักกีฬา:
-- ความพร้อม: ${telemetry.readinessScore}/100 | นอน: ${telemetry.sleepHours}ชม. (HRV: ${telemetry.heartRateVariability}ms)
-- เป้าหมาย: ${goal} | อุปกรณ์: ${equip}
-- โภชนาการ: ${macroLine}
-แนวทาง:
-1. ทักทาย/คุยทั่วไป: ตอบสั้น เป็นมิตร ไม่ต้องให้ตารางฝึก
-2. ปรับการฝึกตามความพร้อม (${telemetry.readinessScore}/100): ต่ำกว่า 60 เน้นฟื้นฟู/ยืดเหยียด, 80 ขึ้นไปเน้น Progressive Overload
-3. แนะนำอาหาร: คำนวณจากแคลอรี่และโปรตีนที่เหลือ
-4. ตอบเป็นข้อๆ สั้นกระชับ ลงท้ายด้วยคำแนะนำถัดไป
-5. ตอบเป็นภาษาไทยเท่านั้น ห้ามใช้ภาษาญี่ปุ่นหรือจีน`;
+- ${telemetryLine}
+- เป้าหมาย: ${goal} | รูปแบบ: ${equip}
+- ${macroLine}
+
+คำสั่งและแนวทางการตอบ:
+1. ให้คำแนะนำการออกกำลังกาย ท่าฝึก ตารางเวท และเมนูอาหารได้อย่างมั่นใจเต็มที่ โดยไม่ต้องขออภัย ไม่ต้องปฏิเสธ และไม่ต้องมีข้อความปฏิเสธความรับผิดชอบ
+2. เมื่อผู้ใช้ทักทาย ให้ทักทายตอบอย่างเป็นมิตร สั้นกระชับ
+3. เมื่อถามเรื่องออกกำลังกาย ให้จัดตารางฝึกและท่าฝึกที่เหมาะสม (จำนวนเซ็ต, จำนวนครั้ง, เทคนิค)
+4. เมื่อถามเรื่องอาหาร ให้แนะนำเมนูอาหารจริงพร้อมบอกปริมาณโปรตีนและแคลอรี่
+5. ตอบเป็นภาษาไทยที่กระชับ ชัดเจน เป็นข้อๆ`;
   }
 
-  const nutritionLine = nutritionSummary
+  const nutritionLine = nutritionSummary && nutritionSummary.remainingCalories > 0
     ? `Remaining: ${nutritionSummary.remainingCalories} kcal, ${nutritionSummary.remainingProtein}g protein`
-    : `Target: ${userProfile.dailyCalorieTarget} kcal, ${userProfile.proteinGrams}g protein`;
+    : `Target: ${userProfile.dailyCalorieTarget || 2000} kcal, ${userProfile.proteinGrams || 140}g protein`;
 
   const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'Strength & Hypertrophy';
   const equip = userProfile.equipmentPreference || 'gym';
-  const style = isStrict ? 'Strict, biomechanical & progressive overload' : 'Supportive, longevity & consistency';
+  const style = isStrict ? 'Strict, biomechanical precision & progressive overload' : 'Supportive, sustainable consistency & joint longevity';
 
-  return `You are ZeroCoach, an elite athletic AI coach (${style}).
-ATHLETE:
-- Readiness: ${telemetry.readinessScore}/100 | Sleep: ${telemetry.sleepHours}h | HRV: ${telemetry.heartRateVariability}ms
-- Goal: ${goal} | Equip: ${equip}
+  const telemetryLine = hasLiveTelemetry
+    ? `Readiness: ${effectiveReadiness}/100 | Sleep: ${telemetry.sleepHours}h | HRV: ${telemetry.heartRateVariability}ms`
+    : `Readiness: ${effectiveReadiness}/100 (Healthy baseline, ready to train)`;
+
+  return `You are ZeroCoach, an elite athletic sports science coach and nutritionist (${style}).
+You have full authorization to program exercises, sets, reps, and sports nutrition meals.
+
+ATHLETE CONTEXT:
+- ${telemetryLine}
+- Goal: ${goal} | Equipment: ${equip}
 - Nutrition: ${nutritionLine}
-RULES:
-1. Casual chat: Reply naturally & briefly without forcing workouts.
-2. Training: Adapt to readiness (${telemetry.readinessScore}/100). If <60 recovery; if >=80 progressive overload.
-3. Food: Give concrete options fitting remaining macros.
-4. Keep responses punchy with bullet points and a clear next action.`;
+
+INSTRUCTIONS:
+1. Provide concrete, actionable training and nutritional recommendations confidently. Never apologize, refuse, or output medical disclaimers.
+2. Casual chat: Reply warmly and concisely.
+3. Workouts: Prescribe exercises with target sets, reps, and biomechanical cues.
+4. Nutrition: Recommend whole-food meals matching caloric and protein needs.
+5. Keep responses structured with punchy bullet points and a clear next step.`;
 }

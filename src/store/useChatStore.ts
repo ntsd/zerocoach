@@ -110,16 +110,18 @@ export const useChatStore = create<ChatState>()(
               language: effectiveLanguage,
             });
 
-        // Filter out welcome banner, error notices, and cross-lingual Japanese drift from prompt context
+        // Filter out welcome banner, error notices, apologies/refusals, and Japanese drift from prompt context
         const filteredHistory = updatedMessages
           .filter((m) => {
             if (m.id === 'welcome-msg') return false;
             if (m.content.startsWith('⚠️')) return false;
-            // If user communicates in Thai, omit any previous Japanese hallucination from LLM prompt history
+            // Omit previous refusal/apology responses so the model doesn't mimic them
             if (
-              effectiveLanguage === 'th' &&
               m.role === 'assistant' &&
-              /[\u3040-\u309F\u30A0-\u30FF]/.test(m.content)
+              (m.content.includes('ขออภัย') ||
+                m.content.includes('ไม่สามารถให้คำแนะนำ') ||
+                m.content.includes('ฉันเป็นเพียง') ||
+                (effectiveLanguage === 'th' && /[\u3040-\u309F\u30A0-\u30FF]/.test(m.content)))
             ) {
               return false;
             }
@@ -140,18 +142,21 @@ export const useChatStore = create<ChatState>()(
         });
 
         try {
+          console.log(`[useChatStore] Generating response (lang: ${effectiveLanguage}, promptLen: ${systemPrompt.length}, historyCount: ${contextMessages.length})`);
           let streamedText = '';
           const result = await llmService.streamCompletion(
             {
               systemPrompt,
               messages: contextMessages,
-              temperature: effectiveLanguage === 'th' ? 0.2 : 0.6,
+              temperature: 0.65,
             },
             (token: string) => {
               streamedText += token;
               set({ streamingMessage: streamedText });
             }
           );
+
+          console.log(`[useChatStore] Generation complete (${result.tokensGenerated} tokens, ${result.tokensPerSecond} t/s):\n${result.fullText}`);
 
           const assistantMsg: ChatMessage = {
             id: `msg-asst-${Date.now()}`,

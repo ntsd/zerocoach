@@ -8,6 +8,8 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       node: 22.13.1
+      android_signing:
+        - zerocoach_keystore
       groups:
         - google_play_credentials # Define GCLOUD_SERVICE_ACCOUNT_CREDENTIALS in Codemagic UI
       vars:
@@ -32,7 +34,19 @@ workflows:
       - name: Build Android App Bundle (AAB)
         script: |
           cd android
-          ./gradlew bundleRelease
+          echo "CM_KEYSTORE_PATH: $CM_KEYSTORE_PATH"
+          echo "CM_KEY_ALIAS: $CM_KEY_ALIAS"
+          if [ -n "$CM_KEYSTORE_PATH" ]; then
+            echo "Signing with Codemagic keystore: $CM_KEYSTORE_PATH"
+            ./gradlew bundleRelease \
+              -Pandroid.injected.signing.store.file="$CM_KEYSTORE_PATH" \
+              -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+              -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+          else
+            echo "ERROR: CM_KEYSTORE_PATH is not set. Ensure 'zerocoach_keystore' is uploaded in Codemagic Code signing identities -> Android keystores."
+            exit 1
+          fi
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
       - android/app/build/outputs/apk/release/*.apk

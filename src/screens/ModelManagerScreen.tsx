@@ -51,16 +51,11 @@ import {
 import { useTranslation } from '@/i18n';
 import { getDeviceMemoryInfo } from '@/services/device/deviceMemory';
 
-const OPENAI_MODEL_PRESETS = [
-  { label: 'gpt-4o-mini', model: 'gpt-4o-mini' },
-  { label: 'gpt-4o', model: 'gpt-4o' },
-  { label: 'o1-mini', model: 'o1-mini' },
-];
-
-const OLLAMA_MODEL_PRESETS = [
-  { label: 'llama3.2', model: 'llama3.2' },
-  { label: 'qwen2.5', model: 'qwen2.5' },
-  { label: 'deepseek-r1', model: 'deepseek-r1' },
+const OPENAI_COMPATIBLE_PRESETS = [
+  { label: 'OpenAI (GPT-4o-mini)', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  { label: 'Ollama (Llama 3.2)', url: 'http://localhost:11434/v1', model: 'llama3.2' },
+  { label: 'Groq (Llama 3.3)', url: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+  { label: 'DeepSeek (R1)', url: 'https://api.deepseek.com/v1', model: 'deepseek-reasoner' },
 ];
 
 export const ModelManagerScreen: React.FC = () => {
@@ -109,58 +104,20 @@ export const ModelManagerScreen: React.FC = () => {
   const [weightInput, setWeightInput] = useState(userProfile.weightKg > 0 ? userProfile.weightKg.toString() : '');
   const [heightInput, setHeightInput] = useState(userProfile.heightCm > 0 ? userProfile.heightCm.toString() : '');
 
-  const [remoteSubTab, setRemoteSubTab] = useState<'gemini' | 'openai' | 'ollama' | 'custom'>(() => {
-    if (provider === 'gemini') return 'gemini';
-    if (openAIConfig.baseUrl.includes('11434') || openAIConfig.baseUrl.toLowerCase().includes('ollama')) return 'ollama';
-    if (openAIConfig.baseUrl.includes('openai.com')) return 'openai';
-    if (openAIConfig.baseUrl && openAIConfig.baseUrl.trim().length > 0 && !openAIConfig.baseUrl.includes('googleapis.com')) return 'custom';
-    return 'gemini';
+  const [remoteSubTab, setRemoteSubTab] = useState<'gemini' | 'openai_compatible'>(() => {
+    return provider === 'gemini' ? 'gemini' : 'openai_compatible';
   });
 
   React.useEffect(() => {
-    if (provider === 'gemini') {
-      setRemoteSubTab('gemini');
-    } else if (provider === 'openai_compatible') {
-      setRemoteSubTab((prev) => {
-        if (prev === 'gemini') {
-          if (openAIConfig.baseUrl.includes('11434') || openAIConfig.baseUrl.toLowerCase().includes('ollama')) return 'ollama';
-          if (openAIConfig.baseUrl.includes('openai.com')) return 'openai';
-          return 'custom';
-        }
-        return prev;
-      });
+    if (provider === 'gemini' || provider === 'openai_compatible') {
+      setRemoteSubTab(provider);
     }
   }, [provider]);
 
-  const handleSelectRemoteSubTab = (subTab: 'gemini' | 'openai' | 'ollama' | 'custom') => {
+  const handleSelectRemoteSubTab = (subTab: 'gemini' | 'openai_compatible') => {
     setRemoteSubTab(subTab);
     setTestResult(null);
-
-    if (subTab === 'gemini') {
-      setProvider('gemini');
-    } else if (subTab === 'openai') {
-      setProvider('openai_compatible');
-      const shouldSetDefaultUrl = !openAIConfig.baseUrl || !openAIConfig.baseUrl.includes('openai.com');
-      const shouldSetDefaultModel = !openAIConfig.modelName || openAIConfig.modelName.includes('llama') || openAIConfig.modelName.includes('qwen');
-      if (shouldSetDefaultUrl || shouldSetDefaultModel) {
-        updateOpenAIConfig({
-          baseUrl: shouldSetDefaultUrl ? 'https://api.openai.com/v1' : openAIConfig.baseUrl,
-          modelName: shouldSetDefaultModel ? 'gpt-4o-mini' : openAIConfig.modelName,
-        });
-      }
-    } else if (subTab === 'ollama') {
-      setProvider('openai_compatible');
-      const shouldSetDefaultUrl = !openAIConfig.baseUrl || (!openAIConfig.baseUrl.includes('11434') && !openAIConfig.baseUrl.toLowerCase().includes('ollama'));
-      const shouldSetDefaultModel = !openAIConfig.modelName || openAIConfig.modelName.includes('gpt');
-      if (shouldSetDefaultUrl || shouldSetDefaultModel) {
-        updateOpenAIConfig({
-          baseUrl: shouldSetDefaultUrl ? 'http://localhost:11434/v1' : openAIConfig.baseUrl,
-          modelName: shouldSetDefaultModel ? 'llama3.2' : openAIConfig.modelName,
-        });
-      }
-    } else if (subTab === 'custom') {
-      setProvider('openai_compatible');
-    }
+    setProvider(subTab);
   };
 
   const handleSelectMainProvider = (target: 'on_device' | 'remote') => {
@@ -168,11 +125,7 @@ export const ModelManagerScreen: React.FC = () => {
     if (target === 'on_device') {
       setProvider('on_device');
     } else {
-      if (remoteSubTab === 'gemini') {
-        setProvider('gemini');
-      } else {
-        setProvider('openai_compatible');
-      }
+      setProvider(remoteSubTab);
     }
   };
 
@@ -658,7 +611,7 @@ export const ModelManagerScreen: React.FC = () => {
           {/* Remote / Cloud Provider Settings with Sub-selections */}
           {provider !== 'on_device' && (
             <View style={styles.remoteSettingsWrapper}>
-              {/* Sub-selection Tabs: Gemini, OpenAI, Ollama, Custom */}
+              {/* Sub-selection Tabs: Gemini vs OpenAI / Ollama */}
               <View style={styles.subTabsContainer}>
                 <TouchableOpacity
                   onPress={() => handleSelectRemoteSubTab('gemini')}
@@ -684,71 +637,25 @@ export const ModelManagerScreen: React.FC = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => handleSelectRemoteSubTab('openai')}
+                  onPress={() => handleSelectRemoteSubTab('openai_compatible')}
                   style={[
                     styles.subTab,
-                    remoteSubTab === 'openai' && {
+                    remoteSubTab === 'openai_compatible' && {
                       backgroundColor: `${modeColors.accent}20`,
                       borderColor: modeColors.accent,
                     },
                   ]}
                   activeOpacity={0.8}
                 >
-                  <Globe size={13} color={remoteSubTab === 'openai' ? modeColors.accent : COLORS.textMuted} />
+                  <Globe size={13} color={remoteSubTab === 'openai_compatible' ? modeColors.accent : COLORS.textMuted} />
                   <Text
                     numberOfLines={1}
                     style={[
                       styles.subTabText,
-                      remoteSubTab === 'openai' && { color: modeColors.accent, fontWeight: '700' },
+                      remoteSubTab === 'openai_compatible' && { color: modeColors.accent, fontWeight: '700' },
                     ]}
                   >
                     {t.settings.remoteSubOpenAI}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => handleSelectRemoteSubTab('ollama')}
-                  style={[
-                    styles.subTab,
-                    remoteSubTab === 'ollama' && {
-                      backgroundColor: `${modeColors.accent}20`,
-                      borderColor: modeColors.accent,
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Server size={13} color={remoteSubTab === 'ollama' ? modeColors.accent : COLORS.textMuted} />
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.subTabText,
-                      remoteSubTab === 'ollama' && { color: modeColors.accent, fontWeight: '700' },
-                    ]}
-                  >
-                    {t.settings.remoteSubOllama}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => handleSelectRemoteSubTab('custom')}
-                  style={[
-                    styles.subTab,
-                    remoteSubTab === 'custom' && {
-                      backgroundColor: `${modeColors.accent}20`,
-                      borderColor: modeColors.accent,
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Terminal size={13} color={remoteSubTab === 'custom' ? modeColors.accent : COLORS.textMuted} />
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.subTabText,
-                      remoteSubTab === 'custom' && { color: modeColors.accent, fontWeight: '700' },
-                    ]}
-                  >
-                    {t.settings.remoteSubCustom}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -847,95 +754,55 @@ export const ModelManagerScreen: React.FC = () => {
                 </View>
               )}
 
-              {/* Sub-Selection 2: OpenAI */}
-              {remoteSubTab === 'openai' && (
+              {/* Sub-Selection 2: OpenAI / Ollama / Remote */}
+              {remoteSubTab === 'openai_compatible' && (
                 <View style={styles.openAISettingsContainer}>
                   <View style={styles.providerNoteBox}>
                     <Globe size={16} color={modeColors.accent} />
                     <Text style={styles.providerNoteText}>
-                      {t.settings.openAIDesc}
+                      {t.settings.openaiCompatibleDesc}
                     </Text>
                   </View>
 
                   <Text style={styles.fieldSectionLabel}>{t.settings.quickPresets}</Text>
                   <View style={styles.presetsRow}>
-                    {OPENAI_MODEL_PRESETS.map((preset) => (
-                      <TouchableOpacity
-                        key={preset.model}
-                        onPress={() => {
-                          updateOpenAIConfig({
-                            modelName: preset.model,
-                          });
-                          setTestResult(null);
-                        }}
-                        style={[
-                          styles.presetChip,
-                          openAIConfig.modelName === preset.model && {
-                            borderColor: modeColors.accent,
-                            backgroundColor: `${modeColors.accent}20`,
-                          },
-                        ]}
-                        activeOpacity={0.8}
-                      >
-                        <Text
+                    {OPENAI_COMPATIBLE_PRESETS.map((preset) => {
+                      const isActive =
+                        openAIConfig.baseUrl === preset.url &&
+                        openAIConfig.modelName === preset.model;
+                      return (
+                        <TouchableOpacity
+                          key={preset.label}
+                          onPress={() => {
+                            updateOpenAIConfig({
+                              baseUrl: preset.url,
+                              modelName: preset.model,
+                            });
+                            setTestResult(null);
+                          }}
                           style={[
-                            styles.presetChipText,
-                            openAIConfig.modelName === preset.model && {
-                              color: modeColors.accent,
-                              fontWeight: '700',
+                            styles.presetChip,
+                            isActive && {
+                              borderColor: modeColors.accent,
+                              backgroundColor: `${modeColors.accent}20`,
                             },
                           ]}
+                          activeOpacity={0.8}
                         >
-                          {preset.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  <Text style={styles.fieldSectionLabel}>{t.settings.modelName}</Text>
-                  <View style={styles.inputRow}>
-                    <Cpu size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      value={openAIConfig.modelName}
-                      onChangeText={(val) => {
-                        updateOpenAIConfig({ modelName: val });
-                        setTestResult(null);
-                      }}
-                      placeholder="gpt-4o-mini"
-                      placeholderTextColor={COLORS.textMuted}
-                      style={styles.textInput}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-
-                  <Text style={styles.fieldSectionLabel}>{t.settings.openAIKeyLabel}</Text>
-                  <View style={styles.inputRow}>
-                    <Key size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      value={openAIConfig.apiKey}
-                      onChangeText={(val) => {
-                        updateOpenAIConfig({ apiKey: val });
-                        setTestResult(null);
-                      }}
-                      placeholder={t.settings.openAIKeyPlaceholder}
-                      placeholderTextColor={COLORS.textMuted}
-                      style={styles.textInput}
-                      secureTextEntry={!showApiKey}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowApiKey(!showApiKey)}
-                      style={styles.eyeBtn}
-                      activeOpacity={0.7}
-                    >
-                      {showApiKey ? (
-                        <EyeOff size={14} color={COLORS.textMuted} />
-                      ) : (
-                        <Eye size={14} color={COLORS.textMuted} />
-                      )}
-                    </TouchableOpacity>
+                          <Text
+                            style={[
+                              styles.presetChipText,
+                              isActive && {
+                                color: modeColors.accent,
+                                fontWeight: '700',
+                              },
+                            ]}
+                          >
+                            {preset.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
 
                   <Text style={styles.fieldSectionLabel}>{t.settings.baseApiUrl}</Text>
@@ -947,114 +814,7 @@ export const ModelManagerScreen: React.FC = () => {
                         updateOpenAIConfig({ baseUrl: val });
                         setTestResult(null);
                       }}
-                      placeholder="https://api.openai.com/v1"
-                      placeholderTextColor={COLORS.textMuted}
-                      style={styles.textInput}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-
-                  {/* Test Connection Button */}
-                  <TouchableOpacity
-                    onPress={handleTestConnection}
-                    disabled={testingConnection}
-                    style={[
-                      styles.testConnBtn,
-                      { borderColor: modeColors.accent, marginTop: SPACING.md },
-                    ]}
-                    activeOpacity={0.8}
-                  >
-                    {testingConnection ? (
-                      <ActivityIndicator size="small" color={modeColors.accent} />
-                    ) : (
-                      <RefreshCw size={14} color={modeColors.accent} />
-                    )}
-                    <Text style={[styles.testConnBtnText, { color: modeColors.accent }]}>
-                      {testingConnection ? t.settings.testingConnection : t.settings.testConnection}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {testResult && (
-                    <View
-                      style={[
-                        styles.testResultBox,
-                        testResult.success ? styles.testResultSuccess : styles.testResultError,
-                      ]}
-                    >
-                      {testResult.success ? (
-                        <CheckCircle2 size={14} color={COLORS.success} />
-                      ) : (
-                        <AlertTriangle size={14} color={COLORS.danger} />
-                      )}
-                      <Text
-                        style={[
-                          styles.testResultText,
-                          { color: testResult.success ? COLORS.success : COLORS.danger },
-                        ]}
-                      >
-                        {testResult.message}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* Sub-Selection 3: Ollama */}
-              {remoteSubTab === 'ollama' && (
-                <View style={styles.openAISettingsContainer}>
-                  <View style={styles.providerNoteBox}>
-                    <Server size={16} color={modeColors.accent} />
-                    <Text style={styles.providerNoteText}>
-                      {t.settings.ollamaDesc}
-                    </Text>
-                  </View>
-
-                  <Text style={styles.fieldSectionLabel}>{t.settings.quickPresets}</Text>
-                  <View style={styles.presetsRow}>
-                    {OLLAMA_MODEL_PRESETS.map((preset) => (
-                      <TouchableOpacity
-                        key={preset.model}
-                        onPress={() => {
-                          updateOpenAIConfig({
-                            modelName: preset.model,
-                          });
-                          setTestResult(null);
-                        }}
-                        style={[
-                          styles.presetChip,
-                          openAIConfig.modelName === preset.model && {
-                            borderColor: modeColors.accent,
-                            backgroundColor: `${modeColors.accent}20`,
-                          },
-                        ]}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.presetChipText,
-                            openAIConfig.modelName === preset.model && {
-                              color: modeColors.accent,
-                              fontWeight: '700',
-                            },
-                          ]}
-                        >
-                          {preset.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  <Text style={styles.fieldSectionLabel}>{t.settings.baseApiUrl}</Text>
-                  <View style={styles.inputRow}>
-                    <Server size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      value={openAIConfig.baseUrl}
-                      onChangeText={(val) => {
-                        updateOpenAIConfig({ baseUrl: val });
-                        setTestResult(null);
-                      }}
-                      placeholder="e.g. http://localhost:11434/v1"
+                      placeholder="e.g. https://api.openai.com/v1 or http://localhost:11434/v1"
                       placeholderTextColor={COLORS.textMuted}
                       style={styles.textInput}
                       autoCapitalize="none"
@@ -1071,125 +831,7 @@ export const ModelManagerScreen: React.FC = () => {
                         updateOpenAIConfig({ modelName: val });
                         setTestResult(null);
                       }}
-                      placeholder="e.g. llama3.2, qwen2.5"
-                      placeholderTextColor={COLORS.textMuted}
-                      style={styles.textInput}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-
-                  <Text style={styles.fieldSectionLabel}>{t.settings.apiKeyOptional}</Text>
-                  <View style={styles.inputRow}>
-                    <Key size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      value={openAIConfig.apiKey}
-                      onChangeText={(val) => {
-                        updateOpenAIConfig({ apiKey: val });
-                        setTestResult(null);
-                      }}
-                      placeholder={t.settings.apiKeyPlaceholder}
-                      placeholderTextColor={COLORS.textMuted}
-                      style={styles.textInput}
-                      secureTextEntry={!showApiKey}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowApiKey(!showApiKey)}
-                      style={styles.eyeBtn}
-                      activeOpacity={0.7}
-                    >
-                      {showApiKey ? (
-                        <EyeOff size={14} color={COLORS.textMuted} />
-                      ) : (
-                        <Eye size={14} color={COLORS.textMuted} />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Test Connection Button */}
-                  <TouchableOpacity
-                    onPress={handleTestConnection}
-                    disabled={testingConnection}
-                    style={[
-                      styles.testConnBtn,
-                      { borderColor: modeColors.accent, marginTop: SPACING.md },
-                    ]}
-                    activeOpacity={0.8}
-                  >
-                    {testingConnection ? (
-                      <ActivityIndicator size="small" color={modeColors.accent} />
-                    ) : (
-                      <RefreshCw size={14} color={modeColors.accent} />
-                    )}
-                    <Text style={[styles.testConnBtnText, { color: modeColors.accent }]}>
-                      {testingConnection ? t.settings.testingConnection : t.settings.testConnection}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {testResult && (
-                    <View
-                      style={[
-                        styles.testResultBox,
-                        testResult.success ? styles.testResultSuccess : styles.testResultError,
-                      ]}
-                    >
-                      {testResult.success ? (
-                        <CheckCircle2 size={14} color={COLORS.success} />
-                      ) : (
-                        <AlertTriangle size={14} color={COLORS.danger} />
-                      )}
-                      <Text
-                        style={[
-                          styles.testResultText,
-                          { color: testResult.success ? COLORS.success : COLORS.danger },
-                        ]}
-                      >
-                        {testResult.message}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* Sub-Selection 4: Custom Endpoint */}
-              {remoteSubTab === 'custom' && (
-                <View style={styles.openAISettingsContainer}>
-                  <View style={styles.providerNoteBox}>
-                    <Terminal size={16} color={modeColors.accent} />
-                    <Text style={styles.providerNoteText}>
-                      {t.settings.customRemoteDesc}
-                    </Text>
-                  </View>
-
-                  <Text style={styles.fieldSectionLabel}>{t.settings.baseApiUrl}</Text>
-                  <View style={styles.inputRow}>
-                    <Server size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      value={openAIConfig.baseUrl}
-                      onChangeText={(val) => {
-                        updateOpenAIConfig({ baseUrl: val });
-                        setTestResult(null);
-                      }}
-                      placeholder="e.g. https://api.groq.com/openai/v1"
-                      placeholderTextColor={COLORS.textMuted}
-                      style={styles.textInput}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-
-                  <Text style={styles.fieldSectionLabel}>{t.settings.modelName}</Text>
-                  <View style={styles.inputRow}>
-                    <Cpu size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      value={openAIConfig.modelName}
-                      onChangeText={(val) => {
-                        updateOpenAIConfig({ modelName: val });
-                        setTestResult(null);
-                      }}
-                      placeholder="e.g. llama-3.3-70b-versatile"
+                      placeholder="e.g. gpt-4o-mini, llama3.2, deepseek-reasoner"
                       placeholderTextColor={COLORS.textMuted}
                       style={styles.textInput}
                       autoCapitalize="none"

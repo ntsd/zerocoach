@@ -62,3 +62,8 @@ scripts/demo/scenes/
 .argent/
 
 .agents
+keys/
+*.jks
+*.keystore
+*.p8
+*.pepk

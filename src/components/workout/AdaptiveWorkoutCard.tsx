@@ -69,7 +69,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const todayDateStr = new Date().toISOString().split('T')[0];
   const currentDateStr = date || todayDateStr;
   const isToday = currentDateStr === todayDateStr;
-  const { activeDraft, historyByDate, plansByDate, saveDraft, finishWorkout, savePlanForDate } = useWorkoutStore();
+  const { historyByDate, plansByDate, finishWorkout, savePlanForDate } = useWorkoutStore();
   const sessionForDate = (historyByDate || {})[currentDateStr];
   const storedPlan = (plansByDate || {})[currentDateStr];
 
@@ -78,8 +78,9 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     if (sessionForDate && sessionForDate.exercises?.length > 0) {
       return sessionForDate.exercises;
     }
-    if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
-      return activeDraft.exercises;
+    const draft = useWorkoutStore.getState().activeDraft;
+    if (draft && draft.date === currentDateStr && draft.planId === plan.id) {
+      return draft.exercises;
     }
     if (storedPlan && storedPlan.exercises?.length > 0) {
       return storedPlan.exercises;
@@ -95,8 +96,9 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       });
       return map;
     }
-    if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
-      return activeDraft.completedExercises;
+    const draft = useWorkoutStore.getState().activeDraft;
+    if (draft && draft.date === currentDateStr && draft.planId === plan.id) {
+      return draft.completedExercises;
     }
     return {};
   });
@@ -109,14 +111,15 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       });
       return map;
     }
-    if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
-      return activeDraft.skippedExercises;
+    const draft = useWorkoutStore.getState().activeDraft;
+    if (draft && draft.date === currentDateStr && draft.planId === plan.id) {
+      return draft.skippedExercises;
     }
     return {};
   });
 
   const startedAtRef = useRef<number>(
-    sessionForDate?.startedAt || activeDraft?.startedAt || Date.now()
+    sessionForDate?.startedAt || useWorkoutStore.getState().activeDraft?.startedAt || Date.now()
   );
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
@@ -133,12 +136,20 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   useEffect(() => {
     if (sessionForDate) return; // Already finalized on this date
     if (!isToday) return; // Only auto-save active draft for today
+
     const hasProgress =
       Object.keys(completedExercises).some((k) => completedExercises[k]) ||
       Object.keys(skippedExercises).some((k) => skippedExercises[k]);
-    if (!hasProgress && !activeDraft) return;
 
-    saveDraft({
+    if (!hasProgress) {
+      const currentDraft = useWorkoutStore.getState().activeDraft;
+      if (currentDraft && currentDraft.date === currentDateStr) {
+        useWorkoutStore.getState().clearDraft();
+      }
+      return;
+    }
+
+    useWorkoutStore.getState().saveDraft({
       date: currentDateStr,
       planId: plan.id,
       exercises,
@@ -155,8 +166,6 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     currentDateStr,
     sessionForDate,
     isToday,
-    saveDraft,
-    activeDraft,
   ]);
 
   // Synchronize when the generated plan changes (e.g. split switch or goal change)
@@ -165,7 +174,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     if (prevPlanIdRef.current !== plan.id) {
       prevPlanIdRef.current = plan.id;
       if (!sessionForDate) {
-        const saved = (plansByDate || {})[currentDateStr];
+        const saved = (useWorkoutStore.getState().plansByDate || {})[currentDateStr];
         if (saved && saved.exercises?.length > 0) {
           setExercises(saved.exercises);
         } else {
@@ -176,7 +185,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         startedAtRef.current = Date.now();
       }
     }
-  }, [plan.id, plan.exercises, sessionForDate, currentDateStr, plansByDate]);
+  }, [plan.id, plan.exercises, sessionForDate, currentDateStr]);
 
   const persistPlanExercises = (updated: ExerciseItem[]) => {
     if (!sessionForDate) {

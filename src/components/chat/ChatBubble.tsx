@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { ChatMessage } from '@/types/chat';
 import { useTranslation } from '@/i18n';
 import { COLORS, getModeColors } from '@/theme/colors';
@@ -79,6 +79,16 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               ],
         ]}
       >
+        {message.imageUri && (
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: message.imageUri }}
+              style={styles.messageImage}
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
         <MarkdownText
           content={message.content}
           accentColor={modeColors.accent}
@@ -253,5 +263,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
+  },
+  imageContainer: {
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    marginBottom: SPACING.xs,
+  },
+  messageImage: {
+    width: 220,
+    height: 160,
+    borderRadius: RADIUS.md,
   },
 });

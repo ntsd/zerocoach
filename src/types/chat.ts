@@ -11,6 +11,7 @@ export interface ChatMessage {
   tokensGenerated?: number;
   tokensPerSecond?: number;
   executionSteps?: AgentExecutionStep[];
+  imageUri?: string;
 }
 
 export interface ChatState {
@@ -19,7 +20,7 @@ export interface ChatState {
   streamingMessage: string;
   activeSteps?: AgentExecutionStep[];
   error: string | null;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, imageUri?: string, base64Data?: string | null) => Promise<void>;
   clearHistory: () => void;
   stopGeneration: () => void;
 }

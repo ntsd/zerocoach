@@ -9,7 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Modal,
+  Image,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChatStore } from '@/store/useChatStore';
 import { useCoachStore } from '@/store/useCoachStore';
@@ -32,6 +36,9 @@ import {
   AlertTriangle,
   ChevronRight,
   Settings,
+  Camera,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react-native';
 import { llmService } from '@/services/llm/llmService';
 
@@ -50,6 +57,8 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const [inputText, setInputText] = useState('');
+  const [selectedImage, setSelectedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
+  const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null);
@@ -150,6 +159,50 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
 
   const modelInfo = getModelDisplayInfo();
 
+  const handleCameraCapture = async () => {
+    setIsPhotoPickerOpen(false);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Camera Permission',
+          t.coach.cameraPermissionRequired || 'Camera access is required to capture photos.'
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        setSelectedImage({ uri: asset.uri, base64: asset.base64 });
+      }
+    } catch (err) {
+      console.warn('Error launching camera:', err);
+    }
+  };
+
+  const handleGalleryPick = async () => {
+    setIsPhotoPickerOpen(false);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        setSelectedImage({ uri: asset.uri, base64: asset.base64 });
+      }
+    } catch (err) {
+      console.warn('Error picking image from library:', err);
+    }
+  };
+
   const handleSend = async (textToSend?: string) => {
     if (!isModelReady) {
       onNavigateToSettings?.();
@@ -157,13 +210,15 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
     }
     const raw = textToSend !== undefined ? textToSend : inputText;
     const text = raw.trim();
-    if (!text || isGenerating) return;
+    if ((!text && !selectedImage) || isGenerating) return;
 
+    const imgToSend = selectedImage;
     // Immediately clear native input buffer and react state
     textInputRef.current?.clear();
     setInputText('');
+    setSelectedImage(null);
 
-    await sendMessage(text);
+    await sendMessage(text, imgToSend?.uri, imgToSend?.base64);
   };
 
   const handleTextChange = (text: string) => {
@@ -425,6 +480,30 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           </TouchableOpacity>
         )}
 
+        {/* Attached Image Preview */}
+        {selectedImage && (
+          <View style={styles.imagePreviewRow}>
+            <View style={styles.thumbnailWrapper}>
+              <Image source={{ uri: selectedImage.uri }} style={styles.thumbnailImage} />
+              <TouchableOpacity
+                onPress={() => setSelectedImage(null)}
+                style={styles.removeImageBtn}
+                activeOpacity={0.7}
+              >
+                <X size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={[styles.imageAttachedText, { color: modeColors.accent }]}>
+                {t.coach.photoAttached || 'Photo attached (Meal / Form)'}
+              </Text>
+              <Text style={styles.imageSubText} numberOfLines={1}>
+                {selectedImage.uri.split('/').pop() || 'image.jpg'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Input Bar */}
         <View
           style={[
@@ -433,6 +512,22 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
             isKeyboardVisible && styles.inputContainerKeyboardActive,
           ]}
         >
+          {/* Photo / Camera Action Button */}
+          <TouchableOpacity
+            onPress={() => setIsPhotoPickerOpen(true)}
+            disabled={isGenerating || !isModelReady}
+            style={[
+              styles.photoButton,
+              selectedImage && { backgroundColor: `${modeColors.accent}20` },
+            ]}
+            activeOpacity={0.7}
+          >
+            <Camera
+              size={18}
+              color={selectedImage ? modeColors.accent : isModelReady ? COLORS.textSecondary : COLORS.textMuted}
+            />
+          </TouchableOpacity>
+
           <TextInput
             ref={textInputRef}
             style={[
@@ -473,12 +568,12 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           ) : (
             <TouchableOpacity
               onPress={() => handleSend()}
-              disabled={!isModelReady || !inputText.trim()}
+              disabled={!isModelReady || (!inputText.trim() && !selectedImage)}
               style={[
                 styles.actionButton,
                 {
                   backgroundColor:
-                    isModelReady && inputText.trim()
+                    isModelReady && (inputText.trim() || selectedImage)
                       ? modeColors.accent
                       : COLORS.cardSecondary,
                 },
@@ -488,7 +583,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
               <Send
                 size={16}
                 color={
-                  isModelReady && inputText.trim()
+                  isModelReady && (inputText.trim() || selectedImage)
                     ? COLORS.textDark
                     : COLORS.textMuted
                 }
@@ -496,6 +591,61 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Photo Source Modal */}
+        <Modal
+          visible={isPhotoPickerOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsPhotoPickerOpen(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setIsPhotoPickerOpen(false)}
+          >
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>
+                {t.nutrition.snapFoodTitle || 'Attach Photo'}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                {t.nutrition.snapFoodDesc || 'Take a photo of your meal or select an image from your library'}
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.modalOptionButton, { borderColor: `${modeColors.accent}40` }]}
+                onPress={handleCameraCapture}
+                activeOpacity={0.75}
+              >
+                <Camera size={20} color={modeColors.accent} />
+                <Text style={[styles.modalOptionText, { color: COLORS.textPrimary }]}>
+                  {t.coach.takePhotoAction || 'Take Photo'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalOptionButton, { borderColor: `${modeColors.accent}40` }]}
+                onPress={handleGalleryPick}
+                activeOpacity={0.75}
+              >
+                <ImageIcon size={20} color={modeColors.accent} />
+                <Text style={[styles.modalOptionText, { color: COLORS.textPrimary }]}>
+                  {t.coach.uploadPhotoAction || 'Choose from Gallery'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setIsPhotoPickerOpen(false)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.modalCancelText}>
+                  {t.coach.cancelAction || 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -576,6 +726,107 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  photoButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: SPACING.md,
+    marginBottom: 4,
+    padding: SPACING.xs,
+    backgroundColor: COLORS.cardSecondary,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.textMuted}30`,
+  },
+  thumbnailWrapper: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.xs,
+    overflow: 'hidden',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageAttachedText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  imageSubText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textMuted,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.cardBackground,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: `${COLORS.textMuted}30`,
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  modalTitle: {
+    ...TYPOGRAPHY.h3,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+  },
+  modalSubtitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.xs,
+  },
+  modalOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm + 2,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    backgroundColor: COLORS.cardSecondary,
+  },
+  modalOptionText: {
+    ...TYPOGRAPHY.body,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalCancelButton: {
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    marginTop: 4,
+  },
+  modalCancelText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontWeight: '600',
   },
   inputContainerKeyboardActive: {
     marginBottom: Platform.OS === 'ios' ? 12 : 8,

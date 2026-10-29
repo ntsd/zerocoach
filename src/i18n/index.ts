@@ -463,6 +463,11 @@ export const TRANSLATIONS = {
       downloadBannerSub: 'Auto-loading into RAM upon completion',
       loadingBannerText: '⚡ Allocating {name} into RAM via llama.rn...',
       clearChatTitle: 'Clear Chat',
+      takePhotoAction: 'Take Photo',
+      uploadPhotoAction: 'Choose from Gallery',
+      cancelAction: 'Cancel',
+      photoAttached: 'Photo attached (Meal / Form)',
+      cameraPermissionRequired: 'Camera access is required to capture photos.',
       quickPrompts: {
         workoutPlan: 'Suggest workout',
         workoutPlanPrompt:
@@ -1245,6 +1250,11 @@ export const TRANSLATIONS = {
       downloadBannerSub: 'โหลดเข้า RAM อัตโนมัติเมื่อเสร็จสิ้น',
       loadingBannerText: '⚡ กำลังจัดสรรพื้นที่ {name} เข้าสู่ RAM...',
       clearChatTitle: 'ล้างแชท',
+      takePhotoAction: 'ถ่ายภาพ',
+      uploadPhotoAction: 'เลือกจากแกลเลอรี',
+      cancelAction: 'ยกเลิก',
+      photoAttached: 'แนบรูปภาพแล้ว (อาหาร / ท่าฝึก)',
+      cameraPermissionRequired: 'จำเป็นต้องอนุญาตการเข้าถึงกล้องเพื่อถ่ายภาพ',
       quickPrompts: {
         workoutPlan: 'แนะนำแผนฝึก',
         workoutPlanPrompt:

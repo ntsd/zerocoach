@@ -12,6 +12,7 @@ import { llmService } from '@/services/llm/llmService';
 import { useModelStore } from './useModelStore';
 import { AgentHarness } from '@/services/agent/agentHarness';
 import { AgentExecutionStep } from '@/services/agent/types';
+import { analyzeMealPhoto } from '@/services/nutrition/photoMealAnalyzer';
 
 const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
@@ -32,9 +33,9 @@ export const useChatStore = create<ChatState>()(
       activeSteps: [],
       error: null,
 
-      sendMessage: async (text: string) => {
+      sendMessage: async (text: string, imageUri?: string, base64Data?: string | null) => {
         const trimmed = text.trim();
-        if (!trimmed || get().isGenerating) return;
+        if ((!trimmed && !imageUri) || get().isGenerating) return;
 
         const modelState = useModelStore.getState();
         if (!llmService.isReady()) {
@@ -55,12 +56,18 @@ export const useChatStore = create<ChatState>()(
         const currentNutritionLog = nutritionState.getDailyLog();
         const currentNutritionSummary = nutritionState.getSummaryForDate();
 
+        const defaultPrompt =
+          coachState.language === 'th' || /[\u0E00-\u0E7F]/.test(trimmed)
+            ? 'ช่วยวิเคราะห์ภาพนี้ให้หน่อย'
+            : 'Analyze this image and break down what you see.';
+
         const userMsg: ChatMessage = {
           id: `msg-user-${Date.now()}`,
           role: 'user',
-          content: trimmed,
+          content: trimmed || defaultPrompt,
           timestamp: Date.now(),
           readinessAtCreation: telemetryState.metrics.readinessScore,
+          imageUri,
         };
 
         const updatedMessages = [...get().messages, userMsg];
@@ -138,9 +145,37 @@ export const useChatStore = create<ChatState>()(
           })
           .slice(-4);
 
+        let visualContext = '';
+        if (imageUri) {
+          try {
+            console.log('[useChatStore] Analyzing attached image with photoMealAnalyzer...');
+            const photoAnalysis = await analyzeMealPhoto(
+              imageUri,
+              base64Data,
+              modelState.openAIConfig,
+              undefined,
+              trimmed,
+              modelState.geminiApiKey
+            );
+            console.log('[useChatStore] Photo analysis result:', photoAnalysis);
+
+            if (photoAnalysis.canIdentify && photoAnalysis.dishTitle) {
+              const nutrients = photoAnalysis.decomposition?.totalNutrients;
+              visualContext = `\n[ATTACHED PHOTO IDENTIFIED: "${photoAnalysis.dishTitle}" (${photoAnalysis.ingredientsText || ''}) | Nutrition: ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein, ${nutrients?.carbsGrams || 0}g carbs, ${nutrients?.fatGrams || 0}g fat. You can offer to log this using add_food_item or explain how it fits the athlete's nutrition targets.]`;
+            } else if (photoAnalysis.errorMessage) {
+              visualContext = `\n[ATTACHED PHOTO: Note: ${photoAnalysis.errorMessage}]`;
+            }
+          } catch (visionErr) {
+            console.warn('[useChatStore] Vision analysis error:', visionErr);
+          }
+        }
+
         // Compress older assistant turns to conserve prompt tokens for fast on-device prefill
         const contextMessages = filteredHistory.map((m, idx) => {
           let content = m.content.trim();
+          if (idx === filteredHistory.length - 1 && visualContext) {
+            content = `${content}${visualContext}`;
+          }
           if (m.role === 'assistant' && idx < filteredHistory.length - 1 && content.length > 240) {
             content = content.slice(0, 240) + '...';
           }
@@ -159,6 +194,7 @@ export const useChatStore = create<ChatState>()(
             systemPrompt,
             messages: contextMessages,
             temperature: 0.65,
+            mediaPaths: imageUri ? [imageUri] : undefined,
             callbacks: {
               onToken: (token: string) => {
                 streamedText += token;

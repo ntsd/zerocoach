@@ -84,6 +84,7 @@ export interface AgentRunParams {
   callbacks?: AgentExecutionCallbacks;
   temperature?: number;
   maxTokens?: number;
+  mediaPaths?: string[];
 }
 
 export interface AgentRunResult {
@@ -117,6 +118,7 @@ export class AgentHarness {
           messages: conversationHistory,
           temperature,
           maxTokens,
+          mediaPaths: toolCallsCount === 0 ? params.mediaPaths : undefined,
         },
         (token: string) => {
           iterationStreamedText += token;
@@ -205,6 +207,7 @@ export class AgentHarness {
         messages: conversationHistory,
         temperature,
         maxTokens: Math.max(maxTokens, 800),
+        mediaPaths: params.mediaPaths,
       },
       (token: string) => {
         synthesisStreamedText += token;

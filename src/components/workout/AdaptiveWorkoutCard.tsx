@@ -72,16 +72,19 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const todayDateStr = new Date().toISOString().split('T')[0];
   const currentDateStr = date || todayDateStr;
   const isToday = currentDateStr === todayDateStr;
-  const { activeDraft, historyByDate, saveDraft, finishWorkout } = useWorkoutStore();
+  const { activeDraft, historyByDate, plansByDate, saveDraft, finishWorkout, savePlanForDate } = useWorkoutStore();
   const sessionForDate = historyByDate[currentDateStr];
 
-  // Stateful exercises in the workout (restores from completed session or draft if present)
+  // Stateful exercises in the workout (restores from completed session, draft, or stored plan)
   const [exercises, setExercises] = useState<ExerciseItem[]>(() => {
     if (sessionForDate) {
       return sessionForDate.exercises;
     }
     if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
       return activeDraft.exercises;
+    }
+    if (plansByDate[currentDateStr] && plansByDate[currentDateStr].exercises?.length > 0) {
+      return plansByDate[currentDateStr].exercises;
     }
     return plan.exercises;
   });
@@ -151,6 +154,17 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     isToday,
     saveDraft,
   ]);
+
+  // Persist workout plan changes for the active date so AI Agent and App UI stay in sync
+  useEffect(() => {
+    if (!sessionForDate && exercises.length > 0) {
+      savePlanForDate(currentDateStr, {
+        ...plan,
+        exercises,
+        generatedDate: currentDateStr,
+      });
+    }
+  }, [exercises, currentDateStr, sessionForDate, plan, savePlanForDate]);
 
   // Synchronize when the generated plan changes (e.g. split switch or goal change)
   const prevPlanIdRef = useRef(plan.id);

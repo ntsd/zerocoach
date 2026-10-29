@@ -9,14 +9,16 @@ import { useNutritionStore } from './useNutritionStore';
 import { buildSystemPrompt, buildCompactSystemPrompt } from '@/services/prompts/systemPromptBuilder';
 import { llmService } from '@/services/llm/llmService';
 import { useModelStore } from './useModelStore';
+import { AgentHarness } from '@/services/agent/agentHarness';
+import { AgentExecutionStep } from '@/services/agent/types';
 
 const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
   role: 'assistant',
   content: `### ⚡ ZeroCoach AI
-Private on-device AI & sports science coach.
+Private on-device AI & sports science coach with Agent Action Harness.
 
-Ask me to suggest food for your remaining macros, adjust your training plan, or guide your skill progression.`,
+Ask me to log food, swap an exercise in today's workout, check your wearable readiness telemetry, or update your targets.`,
   timestamp: Date.now(),
   modeAtCreation: 'strict',
 };
@@ -27,6 +29,7 @@ export const useChatStore = create<ChatState>()(
       messages: [INITIAL_WELCOME_MESSAGE],
       isGenerating: false,
       streamingMessage: '',
+      activeSteps: [],
       error: null,
 
       sendMessage: async (text: string) => {
@@ -142,21 +145,32 @@ export const useChatStore = create<ChatState>()(
         });
 
         try {
-          console.log(`[useChatStore] Generating response (lang: ${effectiveLanguage}, promptLen: ${systemPrompt.length}, historyCount: ${contextMessages.length})`);
+          console.log(`[useChatStore] Running Agent Harness (lang: ${effectiveLanguage}, promptLen: ${systemPrompt.length}, historyCount: ${contextMessages.length})`);
           let streamedText = '';
-          const result = await llmService.streamCompletion(
-            {
-              systemPrompt,
-              messages: contextMessages,
-              temperature: 0.65,
-            },
-            (token: string) => {
-              streamedText += token;
-              set({ streamingMessage: streamedText });
-            }
-          );
+          const currentSteps: AgentExecutionStep[] = [];
 
-          console.log(`[useChatStore] Generation complete (${result.tokensGenerated} tokens, ${result.tokensPerSecond} t/s):\n${result.fullText}`);
+          const result = await AgentHarness.run({
+            systemPrompt,
+            messages: contextMessages,
+            temperature: 0.65,
+            callbacks: {
+              onToken: (token: string) => {
+                streamedText += token;
+                set({ streamingMessage: streamedText });
+              },
+              onStepUpdate: (step: AgentExecutionStep) => {
+                const existingIdx = currentSteps.findIndex((s) => s.id === step.id);
+                if (existingIdx >= 0) {
+                  currentSteps[existingIdx] = step;
+                } else {
+                  currentSteps.push(step);
+                }
+                set({ activeSteps: [...currentSteps] });
+              },
+            },
+          });
+
+          console.log(`[useChatStore] Generation complete (${result.tokensGenerated} tokens, ${result.tokensPerSecond} t/s, ${result.steps.length} steps):\n${result.fullText}`);
 
           const assistantMsg: ChatMessage = {
             id: `msg-asst-${Date.now()}`,
@@ -167,12 +181,14 @@ export const useChatStore = create<ChatState>()(
             readinessAtCreation: telemetryState.metrics.readinessScore,
             tokensGenerated: result.tokensGenerated,
             tokensPerSecond: result.tokensPerSecond,
+            executionSteps: result.steps.length > 0 ? result.steps : undefined,
           };
 
           set({
             messages: [...updatedMessages, assistantMsg],
             isGenerating: false,
             streamingMessage: '',
+            activeSteps: [],
           });
         } catch (err: any) {
           console.error('[ChatStore] Error generating response:', err);
@@ -187,6 +203,7 @@ export const useChatStore = create<ChatState>()(
             messages: [...updatedMessages, errorMsg],
             isGenerating: false,
             streamingMessage: '',
+            activeSteps: [],
             error: err?.message || 'Inference error encountered.',
           });
         }
@@ -201,13 +218,14 @@ export const useChatStore = create<ChatState>()(
             },
           ],
           streamingMessage: '',
+          activeSteps: [],
           error: null,
         });
       },
 
       stopGeneration: () => {
         llmService.stopCompletion();
-        set({ isGenerating: false, streamingMessage: '' });
+        set({ isGenerating: false, streamingMessage: '', activeSteps: [] });
       },
     }),
     {

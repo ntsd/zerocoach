@@ -7,35 +7,45 @@ const stackLayers = [
     tag: "Mobile Framework"
   },
   {
-    layer: "02. Neural Inference Engine",
+    layer: "02. AI Agent Action Harness",
+    tech: "Autonomous Tool Dispatcher",
+    description: "Symmetric read/write execution engine operating across telemetry, food history, workout plans, and athlete settings with live status feeds.",
+    tag: "Agent Mode"
+  },
+  {
+    layer: "03. Neural Inference Engine",
     tech: "llama.rn & llama.cpp",
     description: "Native C++ execution on device silicon with ARM64 NEON & Apple Metal acceleration. Runs quantized Q4_K_M GGUF models with streaming tokens.",
     tag: "On-Device AI"
   },
   {
-    layer: "03. Exercise Intelligence",
+    layer: "04. Exercise Intelligence",
     tech: "RepDB Verified Repository",
     description: "643 science-backed movements with start and peak pose kinematics, dynamic warmup builders, and CNS readiness load auto-regulation.",
     tag: "Biomechanics"
   },
   {
-    layer: "04. Multimodal Nutrition",
+    layer: "05. Multimodal Nutrition",
     tech: "Gemini Vision & NutriSight",
     description: "Plate meal decomposition via Gemini 3.8 Flash, Open Food Facts barcode lookup, and NutriSight label extraction for 11 micronutrients.",
     tag: "Computer Vision"
   },
   {
-    layer: "05. Biometric Bridge",
-    tech: "Health Connect & HealthKit",
-    description: "OS-level health aggregators reading resting heart rate, HRV, and sleep stages across Garmin, Apple Watch, Whoop, Oura, and Samsung.",
-    tag: "Telemetry"
-  },
-  {
-    layer: "06. Local Persistence",
-    tech: "Zustand & AsyncStorage",
-    description: "All athlete logs, nutrition diaries, and model configs stay encrypted in local sandbox storage. 1-tap instant data wipe anytime.",
-    tag: "Privacy"
+    layer: "06. Biometric Bridge & Persistence",
+    tech: "Health Connect + Zustand",
+    description: "OS health aggregators reading resting HR, HRV, and sleep. All logs stay encrypted in local AsyncStorage with 1-tap instant data wipe.",
+    tag: "Privacy & Storage"
   }
+];
+
+const parityDomains = [
+  { domain: "Fitness Telemetry", ui: "View Readiness (0–100), HRV, resting HR, sleep, steps, and sync wearables", agent: "Read biometrics via get_telemetry_metrics(), trigger sync with sync_fitness_telemetry()", access: "Read / Action" },
+  { domain: "Food History", ui: "Browse meal logs by date, log meals, delete items, update macro targets", agent: "Read food history, log food items, delete entries, and update macro targets", access: "Read / Write" },
+  { domain: "Food Database", ui: "Search whole foods (USDA), query packaged goods (Open Food Facts), scan barcodes", agent: "Search USDA & Open Food Facts databases and fetch nutrient profiles by barcode", access: "Read" },
+  { domain: "Workout History", ui: "Review past workout sessions, volume, and sets by calendar date", agent: "Read workout history across recent days and log finished workout sessions", access: "Read / Write" },
+  { domain: "Workout Plan", ui: "View adaptive daily splits, swap/skip exercises, schedule future routines", agent: "Read daily workout plans, update full routines, and swap exercises from RepDB", access: "Read / Write" },
+  { domain: "Workout DB (RepDB)", ui: "Browse 643 movements, filter by muscle/equipment, view poses & cues", agent: "Search 643 movements and retrieve kinetic cues, biomechanics, and pose metadata", access: "Read" },
+  { domain: "ZeroCoach Settings", ui: "Update athlete profile, goals, weight/height, switch coach persona, language", agent: "Read athlete profile settings and update goals, body weight, coach tone, or language", access: "Read / Write" }
 ];
 ---
 
@@ -49,12 +59,12 @@ const stackLayers = [
         Built on Open Science & Modern Systems.
       </h2>
       <p class="mt-4 text-base sm:text-lg text-slate-400">
-        A resilient, fully open-source architecture designed to run independent of centralized servers.
+        A resilient, fully open-source architecture designed with 100% symmetric parity between the Mobile UI and AI Agent Action Harness.
       </p>
     </div>
 
     <!-- Tech Stack Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-20">
       {stackLayers.map((layer) => (
         <div class="glass-panel p-6 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
           <div>
@@ -67,6 +77,46 @@ const stackLayers = [
           </div>
         </div>
       ))}
+    </div>
+
+    <!-- Symmetric Read/Write Parity Matrix -->
+    <div class="max-w-6xl mx-auto glass-panel p-8 sm:p-10 rounded-3xl border border-white/5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <span class="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">SYMMETRIC ACCESS MODEL</span>
+          <h3 class="text-2xl font-bold text-white mt-1">App UI & AI Agent Parity Matrix</h3>
+        </div>
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-mono text-cyan-300 self-start sm:self-auto">
+          <span>7 Core Domains</span>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-white/10 text-xs font-mono uppercase tracking-wider text-slate-400">
+              <th class="py-3 px-4">Domain</th>
+              <th class="py-3 px-4">Access</th>
+              <th class="py-3 px-4">App UI Access</th>
+              <th class="py-3 px-4">AI Agent Harness Access</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            {parityDomains.map((row) => (
+              <tr class="hover:bg-white/[0.02] transition-colors">
+                <td class="py-4 px-4 font-mono font-bold text-white whitespace-nowrap">{row.domain}</td>
+                <td class="py-4 px-4 font-mono text-xs whitespace-nowrap">
+                  <span class={`px-2 py-0.5 rounded-full border ${row.access === 'Read / Write' ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' : 'bg-slate-800 text-slate-300 border-white/10'}`}>
+                    {row.access}
+                  </span>
+                </td>
+                <td class="py-4 px-4 text-slate-300 text-xs sm:text-sm">{row.ui}</td>
+                <td class="py-4 px-4 text-cyan-200/90 text-xs sm:text-sm font-mono">{row.agent}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </section>

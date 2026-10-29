@@ -39,11 +39,13 @@ Visit the official website at [**zerocoach.tech**](https://zerocoach.tech).
 
 ## ✨ Key Features
 
+- ⚡ **AI Chat (Agent Mode with Action Harness)**: Autonomous tool execution harness that reads and writes across all 7 core app domains (telemetry, food history, food DB, workout history, workout plan, RepDB, and athlete settings) in real-time.
 - 📱 **100% On-Device AI Inference**: Runs quantized LLM models (e.g. Google Gemma 2) locally with hardware acceleration—zero cloud latency, zero API costs, and absolute data privacy.
 - 🔌 **OpenAI-Compatible Local Endpoints**: Connect seamlessly to local network LLM runners like Ollama, LM Studio, vLLM, or desktop llama.cpp servers.
+- 🔄 **Symmetric UI & AI Access Parity**: 100% parity between direct App UI manipulation and conversational AI commands—log meals, swap workout exercises, modify macro targets, and view wearable biometrics conversationally or through screens.
 - 💬 **Conversational Athletic Coach**: Real-time AI coaching with dual personas (*Strict* vs. *Comfort*), auto-regulating advice based on live recovery metrics and nutrition.
-- 🏋️ **Goal-Driven Adaptive Training**: Automatically generates personalized workout splits based on readiness scores, equipment (Gym vs. Bodyweight), and athlete skill level.
-- 📅 **Calendar Date Navigation**: Seamless date navigation across both Workout and Nutrition modules—review past sessions or plan ahead with instant 1-tap jump to today.
+- 🏋️ **Goal-Driven Adaptive Training & Persistent Plans**: Automatically generates personalized workout splits based on readiness scores, equipment (Gym vs. Bodyweight), and athlete skill level, stored persistently by date.
+- 📅 **Calendar Date Navigation**: Seamless date navigation across both Workout and Nutrition modules—review past sessions, modify upcoming routines, or plan ahead with instant 1-tap jump to today.
 - 📚 **RepDB Exercise Library**: Integrated catalog of 643 science-backed exercises with start/peak pose previews, customizable movement swapping, and skipping.
 - 🥗 **Smart Nutrition & Multimodal Vision**: Dual-mode camera scanner featuring **Gemini 3.8 Flash** food plate analysis and **Open Food Facts NutriSight** label extraction alongside 11 micronutrient RDA bio-scores.
 - 📈 **Unified Athletic Analytics**: Multi-domain bio-history tracking recovery, workout volume, and nutrition with composite scoring and SVG trendline charts.
@@ -54,27 +56,43 @@ Visit the official website at [**zerocoach.tech**](https://zerocoach.tech).
 
 ## 🏗️ Architecture & Tech Stack
 
-ZeroCoach is engineered for privacy, speed, and resilient offline execution:
+ZeroCoach is engineered for privacy, speed, and resilient offline execution with complete symmetric access parity:
+
+> 📘 **Full Architecture Specification**: See [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) for detailed Mermaid diagrams, sequence flows, tool schemas, and token-saving patterns.
 
 | Layer | Technology |
 |---|---|
 | **Framework** | [React Native](https://reactnative.dev/) with [Expo](https://expo.dev/) (TypeScript) |
+| **Agent Action Harness** | Autonomous multi-turn Tool Execution Dispatcher with live action status pills and hybrid tool calling protocol |
 | **On-Device Inference** | [llama.rn](https://github.com/mybigday/llama.rn) (React Native bindings for `llama.cpp`) running quantized GGUF models |
 | **Local LLM Providers** | OpenAI-compatible SSE streaming client supporting Ollama, LM Studio, and vLLM |
 | **Web Inference Engine** | Automatic deterministic simulation engine when running in browser environments |
 | **Exercise Database** | Open Exercise Repository adapted from [RepDB](https://repdb.co) (643 movements with verified CDN pose assets) |
 | **Nutrition Databases** | [Open Food Facts](https://world.openfoodfacts.org/) API + USDA FoodData Central whole foods dataset + NutriSight token extraction |
-| **State Management** | [Zustand](https://github.com/pmndrs/zustand) with AsyncStorage local persistence |
+| **State Management** | [Zustand](https://github.com/pmndrs/zustand) with AsyncStorage local persistence (`historyByDate`, `plansByDate`, `logsByDate`) |
 | **Styling & Design** | Sleek Cyber-Athletic Dark Mode (`#080B10`), HSL accents, and glassmorphic micro-components |
 | **Icons** | [Lucide React Native](https://lucide.dev/) |
 | **Marketing Website** | [Astro](https://astro.build/) + [Tailwind CSS](https://tailwindcss.com/) in `/web` (deployed on [Render](https://render.com/) at `zerocoach.tech`) |
+
+### 📊 7-Domain Symmetric Read/Write Parity
+
+| Domain | App UI Access | AI Agent Harness Access |
+|---|---|---|
+| **1. Fitness Telemetry** | View Readiness (0–100), HRV, resting HR, sleep, steps, and sync wearables | **Read**: `get_telemetry_metrics()`<br>**Action**: `sync_fitness_telemetry()` |
+| **2. Food History** | Browse meal logs by date, log meals, delete items, update macro targets | **Read**: `get_food_history()`<br>**Write**: `log_food_item()`, `delete_logged_food()`, `update_daily_macro_targets()` |
+| **3. Food Database** | Search whole foods (USDA), query packaged goods (Open Food Facts), scan barcodes | **Read**: `search_food_database()`, `get_food_details()` |
+| **4. Workout History** | Review past workout sessions, volume, and sets by calendar date | **Read**: `get_workout_history()`<br>**Write**: `log_completed_workout()` |
+| **5. Workout Plan** | View adaptive daily splits, swap/skip exercises, schedule future routines | **Read**: `get_workout_plan()`<br>**Write**: `update_workout_plan()`, `swap_plan_exercise()` |
+| **6. Workout Database (RepDB)** | Browse 643 movements, filter by muscle/equipment, view poses & cues | **Read**: `search_exercises()`, `get_exercise_details()` |
+| **7. ZeroCoach Settings** | Update athlete profile, goals, weight/height, switch coach persona, language | **Read**: `get_user_settings()`<br>**Write**: `update_user_settings()` |
 
 ---
 
 ## 📱 App Navigation & Modules
 
 ### 1. 💬 Coach (`CoachChatScreen`)
-- Real-time conversational AI coaching with live tokens-per-second streaming metrics.
+- **Always-On Action Harness**: Automatically calls tools to read/write food logs, workout plans, and biometrics directly from natural chat.
+- **Live Activity Feed**: Displays real-time tool execution pills (e.g. `⚡ HARNESS: LOGGING 200G CHICKEN BREAST...`) and verification badges upon completion.
 - Formatted response rendering for structured lists, kinetic cues, bold titles, and biomechanical guidance.
 - Synchronized with active wearable telemetry (HRV, resting heart rate, sleep duration, calorie burn) and **today's logged nutrition totals & remaining macros**.
 - Context-aware coaching chips:

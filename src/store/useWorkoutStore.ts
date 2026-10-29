@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CompletedWorkoutSession, WorkoutDraftSession } from '@/types/history';
+import { GeneratedWorkoutPlan, ExerciseItem } from '@/types/workout';
 
 function getTodayString(): string {
   const d = new Date();
@@ -15,6 +16,7 @@ export interface WorkoutState {
   selectedDate: string;
   activeDraft: WorkoutDraftSession | null;
   historyByDate: Record<string, CompletedWorkoutSession>;
+  plansByDate: Record<string, GeneratedWorkoutPlan>;
 
   // Actions
   setSelectedDate: (date: string) => void;
@@ -26,6 +28,17 @@ export interface WorkoutState {
   getWorkoutForDate: (date: string) => CompletedWorkoutSession | undefined;
   getRecentHistory: (daysCount: number) => CompletedWorkoutSession[];
   clearWorkoutHistory: () => void;
+
+  // Workout Plan Actions (Symmetric UI & AI Read/Write Access)
+  getPlanForDate: (date: string) => GeneratedWorkoutPlan | undefined;
+  savePlanForDate: (date: string, plan: GeneratedWorkoutPlan) => void;
+  updatePlanExercises: (date: string, exercises: ExerciseItem[]) => void;
+  swapPlanExercise: (
+    date: string,
+    targetExerciseId: string,
+    replacement: ExerciseItem
+  ) => boolean;
+  clearPlanForDate: (date: string) => void;
 }
 
 export const useWorkoutStore = create<WorkoutState>()(
@@ -34,6 +47,7 @@ export const useWorkoutStore = create<WorkoutState>()(
       selectedDate: getTodayString(),
       activeDraft: null,
       historyByDate: {},
+      plansByDate: {},
 
       setSelectedDate: (date: string) => {
         set({ selectedDate: date });
@@ -92,6 +106,67 @@ export const useWorkoutStore = create<WorkoutState>()(
 
       clearWorkoutHistory: () => {
         set({ historyByDate: {}, activeDraft: null });
+      },
+
+      getPlanForDate: (date: string) => {
+        return get().plansByDate[date];
+      },
+
+      savePlanForDate: (date: string, plan: GeneratedWorkoutPlan) => {
+        set((state) => ({
+          plansByDate: {
+            ...state.plansByDate,
+            [date]: plan,
+          },
+        }));
+      },
+
+      updatePlanExercises: (date: string, exercises: ExerciseItem[]) => {
+        const currentPlan = get().plansByDate[date];
+        if (currentPlan) {
+          set((state) => ({
+            plansByDate: {
+              ...state.plansByDate,
+              [date]: {
+                ...currentPlan,
+                exercises,
+              },
+            },
+          }));
+        }
+      },
+
+      swapPlanExercise: (
+        date: string,
+        targetExerciseId: string,
+        replacement: ExerciseItem
+      ) => {
+        const currentPlan = get().plansByDate[date];
+        if (!currentPlan) return false;
+        const index = currentPlan.exercises.findIndex((ex) => ex.id === targetExerciseId);
+        if (index === -1) return false;
+
+        const updatedExercises = [...currentPlan.exercises];
+        updatedExercises[index] = replacement;
+
+        set((state) => ({
+          plansByDate: {
+            ...state.plansByDate,
+            [date]: {
+              ...currentPlan,
+              exercises: updatedExercises,
+            },
+          },
+        }));
+        return true;
+      },
+
+      clearPlanForDate: (date: string) => {
+        set((state) => {
+          const copy = { ...state.plansByDate };
+          delete copy[date];
+          return { plansByDate: copy };
+        });
       },
     }),
     {

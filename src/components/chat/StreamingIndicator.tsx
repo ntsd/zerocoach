@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useChatStore } from '@/store/useChatStore';
 import { useTranslation } from '@/i18n';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
-
+import { Zap } from 'lucide-react-native';
 import { llmService } from '@/services/llm/llmService';
 
 interface StreamingIndicatorProps {
@@ -15,6 +16,7 @@ interface StreamingIndicatorProps {
 
 export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
   const { mode } = useCoachStore();
+  const activeSteps = useChatStore((s) => s.activeSteps);
   const { t } = useTranslation();
   const modeColors = getModeColors(mode);
   const [pulse, setPulse] = useState(true);
@@ -26,16 +28,19 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const runningStep = activeSteps?.find((s) => s.status === 'running') || activeSteps?.[activeSteps.length - 1];
+
   const engineType = llmService.getActiveEngineName();
   const activeModel = llmService.getActiveModelName();
-  const engineLabel =
-    engineType === 'gemini'
-      ? 'GEMINI 2.5 FLASH STREAMING'
-      : engineType === 'openai'
-      ? `${activeModel.toUpperCase()} STREAMING`
-      : engineType === 'on_device'
-      ? `${activeModel.toUpperCase()} (METAL/GPU)`
-      : `${activeModel.toUpperCase()} STREAMING`;
+  const engineLabel = runningStep
+    ? `HARNESS: ${runningStep.summary.toUpperCase()}`
+    : engineType === 'gemini'
+    ? 'GEMINI 2.5 FLASH STREAMING'
+    : engineType === 'openai'
+    ? `${activeModel.toUpperCase()} STREAMING`
+    : engineType === 'on_device'
+    ? `${activeModel.toUpperCase()} (METAL/GPU)`
+    : `${activeModel.toUpperCase()} STREAMING`;
 
   return (
     <View style={styles.container}>
@@ -43,14 +48,24 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
         style={[
           styles.glowDot,
           {
-            backgroundColor: modeColors.accent,
+            backgroundColor: runningStep ? '#00F0FF' : modeColors.accent,
             opacity: pulse ? 1 : 0.35,
-            shadowColor: modeColors.accent,
+            shadowColor: runningStep ? '#00F0FF' : modeColors.accent,
           },
         ]}
       />
-      <ZeroCoachLogo size={13} mode={mode} />
-      <Text style={[styles.text, { color: modeColors.accent }]}>
+      {runningStep ? (
+        <Zap size={13} color="#00F0FF" />
+      ) : (
+        <ZeroCoachLogo size={13} mode={mode} />
+      )}
+      <Text
+        style={[
+          styles.text,
+          { color: runningStep ? '#00F0FF' : modeColors.accent },
+        ]}
+        numberOfLines={1}
+      >
         {engineLabel}
       </Text>
     </View>

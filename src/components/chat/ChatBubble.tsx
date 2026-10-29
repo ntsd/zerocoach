@@ -7,7 +7,7 @@ import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
 import { MarkdownText } from '@/components/common/MarkdownText';
-import { Utensils, Dumbbell, ChevronRight } from 'lucide-react-native';
+import { Utensils, Dumbbell, ChevronRight, Zap } from 'lucide-react-native';
 
 interface ChatBubbleProps {
   message: ChatMessage;
@@ -88,6 +88,31 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
           isUser={isUser}
           baseTextStyle={isUser ? styles.userText : styles.assistantText}
         />
+
+        {message.executionSteps && message.executionSteps.length > 0 && (
+          <View style={styles.stepsContainer}>
+            {message.executionSteps.map((step) => (
+              <View
+                key={step.id}
+                style={[
+                  styles.stepBadge,
+                  {
+                    borderColor: `${modeColors.accent}40`,
+                    backgroundColor: `${modeColors.accent}12`,
+                  },
+                ]}
+              >
+                <Zap size={11} color={modeColors.accent} />
+                <Text
+                  style={[styles.stepText, { color: modeColors.accent }]}
+                  numberOfLines={2}
+                >
+                  {step.summary}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {isFoodRelated && onNavigateToNutrition && (
           <TouchableOpacity
@@ -212,5 +237,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  stepsContainer: {
+    marginTop: 8,
+    gap: 4,
+  },
+  stepBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+  },
+  stepText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
   },
 });

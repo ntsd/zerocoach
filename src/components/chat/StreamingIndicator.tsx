@@ -34,7 +34,7 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
   const engineLabel = runningStep
     ? `HARNESS: ${runningStep.summary.toUpperCase()}`
     : engineType === 'gemini'
-    ? 'GEMINI 2.5 FLASH STREAMING'
+    ? 'GEMINI 3.5 FLASH LITE STREAMING'
     : engineType === 'openai'
     ? `${activeModel.toUpperCase()} STREAMING`
     : engineType === 'on_device'

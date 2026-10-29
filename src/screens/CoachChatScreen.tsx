@@ -84,7 +84,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
     if (provider === 'gemini') {
       const hasKey = Boolean(geminiApiKey && geminiApiKey.trim());
       return {
-        name: 'Google Gemini 2.5 Flash',
+        name: 'Gemini 3.5 Flash Lite',
         badge: hasKey ? 'CLOUD ACTIVE' : 'API KEY MISSING',
         isReady: hasKey,
         icon: Zap,

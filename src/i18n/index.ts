@@ -215,7 +215,7 @@ export const TRANSLATIONS = {
       remoteSubGemini: 'Google Gemini',
       remoteSubOpenAI: 'OpenAI / Ollama',
       geminiProvider: 'Google Gemini',
-      geminiDesc: 'Fast cloud neural engine with zero local storage needed. Powered by Gemini 2.5 Flash.',
+      geminiDesc: 'Fast cloud neural engine with zero local storage needed. Powered by Gemini 3.5 Flash Lite.',
       openaiCompatibleDesc:
         'Connect to any OpenAI-compatible endpoint (official OpenAI, local Ollama, Groq, LM Studio, vLLM).',
       openAIKeyLabel: 'OPENAI API KEY',
@@ -997,7 +997,7 @@ export const TRANSLATIONS = {
       remoteSubGemini: 'Google Gemini',
       remoteSubOpenAI: 'OpenAI / Ollama',
       geminiProvider: 'Google Gemini',
-      geminiDesc: 'ประมวลผลผ่านคลาวด์ความเร็วสูง ไม่กินความจุเครื่อง ขับเคลื่อนด้วย Gemini 2.5 Flash',
+      geminiDesc: 'ประมวลผลผ่านคลาวด์ความเร็วสูง ไม่กินความจุเครื่อง ขับเคลื่อนด้วย Gemini 3.5 Flash Lite',
       openaiCompatibleDesc:
         'เชื่อมต่อกับเซิร์ฟเวอร์มาตรฐาน OpenAI (OpenAI โดยตรง, Ollama ในเครื่อง/วงแลน, Groq, LM Studio, vLLM)',
       openAIKeyLabel: 'OPENAI API KEY',

@@ -161,7 +161,7 @@ export const useChatStore = create<ChatState>()(
 
             if (photoAnalysis.canIdentify && photoAnalysis.dishTitle) {
               const nutrients = photoAnalysis.decomposition?.totalNutrients;
-              visualContext = `\n[ATTACHED PHOTO IDENTIFIED: "${photoAnalysis.dishTitle}" (${photoAnalysis.ingredientsText || ''}) | Nutrition: ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein, ${nutrients?.carbsGrams || 0}g carbs, ${nutrients?.fatGrams || 0}g fat. You can offer to log this using add_food_item or explain how it fits the athlete's nutrition targets.]`;
+              visualContext = `\n[ATTACHED PHOTO IDENTIFIED: "${photoAnalysis.dishTitle}" (${photoAnalysis.ingredientsText || ''}) | Nutrition: ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein, ${nutrients?.carbsGrams || 0}g carbs, ${nutrients?.fatGrams || 0}g fat. You can offer to log this using log_food_item or explain how it fits the athlete's nutrition targets.]`;
             } else if (photoAnalysis.errorMessage) {
               visualContext = `\n[ATTACHED PHOTO: Note: ${photoAnalysis.errorMessage}]`;
             }

@@ -16,6 +16,102 @@ import {
 import { FoodItem, MealType } from '@/types/nutrition';
 import { GeneratedWorkoutPlan, ExerciseItem, WorkoutSplit } from '@/types/workout';
 
+function parseNumber(val: any, fallback = 0): number {
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[^0-9.-]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? fallback : num;
+  }
+  return fallback;
+}
+
+/**
+ * Normalizes tool name variants and aliases to the standard tool names
+ */
+export function normalizeToolName(name: string): string {
+  if (!name || typeof name !== 'string') return '';
+  const lower = name.toLowerCase().trim().replace(/[\s-]+/g, '_');
+  switch (lower) {
+    case 'log_food_item':
+    case 'add_food_item':
+    case 'log_food':
+    case 'add_food':
+    case 'record_food':
+    case 'log_meal':
+      return 'log_food_item';
+
+    case 'get_food_history':
+    case 'get_nutrition_history':
+    case 'get_food_log':
+    case 'get_daily_log':
+    case 'get_daily_nutrition':
+      return 'get_food_history';
+
+    case 'delete_logged_food':
+    case 'remove_logged_food':
+    case 'delete_food_item':
+    case 'remove_food_item':
+      return 'delete_logged_food';
+
+    case 'search_food_database':
+    case 'search_food':
+    case 'search_usda_foods':
+    case 'search_foods':
+    case 'search_food_items':
+      return 'search_food_database';
+
+    case 'get_workout_plan':
+    case 'get_today_workout':
+    case 'get_workout':
+    case 'get_workout_for_date':
+      return 'get_workout_plan';
+
+    case 'update_workout_plan':
+    case 'save_workout_plan':
+    case 'create_workout_plan':
+      return 'update_workout_plan';
+
+    case 'swap_plan_exercise':
+    case 'swap_exercise':
+    case 'swap_exercise_in_plan':
+    case 'replace_exercise':
+      return 'swap_plan_exercise';
+
+    case 'search_exercises':
+    case 'search_exercise_database':
+    case 'search_exercise':
+    case 'get_exercises':
+      return 'search_exercises';
+
+    case 'get_telemetry_metrics':
+    case 'get_fitness_telemetry':
+    case 'get_telemetry':
+    case 'get_metrics':
+      return 'get_telemetry_metrics';
+
+    case 'sync_fitness_telemetry':
+    case 'sync_telemetry':
+    case 'sync_health':
+      return 'sync_fitness_telemetry';
+
+    case 'get_user_settings':
+    case 'get_user_profile':
+    case 'get_profile':
+    case 'get_athlete_profile':
+      return 'get_user_settings';
+
+    case 'update_user_settings':
+    case 'update_user_goals':
+    case 'update_goals':
+    case 'set_user_goals':
+      return 'update_user_settings';
+
+    default:
+      return lower;
+  }
+}
+
 function getTodayString(): string {
   const d = new Date();
   const year = d.getFullYear();
@@ -26,9 +122,10 @@ function getTodayString(): string {
 
 export async function executeTool(call: ToolCall): Promise<ToolResult> {
   const { id, name, arguments: args } = call;
+  const toolName = normalizeToolName(name);
 
   try {
-    switch (name) {
+    switch (toolName) {
       // =====================================================================
       // DOMAIN 1: FITNESS APP DATA (TELEMETRY) [READ]
       // =====================================================================
@@ -120,21 +217,31 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
       case 'log_food_item': {
         const targetDate = args.date || getTodayString();
         const nutrition = useNutritionStore.getState();
-        const mealType: MealType = args.mealType || 'snack';
-        const consumedGrams = args.consumedGrams || 100;
+        let mealType: MealType = 'snack';
+        if (args.mealType && ['breakfast', 'lunch', 'dinner', 'snack'].includes(String(args.mealType).toLowerCase())) {
+          mealType = String(args.mealType).toLowerCase() as MealType;
+        }
+
+        const consumedGrams = Math.max(1, parseNumber(args.consumedGrams, 100));
+        const calories = Math.max(0, parseNumber(args.calories, 0));
+        const proteinGrams = Math.max(0, parseNumber(args.proteinGrams, 0));
+        const carbsGrams = Math.max(0, parseNumber(args.carbsGrams, 0));
+        const fatGrams = Math.max(0, parseNumber(args.fatGrams, 0));
+        const fiberGrams = Math.max(0, parseNumber(args.fiberGrams, 0));
+        const foodName = args.name ? String(args.name).trim() : 'Logged Food';
 
         const foodItem: FoodItem = {
           id: `ai-food-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          name: args.name,
+          name: foodName,
           category: 'prepared_meal',
           servingSizeGrams: consumedGrams,
           servingUnitName: `${consumedGrams}g`,
           nutrientsPer100g: {
-            calories: Math.round((args.calories / consumedGrams) * 100),
-            proteinGrams: Math.round((args.proteinGrams / consumedGrams) * 100 * 10) / 10,
-            carbsGrams: Math.round((args.carbsGrams / consumedGrams) * 100 * 10) / 10,
-            fatGrams: Math.round((args.fatGrams / consumedGrams) * 100 * 10) / 10,
-            fiberGrams: args.fiberGrams ? Math.round((args.fiberGrams / consumedGrams) * 100 * 10) / 10 : 0,
+            calories: Math.round((calories / consumedGrams) * 100),
+            proteinGrams: Math.round((proteinGrams / consumedGrams) * 100 * 10) / 10,
+            carbsGrams: Math.round((carbsGrams / consumedGrams) * 100 * 10) / 10,
+            fatGrams: Math.round((fatGrams / consumedGrams) * 100 * 10) / 10,
+            fiberGrams: Math.round((fiberGrams / consumedGrams) * 100 * 10) / 10,
             vitaminA_mcg: 0,
             vitaminC_mg: 0,
             vitaminD_mcg: 0,
@@ -156,15 +263,17 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
 
         return {
           toolCallId: id,
-          name,
+          name: 'log_food_item',
           success: true,
           data: {
             loggedFood: {
-              name: args.name,
+              name: foodName,
               mealType,
               consumedGrams,
-              calories: args.calories,
-              proteinGrams: args.proteinGrams,
+              calories,
+              proteinGrams,
+              carbsGrams,
+              fatGrams,
             },
             updatedDayTotals: {
               totalCalories: updatedSummary.totalCalories,
@@ -173,7 +282,7 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
               remainingProtein: updatedSummary.remainingProtein,
             },
           },
-          summary: `Logged "${args.name}" (${consumedGrams}g, ${args.calories} kcal, ${args.proteinGrams}g protein) to ${mealType}`,
+          summary: `Logged "${foodName}" (${consumedGrams}g, ${calories} kcal, ${proteinGrams}g protein) to ${mealType}`,
         };
       }
 

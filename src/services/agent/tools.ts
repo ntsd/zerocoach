@@ -65,7 +65,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         mealType: {
           type: 'string',
           enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-          description: 'Meal category to log food under.',
+          description: 'Meal category to log food under (defaults to "snack" if omitted).',
         },
         calories: {
           type: 'number',
@@ -96,7 +96,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           description: 'Calendar date in YYYY-MM-DD format. Defaults to today if omitted.',
         },
       },
-      required: ['name', 'mealType', 'calories', 'proteinGrams', 'carbsGrams', 'fatGrams'],
+      required: ['name', 'calories'],
     },
   },
   {

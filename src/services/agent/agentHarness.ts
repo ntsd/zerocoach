@@ -1,5 +1,5 @@
 import { AGENT_TOOLS } from './tools';
-import { executeTool } from './dispatcher';
+import { executeTool, normalizeToolName } from './dispatcher';
 import {
   ToolCall,
   ToolResult,
@@ -30,40 +30,123 @@ ${toolLines}
 TOOL CALLING PROTOCOL & RULES:
 1. ATHLETE CONTEXT IS ALREADY LOADED:
    - Live telemetry (Readiness score, sleep, HRV), goals, and today's scheduled workout plan are ALREADY provided in the ATHLETE CONTEXT above.
-   - Do NOT call get_fitness_telemetry or get_workout_plan if the data is already present in the ATHLETE CONTEXT. Answer the athlete directly!
+   - Do NOT call get_telemetry_metrics or get_workout_plan if the data is already present in the ATHLETE CONTEXT. Answer the athlete directly!
 2. ONLY call tools when:
    - The athlete requests an ACTION (e.g. "log my food", "save/change this workout plan", "update my goal", "swap an exercise").
-   - Detailed external database search is needed (search_food_database, search_exercise_database) or reading past days history.
+   - Detailed external database search is needed (search_food_database, search_exercises) or reading past days history.
 3. PROTOCOL:
    - When calling a tool, emit EXACTLY one tool call tag:
 <tool_call>
 {"name": "tool_name", "arguments": { ... }}
+</tool_call>
+   - Example to log food:
+<tool_call>
+{"name": "log_food_item", "arguments": {"name": "Grilled Chicken", "calories": 250, "proteinGrams": 30, "carbsGrams": 0, "fatGrams": 3, "mealType": "lunch"}}
 </tool_call>
    - When tool results are provided, synthesize your full coaching answer directly.
    - If no action or tool call is needed, respond normally to the athlete without any <tool_call> tags.
 `;
 }
 
+function tryExtractToolCall(jsonStr: string): ToolCall | null {
+  try {
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const rawName = parsed.name || parsed.tool || parsed.action;
+    if (typeof rawName !== 'string') return null;
+
+    const normalizedName = normalizeToolName(rawName);
+    const isKnownTool = AGENT_TOOLS.some((t) => t.name === normalizedName);
+    if (!isKnownTool) return null;
+
+    const args = parsed.arguments || parsed.parameters || parsed.args || parsed.action_input || {};
+
+    return {
+      id: `call-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: normalizedName,
+      arguments: typeof args === 'object' && args !== null ? args : {},
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Extracts a tool call from LLM output text
+ * Extracts a tool call from LLM output text.
+ * Robustly parses:
+ * 1. <tool_call>...</tool_call> tags
+ * 2. ```json ... ``` markdown code blocks
+ * 3. Raw or embedded JSON objects with "name" and "arguments"
  */
 export function parseToolCallFromText(text: string): ToolCall | null {
-  const match = text.match(/<tool_call>([\s\S]*?)<\/tool_call>/i);
-  if (!match) return null;
+  if (!text) return null;
 
-  try {
-    const jsonStr = match[1].trim();
-    const parsed = JSON.parse(jsonStr);
-    if (parsed && typeof parsed.name === 'string') {
-      return {
-        id: `call-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        name: parsed.name,
-        arguments: parsed.arguments || {},
-      };
-    }
-  } catch (err) {
-    console.warn('[AgentHarness] Failed to parse tool call JSON:', err);
+  // 1. Try explicit <tool_call> tags
+  const xmlMatch = text.match(/<tool_call>([\s\S]*?)<\/tool_call>/i);
+  if (xmlMatch) {
+    const call = tryExtractToolCall(xmlMatch[1].trim());
+    if (call) return call;
   }
+
+  // 2. Try markdown code blocks
+  const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+  if (codeBlockMatch) {
+    const call = tryExtractToolCall(codeBlockMatch[1].trim());
+    if (call) return call;
+  }
+
+  // 3. Scan for any JSON object containing "name", "tool", or "action"
+  let startIndex = 0;
+  while ((startIndex = text.indexOf('{', startIndex)) !== -1) {
+    const preview = text.slice(startIndex, startIndex + 150);
+    if (!/"(?:name|tool|action)"\s*:/i.test(preview)) {
+      startIndex++;
+      continue;
+    }
+
+    let depth = 0;
+    let endIndex = -1;
+    let inString = false;
+    let escape = false;
+
+    for (let i = startIndex; i < text.length; i++) {
+      const char = text[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (char === '\\') {
+        escape = true;
+        continue;
+      }
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (char === '{') {
+          depth++;
+        } else if (char === '}') {
+          depth--;
+          if (depth === 0) {
+            endIndex = i + 1;
+            break;
+          }
+        }
+      }
+    }
+
+    if (endIndex !== -1) {
+      const jsonCandidate = text.slice(startIndex, endIndex);
+      const call = tryExtractToolCall(jsonCandidate);
+      if (call) return call;
+      startIndex = endIndex;
+    } else {
+      break;
+    }
+  }
+
   return null;
 }
 
@@ -71,11 +154,22 @@ export function parseToolCallFromText(text: string): ToolCall | null {
  * Finds domain and access type for a tool
  */
 function getToolMeta(toolName: string): { domain: DomainName; access: ToolAccessType } {
-  const def = AGENT_TOOLS.find((t) => t.name === toolName);
+  const normalized = normalizeToolName(toolName);
+  const def = AGENT_TOOLS.find((t) => t.name === normalized || t.name === toolName);
   return {
     domain: def?.domain || 'settings',
     access: def?.access || 'read',
   };
+}
+
+export function cleanFinalResponseText(text: string): string {
+  return text
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+    .replace(/<\/?tool_call>/gi, '')
+    .replace(/<tool_result>[\s\S]*?<\/tool_result>/gi, '')
+    .replace(/<\/?tool_result>/gi, '')
+    .replace(/```(?:json)?\s*\{[\s\S]*?"(?:name|tool|action)"[\s\S]*?\}\s*```/gi, '')
+    .trim();
 }
 
 export interface AgentRunParams {
@@ -122,8 +216,16 @@ export class AgentHarness {
         },
         (token: string) => {
           iterationStreamedText += token;
-          // Only stream tokens directly to user if not in middle of a tool call
-          if (!iterationStreamedText.includes('<tool_call>')) {
+          // Only stream tokens directly to user if not emitting a tool call structure
+          const trimmedSoFar = iterationStreamedText.trimStart();
+          const isToolCallEmitting =
+            trimmedSoFar.startsWith('<tool_call') ||
+            trimmedSoFar.startsWith('{"name"') ||
+            trimmedSoFar.startsWith('{"tool"') ||
+            trimmedSoFar.startsWith('{"action"') ||
+            trimmedSoFar.startsWith('```');
+
+          if (!isToolCallEmitting) {
             callbacks?.onToken?.(token);
           }
         }
@@ -137,11 +239,7 @@ export class AgentHarness {
 
       // If no tool was called, this is the final response to the user
       if (!detectedCall) {
-        // Strip any residual partial tags just in case
-        const cleanFinalText = outputText
-          .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
-          .replace(/<\/?tool_call>/gi, '')
-          .trim();
+        const cleanFinalText = cleanFinalResponseText(outputText);
 
         return {
           fullText: cleanFinalText,
@@ -220,10 +318,7 @@ export class AgentHarness {
     totalTokens += synthesisResult.tokensGenerated;
     finalTokensPerSecond = synthesisResult.tokensPerSecond || finalTokensPerSecond;
 
-    const cleanFinalText = synthesisResult.fullText
-      .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
-      .replace(/<\/?tool_call>/gi, '')
-      .trim();
+    const cleanFinalText = cleanFinalResponseText(synthesisResult.fullText);
 
     return {
       fullText:

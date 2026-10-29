@@ -232,8 +232,13 @@ export class LlamaRNEngine implements LLMEngine {
       };
 
       if (request.mediaPaths && request.mediaPaths.length > 0) {
-        completionParams.media_paths = request.mediaPaths;
-        console.log(`[LlamaRNEngine] Attaching ${request.mediaPaths.length} image path(s) to completion:`, request.mediaPaths);
+        completionParams.media_paths = request.mediaPaths.map((p) => {
+          if (p.startsWith('data:') || !p.startsWith('file://')) {
+            return p;
+          }
+          return decodeURIComponent(p.replace(/^file:\/\//, ''));
+        });
+        console.log(`[LlamaRNEngine] Attaching ${completionParams.media_paths.length} sanitized image path(s) to completion:`, completionParams.media_paths);
       }
 
       const result = await this.llamaContext.completion(

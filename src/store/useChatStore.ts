@@ -190,11 +190,21 @@ export const useChatStore = create<ChatState>()(
           let streamedText = '';
           const currentSteps: AgentExecutionStep[] = [];
 
+          // If photoMealAnalyzer already extracted the meal details and visual context,
+          // we do not re-encode the raw media into the agent conversation tokens
+          // (which would consume 512 tokens and disable context shifting).
+          // If no visualContext was produced, pass clean media target to allow direct multimodal processing.
+          const cleanMediaTarget = imageUri
+            ? base64Data
+              ? `data:image/jpeg;base64,${base64Data}`
+              : decodeURIComponent(imageUri.replace(/^file:\/\//, ''))
+            : undefined;
+
           const result = await AgentHarness.run({
             systemPrompt,
             messages: contextMessages,
             temperature: 0.65,
-            mediaPaths: imageUri ? [imageUri] : undefined,
+            mediaPaths: !visualContext && cleanMediaTarget ? [cleanMediaTarget] : undefined,
             callbacks: {
               onToken: (token: string) => {
                 streamedText += token;

@@ -275,7 +275,6 @@ export function generateAdaptiveWorkoutPlan(
 ): GeneratedWorkoutPlan {
   const {
     goals = [],
-    mode = 'strict',
     readinessScore = 0,
     weightKg = 0,
     activeStages = [],
@@ -1614,9 +1613,10 @@ export function generateAdaptiveWorkoutPlan(
   };
 
   const title = splitTitles[activeSplit] || 'Adaptive Routine';
+  const primaryGoal = goals[0] || 'strength_hypertrophy';
 
   return {
-    id: `plan-${Date.now()}`,
+    id: `plan-${activeSplit}-${equipmentMode || 'all'}-${skillLevel || 'intermediate'}-${primaryGoal}`,
     title,
     focusSummary: `${title} • ${tierLabel} • ${estimatedDurationMin} min • ~${estimatedCaloriesBurn} kcal`,
     tier,

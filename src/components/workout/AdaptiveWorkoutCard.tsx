@@ -70,20 +70,21 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const currentDateStr = date || todayDateStr;
   const isToday = currentDateStr === todayDateStr;
   const { activeDraft, historyByDate, plansByDate, saveDraft, finishWorkout, savePlanForDate } = useWorkoutStore();
-  const sessionForDate = historyByDate[currentDateStr];
+  const sessionForDate = (historyByDate || {})[currentDateStr];
+  const storedPlan = (plansByDate || {})[currentDateStr];
 
   // Stateful exercises in the workout (restores from completed session, draft, or stored plan)
   const [exercises, setExercises] = useState<ExerciseItem[]>(() => {
-    if (sessionForDate) {
+    if (sessionForDate && sessionForDate.exercises?.length > 0) {
       return sessionForDate.exercises;
     }
     if (activeDraft && activeDraft.date === currentDateStr && activeDraft.planId === plan.id) {
       return activeDraft.exercises;
     }
-    if (plansByDate[currentDateStr] && plansByDate[currentDateStr].exercises?.length > 0) {
-      return plansByDate[currentDateStr].exercises;
+    if (storedPlan && storedPlan.exercises?.length > 0) {
+      return storedPlan.exercises;
     }
-    return plan.exercises;
+    return plan.exercises || [];
   });
 
   const [completedExercises, setCompletedExercises] = useState<Record<string, boolean>>(() => {
@@ -128,10 +129,15 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   // Workout Summary completion modal
   const [isSummaryModalVisible, setIsSummaryModalVisible] = useState(false);
 
-  // Auto-save workout draft to local AsyncStorage
+  // Auto-save workout draft to local AsyncStorage only when user has active progress
   useEffect(() => {
     if (sessionForDate) return; // Already finalized on this date
     if (!isToday) return; // Only auto-save active draft for today
+    const hasProgress =
+      Object.keys(completedExercises).some((k) => completedExercises[k]) ||
+      Object.keys(skippedExercises).some((k) => skippedExercises[k]);
+    if (!hasProgress && !activeDraft) return;
+
     saveDraft({
       date: currentDateStr,
       planId: plan.id,
@@ -150,18 +156,8 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     sessionForDate,
     isToday,
     saveDraft,
+    activeDraft,
   ]);
-
-  // Persist workout plan changes for the active date so AI Agent and App UI stay in sync
-  useEffect(() => {
-    if (!sessionForDate && exercises.length > 0) {
-      savePlanForDate(currentDateStr, {
-        ...plan,
-        exercises,
-        generatedDate: currentDateStr,
-      });
-    }
-  }, [exercises, currentDateStr, sessionForDate, plan, savePlanForDate]);
 
   // Synchronize when the generated plan changes (e.g. split switch or goal change)
   const prevPlanIdRef = useRef(plan.id);
@@ -169,13 +165,28 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     if (prevPlanIdRef.current !== plan.id) {
       prevPlanIdRef.current = plan.id;
       if (!sessionForDate) {
-        setExercises(plan.exercises);
+        const saved = (plansByDate || {})[currentDateStr];
+        if (saved && saved.exercises?.length > 0) {
+          setExercises(saved.exercises);
+        } else {
+          setExercises(plan.exercises || []);
+        }
         setCompletedExercises({});
         setSkippedExercises({});
         startedAtRef.current = Date.now();
       }
     }
-  }, [plan.id, plan.exercises, sessionForDate]);
+  }, [plan.id, plan.exercises, sessionForDate, currentDateStr, plansByDate]);
+
+  const persistPlanExercises = (updated: ExerciseItem[]) => {
+    if (!sessionForDate) {
+      savePlanForDate(currentDateStr, {
+        ...plan,
+        exercises: updated,
+        generatedDate: currentDateStr,
+      });
+    }
+  };
 
   const toggleExercise = (id: string) => {
     // Cannot toggle completion if exercise is skipped
@@ -221,9 +232,9 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         swapTargetExercise.restPeriodSeconds,
         `Replaced ${swapTargetExercise.name}`
       );
-      setExercises((prev) =>
-        prev.map((ex) => (ex.id === swapTargetExercise.id ? replacement : ex))
-      );
+      const updated = exercises.map((ex) => (ex.id === swapTargetExercise.id ? replacement : ex));
+      setExercises(updated);
+      persistPlanExercises(updated);
       // Clean up completion & skip states
       setCompletedExercises((prev) => {
         const copy = { ...prev };
@@ -247,12 +258,16 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         'Custom Added Skill'
       );
       newExercise.isCustomAdded = true;
-      setExercises((prev) => [...prev, newExercise]);
+      const updated = [...exercises, newExercise];
+      setExercises(updated);
+      persistPlanExercises(updated);
     }
   };
 
   const handleRemoveExercise = (id: string) => {
-    setExercises((prev) => prev.filter((ex) => ex.id !== id));
+    const updated = exercises.filter((ex) => ex.id !== id);
+    setExercises(updated);
+    persistPlanExercises(updated);
     setCompletedExercises((prev) => {
       const copy = { ...prev };
       delete copy[id];
@@ -266,30 +281,30 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   };
 
   const handleUpdateSets = (exerciseId: string, deltaOrValue: number, isAbsolute: boolean = false) => {
-    setExercises((prev) =>
-      prev.map((ex) => {
-        if (ex.id !== exerciseId) return ex;
-        const newSets = isAbsolute
-          ? Math.max(1, Math.min(15, deltaOrValue))
-          : Math.max(1, Math.min(15, ex.targetSets + deltaOrValue));
-        return {
-          ...ex,
-          targetSets: newSets,
-        };
-      })
-    );
+    const updated = exercises.map((ex) => {
+      if (ex.id !== exerciseId) return ex;
+      const newSets = isAbsolute
+        ? Math.max(1, Math.min(15, deltaOrValue))
+        : Math.max(1, Math.min(15, ex.targetSets + deltaOrValue));
+      return {
+        ...ex,
+        targetSets: newSets,
+      };
+    });
+    setExercises(updated);
+    persistPlanExercises(updated);
   };
 
   const handleUpdateReps = (exerciseId: string, newReps: string) => {
-    setExercises((prev) =>
-      prev.map((ex) => {
-        if (ex.id !== exerciseId) return ex;
-        return {
-          ...ex,
-          targetReps: newReps,
-        };
-      })
-    );
+    const updated = exercises.map((ex) => {
+      if (ex.id !== exerciseId) return ex;
+      return {
+        ...ex,
+        targetReps: newReps,
+      };
+    });
+    setExercises(updated);
+    persistPlanExercises(updated);
   };
 
   const handleAskCoachForExercise = (exerciseName: string) => {

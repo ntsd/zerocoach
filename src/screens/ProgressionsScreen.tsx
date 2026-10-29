@@ -78,7 +78,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const { userProfile, updateProfile, setSkillLevel } = useCoachStore();
-  const defaultMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
+  const defaultMode = userProfile?.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
   const { calisthenicsStages, metrics } = useTelemetryStore();
   const { sendMessage } = useChatStore();
@@ -88,7 +88,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   const todayStr = useMemo(() => getTodayDateString(), []);
   const activeDate = selectedDate || todayStr;
   const isToday = activeDate === todayStr;
-  const completedSessionForDate = historyByDate[activeDate];
+  const completedSessionForDate = (historyByDate || {})[activeDate];
 
   const handlePrevDay = () => {
     const [year, month, day] = activeDate.split('-').map(Number);
@@ -167,7 +167,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
 
   // Read saved plan if user or AI Agent has explicitly customized/scheduled it for this date
   const effectivePlan = useMemo(() => {
-    const savedPlan = plansByDate[activeDate];
+    const savedPlan = (plansByDate || {})[activeDate];
     if (savedPlan && savedPlan.exercises && savedPlan.exercises.length > 0) {
       return savedPlan;
     }

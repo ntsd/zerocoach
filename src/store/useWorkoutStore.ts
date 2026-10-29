@@ -109,24 +109,24 @@ export const useWorkoutStore = create<WorkoutState>()(
       },
 
       getPlanForDate: (date: string) => {
-        return get().plansByDate[date];
+        return (get().plansByDate || {})[date];
       },
 
       savePlanForDate: (date: string, plan: GeneratedWorkoutPlan) => {
         set((state) => ({
           plansByDate: {
-            ...state.plansByDate,
+            ...(state.plansByDate || {}),
             [date]: plan,
           },
         }));
       },
 
       updatePlanExercises: (date: string, exercises: ExerciseItem[]) => {
-        const currentPlan = get().plansByDate[date];
+        const currentPlan = (get().plansByDate || {})[date];
         if (currentPlan) {
           set((state) => ({
             plansByDate: {
-              ...state.plansByDate,
+              ...(state.plansByDate || {}),
               [date]: {
                 ...currentPlan,
                 exercises,
@@ -141,7 +141,7 @@ export const useWorkoutStore = create<WorkoutState>()(
         targetExerciseId: string,
         replacement: ExerciseItem
       ) => {
-        const currentPlan = get().plansByDate[date];
+        const currentPlan = (get().plansByDate || {})[date];
         if (!currentPlan) return false;
         const index = currentPlan.exercises.findIndex((ex) => ex.id === targetExerciseId);
         if (index === -1) return false;
@@ -151,7 +151,7 @@ export const useWorkoutStore = create<WorkoutState>()(
 
         set((state) => ({
           plansByDate: {
-            ...state.plansByDate,
+            ...(state.plansByDate || {}),
             [date]: {
               ...currentPlan,
               exercises: updatedExercises,
@@ -163,7 +163,7 @@ export const useWorkoutStore = create<WorkoutState>()(
 
       clearPlanForDate: (date: string) => {
         set((state) => {
-          const copy = { ...state.plansByDate };
+          const copy = { ...(state.plansByDate || {}) };
           delete copy[date];
           return { plansByDate: copy };
         });
@@ -175,8 +175,21 @@ export const useWorkoutStore = create<WorkoutState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.selectedDate = getTodayString();
+          if (!state.plansByDate || typeof state.plansByDate !== 'object') {
+            state.plansByDate = {};
+          }
+          if (!state.historyByDate || typeof state.historyByDate !== 'object') {
+            state.historyByDate = {};
+          }
         }
       },
+      merge: (persistedState: any, currentState: any) => ({
+        ...currentState,
+        ...(persistedState || {}),
+        historyByDate: persistedState?.historyByDate || {},
+        plansByDate: persistedState?.plansByDate || {},
+        selectedDate: getTodayString(),
+      }),
     }
   )
 );

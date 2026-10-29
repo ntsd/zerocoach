@@ -15,7 +15,6 @@ import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
 import { ExerciseItem, GeneratedWorkoutPlan } from '@/types/workout';
-import { CoachingMode } from '@/types/coach';
 import { useTranslation } from '@/i18n';
 import {
   Trophy,
@@ -40,7 +39,6 @@ interface WorkoutSummaryModalProps {
   plan: GeneratedWorkoutPlan;
   completedExercises: ExerciseItem[];
   skippedExercises: ExerciseItem[];
-  mode: CoachingMode;
   initialDurationMin: number;
   initialCaloriesBurn: number;
 }
@@ -52,12 +50,11 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   plan,
   completedExercises,
   skippedExercises,
-  mode,
   initialDurationMin,
   initialCaloriesBurn,
 }) => {
   const { t, language } = useTranslation();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
   const [durationMinutes, setDurationMinutes] = useState(
     String(Math.max(1, initialDurationMin))
   );
@@ -81,12 +78,8 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
 
   const coachMessage =
     language === 'th'
-      ? mode === 'strict'
-        ? 'การฝึกได้รับการตรวจสอบแล้ว ความตึงเครียดของกล้ามเนื้ออยู่ในระดับสูง ดื่มน้ำให้เพียงพอ ให้ความสำคัญกับการนอนหลับ และรับประทานโปรตีนให้ถึงเป้าหมาย'
-        : 'ยอดเยี่ยมมากสำหรับวันนี้! คุณมีความมุ่งมั่นและวินัยในการฝึกอย่างดี ยินดีกับความสำเร็จนี้และพักผ่อนให้พร้อมสำหรับวันพรุ่งนี้!'
-      : mode === 'strict'
-      ? 'Execution verified. High mechanical tension registered. Rehydrate, prioritize sleep architecture, and lock in your protein target.'
-      : 'Phenomenal effort today! You brought intensity and discipline to this session. Celebrate this win and recharge for tomorrow!';
+      ? 'การฝึกได้รับการบันทึกเรียบร้อย เกิดความตึงเครียดทางกล้ามเนื้อตามโปรโตคอล ดื่มน้ำให้เพียงพอ พักผ่อนให้มีคุณภาพ และเติมสารอาหารโปรตีนตามเป้าหมาย'
+      : 'Execution recorded. High mechanical tension registered per protocol. Hydrate, prioritize recovery sleep, and hit your protein target.';
 
   return (
     <Modal
@@ -205,7 +198,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                       { color: modeColors.accent },
                     ]}
                   >
-                    {t.workout.summaryModal.coachDebrief} ({mode.toUpperCase()})
+                    {t.workout.summaryModal.coachDebrief}
                   </Text>
                 </View>
                 <Text style={styles.coachSnippetText}>{coachMessage}</Text>

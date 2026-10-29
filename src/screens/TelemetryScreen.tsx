@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
-import { useCoachStore } from '@/store/useCoachStore';
 import {
   clearAllUserData,
   clearChatHistoryOnly,
@@ -38,8 +37,7 @@ import {
 
 export const TelemetryScreen: React.FC = () => {
   const { metrics, syncing, syncError, syncTelemetry } = useTelemetryStore();
-  const { mode } = useCoachStore();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
 
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);

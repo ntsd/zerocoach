@@ -17,7 +17,6 @@ import { useModelStore } from '@/store/useModelStore';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
-import { ModeSwitch } from '@/components/common/ModeSwitch';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
@@ -64,7 +63,6 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
     stopGeneration,
   } = useChatStore();
 
-  const { mode } = useCoachStore();
   const {
     provider,
     status,
@@ -73,7 +71,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
     geminiApiKey,
     openAIConfig,
   } = useModelStore();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
 
   const isModelReady =
     provider === 'gemini'
@@ -233,13 +231,12 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
         <View style={styles.header}>
           <View style={styles.brandContainer}>
             <View style={styles.brandRow}>
-              <ZeroCoachLogo size={20} mode={mode} />
+              <ZeroCoachLogo size={20} />
               <Text style={styles.brandTitle}>ZEROCOACH</Text>
             </View>
           </View>
 
           <View style={styles.headerRight}>
-            <ModeSwitch />
             <TouchableOpacity
               onPress={clearHistory}
               style={styles.iconButton}
@@ -362,7 +359,6 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
                   role: 'assistant',
                   content: streamingMessage,
                   timestamp: Date.now(),
-                  modeAtCreation: mode,
                 }}
               />
             ) : null
@@ -451,9 +447,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
             placeholder={
               !isModelReady
                 ? t.coach.modelNotLoadedPlaceholder
-                : mode === 'strict'
-                ? t.coach.chatPlaceholderStrict
-                : t.coach.chatPlaceholderComfort
+                : t.coach.chatPlaceholder
             }
             placeholderTextColor={COLORS.textMuted}
             value={inputText}

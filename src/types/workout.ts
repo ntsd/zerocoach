@@ -1,4 +1,4 @@
-import { CoachingMode, TrainingGoal, SkillLevel } from './coach';
+import { TrainingGoal, SkillLevel } from './coach';
 
 export type ExerciseCategory = 'warmup' | 'skill' | 'strength' | 'metabolic' | 'cooldown';
 

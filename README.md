@@ -43,7 +43,7 @@ Visit the official website at [**zerocoach.tech**](https://zerocoach.tech).
 - 📱 **100% On-Device AI Inference**: Runs quantized LLM models (e.g. Google Gemma 2) locally with hardware acceleration—zero cloud latency, zero API costs, and absolute data privacy.
 - 🔌 **OpenAI-Compatible Local Endpoints**: Connect seamlessly to local network LLM runners like Ollama, LM Studio, vLLM, or desktop llama.cpp servers.
 - 🔄 **Symmetric UI & AI Access Parity**: 100% parity between direct App UI manipulation and conversational AI commands—log meals, swap workout exercises, modify macro targets, and view wearable biometrics conversationally or through screens.
-- 💬 **Conversational Athletic Coach**: Real-time AI coaching with dual personas (*Strict* vs. *Comfort*), auto-regulating advice based on live recovery metrics and nutrition.
+- 💬 **Conversational Athletic Coach**: Real-time direct & professional sports-science coaching, auto-regulating advice based on live recovery metrics, persistent training plans, and nutrition.
 - 🏋️ **Goal-Driven Adaptive Training & Persistent Plans**: Automatically generates personalized workout splits based on readiness scores, equipment (Gym vs. Bodyweight), and athlete skill level, stored persistently by date.
 - 📅 **Calendar Date Navigation**: Seamless date navigation across both Workout and Nutrition modules—review past sessions, modify upcoming routines, or plan ahead with instant 1-tap jump to today.
 - 📚 **RepDB Exercise Library**: Integrated catalog of 643 science-backed exercises with start/peak pose previews, customizable movement swapping, and skipping.
@@ -254,7 +254,7 @@ ZeroCoach includes a complete, autonomous machine learning pipeline located in [
 
 Synthesizes 1,075 verified athletic coaching pairs across 8 core domains formatted in native Gemma 2 chat tokens (`<start_of_turn>user...<end_of_turn><start_of_turn>model...<end_of_turn>`) and Alpaca JSON:
 - Biomechanical Compound Lifts & Kinetic Cues (Squat, Bench, Deadlift, Row, OHP)
-- Gentle & Sustainable Joint-Friendly Adaptations (Comfort persona)
+- Sustainable Joint-Friendly Adaptations & Kinetic Recovery
 - Calisthenics Leverage Milestones (RepDB bodyweight standards)
 - Autoregulation for Low Readiness (<60 / Deload) & High Readiness (>=80 / Overload PRs)
 - Precision Macronutrient Optimization (Leucine threshold >= 2.7g)

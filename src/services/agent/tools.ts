@@ -411,7 +411,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: 'get_user_settings',
     description:
-      'Read user profile settings: weight (kg), height (cm), training goals, skill level (beginner/intermediate/advanced), equipment preference, coach persona mode (strict/comfortable), and app language.',
+      'Read user profile settings: weight (kg), height (cm), training goals, skill level (beginner/intermediate/advanced), equipment preference, and app language.',
     domain: 'settings',
     access: 'read',
     parameters: {
@@ -423,7 +423,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: 'update_user_settings',
     description:
-      'Write/update user profile settings: body weight, height, skill level, equipment preference, primary goals, coach persona mode, or language.',
+      'Write/update user profile settings: body weight, height, skill level, equipment preference, primary goals, or language.',
     domain: 'settings',
     access: 'write',
     parameters: {
@@ -446,11 +446,6 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           type: 'string',
           enum: ['home', 'gym', 'both'],
           description: 'Equipment availability preference.',
-        },
-        coachingMode: {
-          type: 'string',
-          enum: ['strict', 'comfortable'],
-          description: 'Coach persona tone: "strict" (direct, high standards) or "comfortable" (supportive, gentle).',
         },
         language: {
           type: 'string',

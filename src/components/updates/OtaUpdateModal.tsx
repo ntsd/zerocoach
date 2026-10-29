@@ -11,7 +11,6 @@ import {
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
-import { useCoachStore } from '@/store/useCoachStore';
 import { useTranslation } from '@/i18n';
 import { Sparkles, ArrowRight, X, RefreshCw, Zap } from 'lucide-react-native';
 
@@ -30,8 +29,7 @@ export const OtaUpdateModal: React.FC<OtaUpdateModalProps> = ({
   channel = 'production',
   runtimeVersion = '1.2.0',
 }) => {
-  const { mode } = useCoachStore();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
   const { t } = useTranslation();
   const [isApplying, setIsApplying] = useState(false);
 

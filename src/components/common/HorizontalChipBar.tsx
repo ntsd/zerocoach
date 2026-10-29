@@ -7,7 +7,6 @@ import {
   ViewStyle,
   View,
 } from 'react-native';
-import { useCoachStore } from '@/store/useCoachStore';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -38,8 +37,7 @@ export const HorizontalChipBar: React.FC<HorizontalChipBarProps> = ({
   style,
   contentContainerStyle,
 }) => {
-  const { mode } = useCoachStore();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
 
   return (
     <ScrollView

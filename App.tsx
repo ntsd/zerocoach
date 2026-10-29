@@ -42,8 +42,8 @@ export default function App() {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [showOtaModal, setShowOtaModal] = useState(false);
   const [hasDismissedOta, setHasDismissedOta] = useState(false);
-  const { mode, hasCompletedOnboarding } = useCoachStore();
-  const modeColors = getModeColors(mode);
+  const { hasCompletedOnboarding } = useCoachStore();
+  const modeColors = getModeColors();
   const otaMetadata = updateService.getUpdateMetadata();
 
   useEffect(() => {

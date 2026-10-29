@@ -3,27 +3,15 @@ import Svg, { Path, Line, Defs, LinearGradient, Stop, SvgProps } from 'react-nat
 
 interface ZeroCoachLogoProps extends SvgProps {
   size?: number;
-  mode?: 'strict' | 'comfortable' | 'dual';
+  mode?: string;
 }
 
 export const ZeroCoachLogo: React.FC<ZeroCoachLogoProps> = ({
   size = 24,
-  mode = 'dual',
   ...props
 }) => {
-  const ringGradient =
-    mode === 'strict'
-      ? ['#00F0FF', '#0072FF']
-      : mode === 'comfortable'
-      ? ['#10B981', '#059669']
-      : ['#00F0FF', '#3B82F6'];
-
-  const bladeGradient =
-    mode === 'strict'
-      ? ['#00F0FF', '#0072FF']
-      : mode === 'comfortable'
-      ? ['#10B981', '#059669']
-      : ['#10B981', '#00F0FF'];
+  const ringGradient = ['#00F0FF', '#0072FF'];
+  const bladeGradient = ['#00F0FF', '#3B82F6'];
 
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100" fill="none" {...props}>

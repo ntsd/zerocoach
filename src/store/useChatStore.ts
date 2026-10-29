@@ -20,7 +20,6 @@ Private on-device AI & sports science coach with Agent Action Harness.
 
 Ask me to log food, swap an exercise in today's workout, check your wearable readiness telemetry, or update your targets.`,
   timestamp: Date.now(),
-  modeAtCreation: 'strict',
 };
 
 export const useChatStore = create<ChatState>()(
@@ -60,7 +59,6 @@ export const useChatStore = create<ChatState>()(
           role: 'user',
           content: trimmed,
           timestamp: Date.now(),
-          modeAtCreation: coachState.mode,
           readinessAtCreation: telemetryState.metrics.readinessScore,
         };
 
@@ -98,14 +96,12 @@ export const useChatStore = create<ChatState>()(
 
         const systemPrompt = isCompactModel
           ? buildCompactSystemPrompt({
-              mode: coachState.mode,
               userProfile: coachState.userProfile,
               telemetry: telemetryState.metrics,
               nutritionSummary,
               language: effectiveLanguage,
             })
           : buildSystemPrompt({
-              mode: coachState.mode,
               userProfile: coachState.userProfile,
               telemetry: telemetryState.metrics,
               activeStages: telemetryState.calisthenicsStages,
@@ -177,7 +173,6 @@ export const useChatStore = create<ChatState>()(
             role: 'assistant',
             content: result.fullText,
             timestamp: Date.now(),
-            modeAtCreation: coachState.mode,
             readinessAtCreation: telemetryState.metrics.readinessScore,
             tokensGenerated: result.tokensGenerated,
             tokensPerSecond: result.tokensPerSecond,
@@ -197,7 +192,6 @@ export const useChatStore = create<ChatState>()(
             role: 'assistant',
             content: `⚠️ ${err?.message || 'Inference error encountered. Please try again.'}`,
             timestamp: Date.now(),
-            modeAtCreation: coachState.mode,
           };
           set({
             messages: [...updatedMessages, errorMsg],

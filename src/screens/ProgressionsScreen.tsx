@@ -77,13 +77,13 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
   const { t } = useTranslation();
-  const { mode, userProfile, updateProfile, setSkillLevel } = useCoachStore();
+  const { userProfile, updateProfile, setSkillLevel } = useCoachStore();
   const defaultMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
   const { calisthenicsStages, metrics } = useTelemetryStore();
   const { sendMessage } = useChatStore();
   const { selectedDate, setSelectedDate, historyByDate, plansByDate } = useWorkoutStore();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
 
   const todayStr = useMemo(() => getTodayDateString(), []);
   const activeDate = selectedDate || todayStr;
@@ -126,7 +126,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   const coachRec = useMemo(() => {
     return getCoachSplitRecommendation({
       goals: [activeGoal],
-      mode,
       readinessScore: metrics.readinessScore,
       weightKg: userProfile.weightKg,
       heightCm: userProfile.heightCm,
@@ -136,7 +135,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
       sex: userProfile.sex,
       skillLevel: activeSkillLevel,
     });
-  }, [activeGoal, mode, metrics, userProfile, calisthenicsStages, equipmentMode, activeSkillLevel]);
+  }, [activeGoal, metrics, userProfile, calisthenicsStages, equipmentMode, activeSkillLevel]);
 
   // Current active split
   const currentSplit = selectedSplit || coachRec.recommendedSplit;
@@ -146,7 +145,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   const adaptivePlan = useMemo(() => {
     return generateAdaptiveWorkoutPlan({
       goals: [activeGoal],
-      mode,
       readinessScore: metrics.readinessScore,
       weightKg: userProfile.weightKg,
       heightCm: userProfile.heightCm,
@@ -159,7 +157,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     });
   }, [
     activeGoal,
-    mode,
     metrics,
     userProfile,
     calisthenicsStages,
@@ -483,7 +480,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         <AdaptiveWorkoutCard
           key={activeDate}
           plan={effectivePlan}
-          mode={mode}
           date={activeDate}
           onAskCoach={() => handleAskCoachPlan()}
         />

@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
-import { useCoachStore } from '@/store/useCoachStore';
 import { useTranslation } from '@/i18n';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
@@ -10,9 +9,8 @@ import { Activity, RefreshCw, Moon, Heart } from 'lucide-react-native';
 
 export const TelemetryBanner: React.FC = () => {
   const { metrics, syncing, syncTelemetry } = useTelemetryStore();
-  const { mode } = useCoachStore();
   const { t } = useTranslation();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
 
   const isSynced = metrics.lastSyncTimestamp > 0 && metrics.source !== 'manual';
 

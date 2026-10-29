@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useNutritionStore } from '@/store/useNutritionStore';
-import { useCoachStore } from '@/store/useCoachStore';
 import { analyticsService } from '@/services/analytics/analyticsService';
 import { TimeRangeFilter } from '@/types/history';
 import { COLORS, getModeColors } from '@/theme/colors';
@@ -45,8 +44,7 @@ type DomainTab = 'workout' | 'nutrition' | 'recovery';
 const TIME_RANGES: TimeRangeFilter[] = ['7D', '14D', '30D'];
 
 export const AnalyzeScreen: React.FC = () => {
-  const { mode } = useCoachStore();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
   const { t } = useTranslation();
 
   const { metrics, syncing, syncTelemetry } = useTelemetryStore();

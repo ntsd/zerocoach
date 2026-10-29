@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
-import { CoachingMode, UserProfile, TrainingGoal, Sex, EquipmentPreference } from '@/types/coach';
+import { UserProfile, TrainingGoal, Sex, EquipmentPreference } from '@/types/coach';
 import { calculateReadinessScore, getReadinessCategory } from '@/services/telemetry/readinessCalculator';
 import { calculateSmartNutrition } from '@/services/nutrition/nutritionCalculator';
 import { fitnessBridge } from '@/services/telemetry/fitnessBridgeService';
@@ -22,8 +22,6 @@ import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
 import {
-  ShieldAlert,
-  HeartHandshake,
   User,
   Activity,
   Flame,
@@ -108,23 +106,20 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const [steps, setSteps] = useState<number | null>(null);
   const [activeCalories, setActiveCalories] = useState<number | null>(null);
 
-  // Step 2: Coaching Philosophy
-  const [selectedMode, setSelectedMode] = useState<CoachingMode>('strict');
-
-  // Step 3: Profile & Goals (starts empty by default)
+  // Step 2: Profile & Goals (starts empty by default)
   const [name, setName] = useState('');
   const [sex, setSex] = useState<Sex>('male');
   const [equipmentPreference, setEquipmentPreference] = useState<EquipmentPreference>('both');
   const [selectedGoals, setSelectedGoals] = useState<TrainingGoal[]>([]);
 
-  // Step 4: Nutrition State
+  // Step 3: Nutrition State
   const [calorieTarget, setCalorieTarget] = useState('');
   const [proteinGrams, setProteinGrams] = useState('');
   const [carbsGrams, setCarbsGrams] = useState('');
   const [fatGrams, setFatGrams] = useState('');
   const [hasCustomMacros, setHasCustomMacros] = useState(false);
 
-  const modeColors = getModeColors(selectedMode);
+  const modeColors = getModeColors();
 
   const parsedWeight = parseFloat(weightKg);
   const parsedHeight = parseFloat(heightCm);
@@ -149,12 +144,11 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     return calculateSmartNutrition({
       weightKg: parsedWeight,
       heightCm: parsedHeight,
-      mode: selectedMode,
       goals: selectedGoals,
       activeCaloriesBurned: activeCalories ?? 0,
       sex,
     });
-  }, [parsedWeight, parsedHeight, isBodyMetricsValid, selectedMode, selectedGoals, activeCalories, sex]);
+  }, [parsedWeight, parsedHeight, isBodyMetricsValid, selectedGoals, activeCalories, sex]);
 
   // Automatically update macro fields when recommendation changes, unless customized by user
   useEffect(() => {
@@ -247,7 +241,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     if (currentStep === 1) {
       return isBodyMetricsValid;
     }
-    if (currentStep === 3) {
+    if (currentStep === 2) {
       return selectedGoals.length === 1;
     }
     return true;
@@ -296,7 +290,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       });
     }
 
-    completeOnboarding(profile, selectedMode);
+    completeOnboarding(profile);
 
     // Automatically sync live biometrics from Android Health Connect / Apple Health
     useTelemetryStore.getState().syncTelemetry();
@@ -340,10 +334,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       case 1:
         return t.onboarding.step1Title;
       case 2:
-        return t.onboarding.step2Title;
-      case 3:
         return t.onboarding.step3Title;
-      case 4:
+      case 3:
         return t.onboarding.step4Title;
     }
   };
@@ -357,7 +349,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
         {/* Header Indicator */}
         <View style={styles.header}>
           <View style={styles.stepIndicatorRow}>
-            {[1, 2, 3, 4].map((step) => (
+            {[1, 2, 3].map((step) => (
               <View
                 key={step}
                 style={[
@@ -372,7 +364,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           </View>
           <View style={styles.headerRight}>
             <Text style={[styles.stepCountText, { color: modeColors.accent }]}>
-              {t.onboarding.stepCount.replace('{current}', String(currentStep))}
+              {`${currentStep} / 3`}
             </Text>
             <Text style={styles.stepTitleSubtitle}>{getStepTitle()}</Text>
           </View>
@@ -636,7 +628,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 
                       {syncError && (
                         <View style={styles.syncErrorBox}>
-                          <ShieldAlert size={14} color={COLORS.danger} />
+                          <Info size={14} color={COLORS.danger} />
                           <Text style={styles.syncErrorText}>{syncError}</Text>
                         </View>
                       )}
@@ -725,95 +717,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           )}
 
           {/* ===================================================================
-              STEP 2: COACHING PHILOSOPHY
+              STEP 2: PROFILE & TRAINING GOALS (5 PILLARS)
               =================================================================== */}
           {currentStep === 2 && (
-            <View style={styles.stepContainer}>
-              <View style={styles.titleBox}>
-                <Text style={styles.mainTitle}>{t.onboarding.step2Title}</Text>
-                <Text style={styles.subtitle}>
-                  {t.onboarding.step2Sub}
-                </Text>
-              </View>
-
-              {/* Strict Mode Card */}
-              <TouchableOpacity
-                onPress={() => setSelectedMode('strict')}
-                activeOpacity={0.85}
-              >
-                <GlassCard
-                  style={[
-                    styles.modeCard,
-                    selectedMode === 'strict' && styles.modeCardSelected,
-                    selectedMode === 'strict' && { borderColor: COLORS.strict.accent },
-                  ]}
-                >
-                  <View style={styles.modeCardHeader}>
-                    <View style={styles.modeIconRow}>
-                      <ShieldAlert size={20} color={COLORS.strict.accent} />
-                      <Text style={[styles.modeTitle, { color: COLORS.strict.accent }]}>
-                        {t.onboarding.strictModeTitle}
-                      </Text>
-                    </View>
-                    {selectedMode === 'strict' && (
-                      <View style={[styles.checkCircle, { backgroundColor: COLORS.strict.accent }]}>
-                        <Check size={12} color={COLORS.textDark} />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.modeDescription}>
-                    {t.onboarding.strictDesc}
-                  </Text>
-                  <View style={styles.bulletList}>
-                    <Text style={styles.bullet}>• {t.onboarding.strictBullet1}</Text>
-                    <Text style={styles.bullet}>• {t.onboarding.strictBullet2}</Text>
-                    <Text style={styles.bullet}>• {t.onboarding.strictBullet3}</Text>
-                  </View>
-                </GlassCard>
-              </TouchableOpacity>
-
-              {/* Comfortable Mode Card */}
-              <TouchableOpacity
-                onPress={() => setSelectedMode('comfortable')}
-                activeOpacity={0.85}
-              >
-                <GlassCard
-                  style={[
-                    styles.modeCard,
-                    selectedMode === 'comfortable' && styles.modeCardSelected,
-                    selectedMode === 'comfortable' && { borderColor: COLORS.comfortable.accent },
-                  ]}
-                >
-                  <View style={styles.modeCardHeader}>
-                    <View style={styles.modeIconRow}>
-                      <HeartHandshake size={20} color={COLORS.comfortable.accent} />
-                      <Text style={[styles.modeTitle, { color: COLORS.comfortable.accent }]}>
-                        {t.onboarding.comfortModeTitle}
-                      </Text>
-                    </View>
-                    {selectedMode === 'comfortable' && (
-                      <View style={[styles.checkCircle, { backgroundColor: COLORS.comfortable.accent }]}>
-                        <Check size={12} color={COLORS.textDark} />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.modeDescription}>
-                    {t.onboarding.comfortDesc}
-                  </Text>
-                  <View style={styles.bulletList}>
-                    <Text style={styles.bullet}>• {t.onboarding.comfortBullet1}</Text>
-                    <Text style={styles.bullet}>• {t.onboarding.comfortBullet2}</Text>
-                    <Text style={styles.bullet}>• {t.onboarding.comfortBullet3}</Text>
-                  </View>
-                </GlassCard>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ===================================================================
-              STEP 3: PROFILE & TRAINING GOALS (5 PILLARS)
-              =================================================================== */}
-          {currentStep === 3 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
                 <Text style={styles.mainTitle}>{t.onboarding.step3Title}</Text>
@@ -1014,9 +920,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
           )}
 
           {/* ===================================================================
-              STEP 4: DAILY NUTRITION BASELINE & SMART MACROS
+              STEP 3: DAILY NUTRITION BASELINE & SMART MACROS
               =================================================================== */}
-          {currentStep === 4 && (
+          {currentStep === 3 && (
             <View style={styles.stepContainer}>
               <View style={styles.titleBox}>
                 <Text style={styles.mainTitle}>{t.onboarding.step4Title}</Text>
@@ -1069,7 +975,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         style={[
                           styles.breakdownItemVal,
                           smartRecommendation.goalAdjustmentKcal < 0
-                            ? { color: COLORS.strict.accent }
+                            ? { color: COLORS.readinessFatigued }
                             : { color: COLORS.success },
                         ]}
                       >
@@ -1219,7 +1125,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               <View style={{ width: 80 }} />
             )}
 
-            {currentStep < 4 ? (
+            {currentStep < 3 ? (
               <TouchableOpacity
                 onPress={() => setCurrentStep((prev) => (prev + 1) as any)}
                 disabled={!canProceed}
@@ -1233,7 +1139,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                 <Text style={[styles.nextBtnText, !canProceed && styles.disabledBtnText]}>
                   {currentStep === 1 && !isBodyMetricsValid
                     ? t.onboarding.enterWeightHeight
-                    : currentStep === 3 && selectedGoals.length === 0
+                    : currentStep === 2 && selectedGoals.length === 0
                     ? t.onboarding.selectTrainingGoal
                     : t.onboarding.continueAction}
                 </Text>

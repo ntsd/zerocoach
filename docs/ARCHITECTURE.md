@@ -96,7 +96,7 @@ Every domain exposes symmetric capabilities across the mobile interface and the 
 | **4. Workout History** | Review past workout sessions, completed sets, movement counts, and volume | **Read**: `get_workout_history()`<br>**Write**: `log_completed_workout()` | `useWorkoutStore` (`historyByDate`) |
 | **5. Workout Plan** | View adaptive daily splits, swap movements, skip exercises, schedule future routines | **Read**: `get_workout_plan()`<br>**Write**: `update_workout_plan()`, `swap_plan_exercise()` | `useWorkoutStore` (`plansByDate`) |
 | **6. Workout Database (RepDB)** | Browse 643 movements, filter by muscle/equipment, view start/peak pose images & kinetic cues | **Read**: `search_exercises()`, `get_exercise_details()` | `exerciseRepository` (`data/exercises.json`) |
-| **7. ZeroCoach Settings** | Update user goals, weight, height, skill level, switch coach persona (Strict vs Comfortable), language | **Read**: `get_user_settings()`<br>**Write**: `update_user_settings()` | `useCoachStore`, `useModelStore` |
+| **7. ZeroCoach Settings** | Update athlete goals, weight, height, equipment preference, skill level, language | **Read**: `get_user_settings()`<br>**Write**: `update_user_settings()` | `useCoachStore`, `useModelStore` |
 
 ---
 

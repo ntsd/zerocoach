@@ -1,4 +1,4 @@
-import { CoachingMode, TrainingGoal, Sex, SkillLevel } from '@/types/coach';
+import { TrainingGoal, Sex, SkillLevel } from '@/types/coach';
 import { CalisthenicsStage } from '@/types/telemetry';
 import {
   GeneratedWorkoutPlan,
@@ -12,7 +12,7 @@ import { RepDBExercise } from '@/types/exercise';
 
 export interface WorkoutPlanGenerationParams {
   goals: TrainingGoal[];
-  mode: CoachingMode;
+  mode?: any; // Kept as optional for backwards compatibility
   readinessScore: number;
   weightKg: number;
   heightCm: number;
@@ -285,7 +285,6 @@ export function generateAdaptiveWorkoutPlan(
     selectedSplit,
   } = params;
 
-  const isStrict = mode === 'strict';
   const isGym = equipmentMode === 'all';
   const isFemale = sex === 'female';
   const isMale = sex === 'male';
@@ -298,7 +297,7 @@ export function generateAdaptiveWorkoutPlan(
   let tier: WorkoutIntensityTier = 'baseline';
   let tierLabel = 'METABOLIC BASELINE';
   let volumeMultiplier = 1.0;
-  let defaultRpe = isStrict ? 'RPE 8' : 'RPE 7';
+  let defaultRpe = 'RPE 7.5–8';
   let readinessMultiplierDesc =
     'Standard progressive volume. Adjust pace based on internal perceived exertion.';
 
@@ -306,21 +305,21 @@ export function generateAdaptiveWorkoutPlan(
     tier = 'peak';
     tierLabel = 'PEAK OVERLOAD PROTOCOL';
     volumeMultiplier = 1.25;
-    defaultRpe = isStrict ? 'RPE 8.5–9' : 'RPE 8';
+    defaultRpe = 'RPE 8.5–9';
     readinessMultiplierDesc =
       `Optimal recovery (${readinessScore}/100). High neural drive. Target progressive overload and priority PRs.`;
   } else if (readinessScore >= 60) {
     tier = 'optimal';
     tierLabel = 'STANDARD PROGRESSION';
     volumeMultiplier = 1.0;
-    defaultRpe = isStrict ? 'RPE 7.5–8' : 'RPE 7';
+    defaultRpe = 'RPE 7.5–8';
     readinessMultiplierDesc =
       `Balanced recovery (${readinessScore}/100). Maintain crisp cadence, standard sets, and full range of motion.`;
   } else if (readinessScore > 0) {
     tier = 'deload';
     tierLabel = 'AUTOREGULATED DELOAD';
     volumeMultiplier = 0.65;
-    defaultRpe = isStrict ? 'RPE 5–6' : 'RPE 5';
+    defaultRpe = 'RPE 5–6';
     readinessMultiplierDesc =
       `Depressed recovery (${readinessScore}/100). Volume reduced by 35% to protect joints and facilitate CNS repair.`;
   }
@@ -485,7 +484,7 @@ export function generateAdaptiveWorkoutPlan(
         warmup1Reps,
         warmup1Rest,
         warmup1Intensity,
-        isStrict ? warmup1Cue : ex1.tips_en?.[0] || warmup1Cue
+        warmup1Cue
       )
     );
   }
@@ -502,7 +501,7 @@ export function generateAdaptiveWorkoutPlan(
           warmup2Reps,
           warmup2Rest,
           warmup2Intensity,
-          isStrict ? warmup2Cue : ex2.tips_en?.[0] || warmup2Cue
+          warmup2Cue
         )
       );
     }
@@ -1283,9 +1282,7 @@ export function generateAdaptiveWorkoutPlan(
             : '3–5 strict reps',
           restPeriodSeconds: tier === 'peak' ? 120 : 90,
           intensityNote: `${defaultRpe} • Priority Skill Hold`,
-          coachingCue: isStrict
-            ? `Strict Standard: ${nextStage.standard}. Focus on maximum tendon tension and clean lockouts.`
-            : 'Work within your comfortable threshold. Stop 1-2 reps before mechanical breakdown.',
+          coachingCue: `Target Standard: ${nextStage.standard}. Focus on clean lockouts and progressive mastery.`,
           equipment: 'calisthenics',
           bodyPart: 'full_body',
           primaryMuscles: ['rectus_abdominis', 'latissimus_dorsi'],
@@ -1630,9 +1627,7 @@ export function generateAdaptiveWorkoutPlan(
     equipmentMode,
     targetSkillMilestone,
     exercises,
-    coachingNotes: isStrict
-      ? `Strict Execution Directives: Adhere precisely to the target rep cadences and RPE limits. Record completed sets to unlock higher progression tiers.`
-      : `Health Directives: Honor your body's current readiness. Rest as needed, enjoy fluid movement, and build sustainable strength step by step.`,
+    coachingNotes: `Sports Science Protocol: Adhere to target cadences and RPE guidelines. Progression is calibrated to autonomic readiness (${readinessScore}/100). Log completed sets for adaptive feedback.`,
     generatedDate: new Date().toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',

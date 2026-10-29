@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { GeneratedWorkoutPlan, ExerciseItem } from '@/types/workout';
-import { CoachingMode } from '@/types/coach';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -40,7 +39,6 @@ import { formatDateDisplay } from '@/components/common/DateNavigationBar';
 
 interface AdaptiveWorkoutCardProps {
   plan: GeneratedWorkoutPlan;
-  mode: CoachingMode;
   onAskCoach: (plan: GeneratedWorkoutPlan) => void;
   date?: string;
 }
@@ -63,12 +61,11 @@ function formatMuscle(muscle?: string): string {
 
 export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   plan,
-  mode,
   onAskCoach,
   date,
 }) => {
   const { t } = useTranslation();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
   const todayDateStr = new Date().toISOString().split('T')[0];
   const currentDateStr = date || todayDateStr;
   const isToday = currentDateStr === todayDateStr;
@@ -882,7 +879,6 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         }}
         onClose={() => setSelectedExerciseId(null)}
         onAskCoach={handleAskCoachForExercise}
-        mode={mode}
       />
 
       {/* RepDB Exercise Selector / Swapper Modal */}
@@ -893,7 +889,6 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           setSwapTargetExercise(null);
         }}
         onSelectExercise={handleSelectRepDBExercise}
-        mode={mode}
         swapTargetExercise={swapTargetExercise}
       />
 
@@ -905,7 +900,6 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         plan={plan}
         completedExercises={exercises.filter((ex) => completedExercises[ex.id])}
         skippedExercises={exercises.filter((ex) => skippedExercises[ex.id])}
-        mode={mode}
         initialDurationMin={sessionForDate?.durationMinutes || plan.estimatedDurationMin}
         initialCaloriesBurn={sessionForDate?.caloriesBurned || plan.estimatedCaloriesBurn || 220}
       />

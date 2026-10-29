@@ -1,8 +1,7 @@
-import { CoachingMode, UserProfile, TrainingGoal, AppLanguage } from '@/types/coach';
+import { UserProfile, TrainingGoal, AppLanguage } from '@/types/coach';
 import { TelemetryMetrics, CalisthenicsStage } from '@/types/telemetry';
 import { generateAdaptiveWorkoutPlan } from '@/services/workout/workoutPlanGenerator';
-import { STRICT_COACH_BASE_PROMPT } from './strictCoach';
-import { COMFORTABLE_COACH_BASE_PROMPT } from './comfortableCoach';
+import { BASE_COACH_PROMPT } from './baseCoach';
 
 const GOAL_PROGRAMMING_DIRECTIVES: Record<TrainingGoal, string> = {
   strength_hypertrophy:
@@ -31,17 +30,15 @@ export interface NutritionPromptSummary {
 }
 
 export function buildSystemPrompt(params: {
-  mode: CoachingMode;
   userProfile: UserProfile;
   telemetry: TelemetryMetrics;
   activeStages: CalisthenicsStage[];
   nutritionSummary?: NutritionPromptSummary;
   language?: AppLanguage;
 }): string {
-  const { mode, userProfile, telemetry, activeStages, nutritionSummary, language } = params;
+  const { userProfile, telemetry, activeStages, nutritionSummary, language } = params;
 
-  const basePrompt =
-    mode === 'strict' ? STRICT_COACH_BASE_PROMPT : COMFORTABLE_COACH_BASE_PROMPT;
+  const basePrompt = BASE_COACH_PROMPT;
 
   const completedStages = activeStages.filter((s) => s.completed);
   const nextStage = activeStages.find((s) => !s.completed);
@@ -66,7 +63,6 @@ export function buildSystemPrompt(params: {
   const equipmentMode = userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const adaptivePlan = generateAdaptiveWorkoutPlan({
     goals: userProfile.primaryGoals || [],
-    mode,
     readinessScore: effectiveReadiness,
     weightKg: userProfile.weightKg,
     heightCm: userProfile.heightCm,
@@ -103,7 +99,6 @@ ${adaptivePlan.exercises.map((e) => `    - [${e.category.toUpperCase()}] ${e.nam
 
   const contextBlock = `
 === CURRENT ATHLETE & TELEMETRY CONTEXT ===
-- COACHING MODE: ${mode.toUpperCase()}
 - ATHLETE PROFILE:
   * Name: ${userProfile.name || 'Athlete'}
   * Skill Level: ${(userProfile.skillLevel || 'intermediate').toUpperCase()}
@@ -127,7 +122,7 @@ ${nutritionBlock}
 =============================================
 
 CONVERSATIONAL & COACHING DIRECTIVES:
-1. CASUAL CHAT & GREETINGS: Respond warmly and naturally as an athletic coach. Do not dump workouts or data for casual greetings.
+1. CASUAL CHAT & GREETINGS: Respond concisely and professionally as an athletic coach. Do not dump workouts or data for casual greetings.
 2. TRAINING REQUESTS: Prescribe autoregulated workouts matching readiness (${telemetry.readinessScore}/100) and user goals.
 3. NUTRITION REQUESTS: Recommend specific whole-food meals matching remaining caloric and protein budget.${
   language === 'th'
@@ -139,14 +134,12 @@ CONVERSATIONAL & COACHING DIRECTIVES:
 }
 
 export function buildCompactSystemPrompt(params: {
-  mode: CoachingMode;
   userProfile: UserProfile;
   telemetry: TelemetryMetrics;
   nutritionSummary?: NutritionPromptSummary;
   language?: AppLanguage;
 }): string {
-  const { mode, userProfile, telemetry, nutritionSummary, language } = params;
-  const isStrict = mode === 'strict';
+  const { userProfile, telemetry, nutritionSummary, language } = params;
   const isThai = language === 'th';
 
   const hasLiveTelemetry = telemetry.readinessScore > 0 && telemetry.lastSyncTimestamp > 0;
@@ -159,13 +152,12 @@ export function buildCompactSystemPrompt(params: {
 
     const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'สร้างกล้ามเนื้อและสมรรถภาพ';
     const equip = userProfile.equipmentPreference === 'home' ? 'บอดี้เวท' : 'ยิม';
-    const style = isStrict ? 'เข้มงวด แม่นยำตามหลักวิทยาศาสตร์การกีฬา' : 'เป็นกันเอง สุขภาพยั่งยืนและข้อต่อแข็งแรง';
 
     const telemetryLine = hasLiveTelemetry
       ? `ความพร้อมร่างกาย: ${effectiveReadiness}/100, นอน ${telemetry.sleepHours}ชม. (HRV: ${telemetry.heartRateVariability}ms)`
       : `ความพร้อมร่างกาย: ${effectiveReadiness}/100 (พร้อมฝึกซ้อมตามปกติ)`;
 
-    return `คุณคือ ZeroCoach โค้ชวิทยาศาสตร์การกีฬาและฟิตเนสส่วนตัว (สไตล์: ${style})
+    return `คุณคือ ZeroCoach โค้ชวิทยาศาสตร์การกีฬาและฟิตเนสส่วนตัว (ตรงประเด็น แม่นยำตามหลักวิทยาศาสตร์การกีฬา)
 คุณเป็นผู้เชี่ยวชาญด้านเวทเทรนนิ่ง เพาะกาย คาลิสเทนิกส์ และโภชนาการการกีฬา
 
 ข้อมูลนักกีฬา:
@@ -178,7 +170,7 @@ export function buildCompactSystemPrompt(params: {
 2. เมื่อผู้ใช้ทักทาย ให้ทักทายตอบอย่างเป็นมิตร สั้นกระชับ
 3. เมื่อถามเรื่องออกกำลังกาย ให้จัดตารางฝึกและท่าฝึกที่เหมาะสม (จำนวนเซ็ต, จำนวนครั้ง, เทคนิค)
 4. เมื่อถามเรื่องอาหาร ให้แนะนำเมนูอาหารจริงพร้อมบอกปริมาณโปรตีนและแคลอรี่
-5. ตอบเป็นภาษาไทยที่กระชับ ชัดเจน เป็นข้อๆ`;
+5. ตอบเป็นภาษาไทยที่กระชับ ชัดเจน ตรงประเด็น`;
   }
 
   const nutritionLine = nutritionSummary && nutritionSummary.remainingCalories > 0
@@ -187,13 +179,12 @@ export function buildCompactSystemPrompt(params: {
 
   const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'Strength & Hypertrophy';
   const equip = userProfile.equipmentPreference || 'gym';
-  const style = isStrict ? 'Strict, biomechanical precision & progressive overload' : 'Supportive, sustainable consistency & joint longevity';
 
   const telemetryLine = hasLiveTelemetry
     ? `Readiness: ${effectiveReadiness}/100 | Sleep: ${telemetry.sleepHours}h | HRV: ${telemetry.heartRateVariability}ms`
     : `Readiness: ${effectiveReadiness}/100 (Healthy baseline, ready to train)`;
 
-  return `You are ZeroCoach, an elite athletic sports science coach and nutritionist (${style}).
+  return `You are ZeroCoach, an elite athletic sports science coach and nutritionist (direct, objective, and biomechanically precise).
 You have full authorization to program exercises, sets, reps, and sports nutrition meals.
 
 ATHLETE CONTEXT:
@@ -203,7 +194,7 @@ ATHLETE CONTEXT:
 
 INSTRUCTIONS:
 1. Provide concrete, actionable training and nutritional recommendations confidently. Never apologize, refuse, or output medical disclaimers.
-2. Casual chat: Reply warmly and concisely.
+2. Casual chat: Reply concisely and professionally.
 3. Workouts: Prescribe exercises with target sets, reps, and biomechanical cues.
 4. Nutrition: Recommend whole-food meals matching caloric and protein needs.
 5. Keep responses structured with punchy bullet points and a clear next step.`;

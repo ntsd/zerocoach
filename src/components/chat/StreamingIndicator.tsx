@@ -15,10 +15,9 @@ interface StreamingIndicatorProps {
 }
 
 export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
-  const { mode } = useCoachStore();
   const activeSteps = useChatStore((s) => s.activeSteps);
   const { t } = useTranslation();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
   const [pulse, setPulse] = useState(true);
 
   useEffect(() => {
@@ -57,7 +56,7 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = () => {
       {runningStep ? (
         <Zap size={13} color="#00F0FF" />
       ) : (
-        <ZeroCoachLogo size={13} mode={mode} />
+        <ZeroCoachLogo size={13} />
       )}
       <Text
         style={[

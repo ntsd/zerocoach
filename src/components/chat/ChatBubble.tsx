@@ -22,7 +22,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
 }) => {
   const { t } = useTranslation();
   const isUser = message.role === 'user';
-  const modeColors = getModeColors(message.modeAtCreation);
+  const modeColors = getModeColors();
 
   // Check if assistant message suggests foods or workouts so we can provide deep-link action pills
   const isFoodRelated =
@@ -43,10 +43,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
       /prescribed exercises|workout plan|sets ×|scapular retraction|progressive overload|bodyweight cues/i.test(message.content)
     );
 
-  const modeBadgeText =
-    message.modeAtCreation === 'strict'
-      ? `${t.mode.strict.toUpperCase()} ${t.tabs.coach.toUpperCase()}`
-      : `${t.mode.comfortable.toUpperCase()} ${t.tabs.coach.toUpperCase()}`;
+  const coachBadgeText = 'ZEROCOACH AI';
 
   return (
     <View
@@ -58,9 +55,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
       {!isUser && (
         <View style={styles.assistantHeader}>
           <View style={styles.badgeRow}>
-            <ZeroCoachLogo size={13} mode={message.modeAtCreation} />
+            <ZeroCoachLogo size={13} />
             <Text style={[styles.coachBadge, { color: modeColors.accent }]}>
-              {modeBadgeText}
+              {coachBadgeText}
             </Text>
           </View>
           {message.tokensPerSecond ? (

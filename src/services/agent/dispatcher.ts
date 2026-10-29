@@ -406,7 +406,6 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
         const telemetry = useTelemetryStore.getState();
         const plan = generateAdaptiveWorkoutPlan({
           goals: coach.userProfile.primaryGoals || ['strength_hypertrophy'],
-          mode: coach.mode,
           readinessScore: telemetry.metrics.readinessScore,
           weightKg: coach.userProfile.weightKg,
           heightCm: coach.userProfile.heightCm,
@@ -655,10 +654,9 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           success: true,
           data: {
             userProfile: coach.userProfile,
-            coachingMode: coach.mode,
             language: coach.language,
           },
-          summary: `User Profile: ${coach.userProfile.skillLevel} level, ${coach.userProfile.weightKg} kg, ${coach.mode} mode`,
+          summary: `User Profile: ${coach.userProfile.skillLevel} level, ${coach.userProfile.weightKg} kg`,
         };
       }
 
@@ -673,9 +671,6 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
 
         if (Object.keys(profileUpdates).length > 0) {
           coach.updateProfile(profileUpdates);
-        }
-        if (args.coachingMode && (args.coachingMode === 'strict' || args.coachingMode === 'comfortable')) {
-          coach.setMode(args.coachingMode);
         }
         if (args.language && (args.language === 'en' || args.language === 'th')) {
           coach.setLanguage(args.language);

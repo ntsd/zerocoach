@@ -82,10 +82,10 @@ export const ModelManagerScreen: React.FC = () => {
     testGeminiConnection,
   } = useModelStore();
 
-  const { mode, userProfile, updateProfile, language, setLanguage } = useCoachStore();
+  const { userProfile, updateProfile, language, setLanguage } = useCoachStore();
   const { t } = useTranslation();
   const memoryInfo = getDeviceMemoryInfo();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
   const [otaStatus, setOtaStatus] = useState<string | null>(null);
   const [checkingOta, setCheckingOta] = useState(false);
   const [otaCanReload, setOtaCanReload] = useState(false);

@@ -376,7 +376,6 @@ export const useTelemetryStore = create<TelemetryState>()(
             const newNutrition = calculateSmartNutrition({
               weightKg: effectiveWeight,
               heightCm: effectiveHeight,
-              mode: coachStore.mode,
               goals: currentProfile?.primaryGoals || [],
               activeCaloriesBurned: fresh.activeCalories,
               sex: currentProfile?.sex,

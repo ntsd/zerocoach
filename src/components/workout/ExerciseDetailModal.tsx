@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { AppModal } from '@/components/common/AppModal';
 import { ExerciseItem } from '@/types/workout';
-import { CoachingMode } from '@/types/coach';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -40,7 +39,6 @@ interface ExerciseDetailModalProps {
   onUpdateReps?: (newReps: string) => void;
   onClose: () => void;
   onAskCoach?: (exerciseName: string) => void;
-  mode: CoachingMode;
 }
 
 export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
@@ -52,7 +50,6 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   onUpdateReps,
   onClose,
   onAskCoach,
-  mode,
 }) => {
   const { t } = useTranslation();
   const [activePose, setActivePose] = useState<'start' | 'peak'>('peak');
@@ -60,7 +57,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
 
   // Auto-play loop between Start and Peak poses if both exist
   useEffect(() => {

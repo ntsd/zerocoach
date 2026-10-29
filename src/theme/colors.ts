@@ -10,22 +10,28 @@ export const COLORS = {
   borderActive: 'rgba(255, 255, 255, 0.20)',
   glassBackground: 'rgba(15, 20, 28, 0.75)',
 
-  // Coaching Mode Dynamic Accents
+  // Universal Athlete Accent (Signature Obsidian Cyan)
+  primary: '#00F0FF',
+  primaryGlow: 'rgba(0, 240, 255, 0.25)',
+  primarySubtle: 'rgba(0, 240, 255, 0.10)',
+  gradientPrimary: ['#00F0FF', '#0072FF'] as const,
+
+  // Signature Accent
   strict: {
     accent: '#00F0FF',
     accentGlow: 'rgba(0, 240, 255, 0.25)',
     subtle: 'rgba(0, 240, 255, 0.10)',
     gradient: ['#00F0FF', '#0072FF'] as const,
     badgeText: '#00F0FF',
-    modeName: 'STRICT ATHLETE',
+    modeName: 'ZEROCOACH AI',
   },
   comfortable: {
-    accent: '#10B981',
-    accentGlow: 'rgba(16, 185, 129, 0.25)',
-    subtle: 'rgba(16, 185, 129, 0.10)',
-    gradient: ['#10B981', '#059669'] as const,
-    badgeText: '#10B981',
-    modeName: 'SUSTAINABLE HEALTH',
+    accent: '#00F0FF',
+    accentGlow: 'rgba(0, 240, 255, 0.25)',
+    subtle: 'rgba(0, 240, 255, 0.10)',
+    gradient: ['#00F0FF', '#0072FF'] as const,
+    badgeText: '#00F0FF',
+    modeName: 'ZEROCOACH AI',
   },
 
   // Telemetry & Readiness Spectrum
@@ -46,8 +52,15 @@ export const COLORS = {
   success: '#10B981',
 };
 
-export type CoachingMode = 'strict' | 'comfortable';
+export const THEME_ACCENT = {
+  accent: '#00F0FF',
+  accentGlow: 'rgba(0, 240, 255, 0.25)',
+  subtle: 'rgba(0, 240, 255, 0.10)',
+  gradient: ['#00F0FF', '#0072FF'] as const,
+  badgeText: '#00F0FF',
+  modeName: 'ZEROCOACH AI',
+};
 
-export function getModeColors(mode: CoachingMode) {
-  return mode === 'strict' ? COLORS.strict : COLORS.comfortable;
+export function getModeColors(_mode?: any) {
+  return THEME_ACCENT;
 }

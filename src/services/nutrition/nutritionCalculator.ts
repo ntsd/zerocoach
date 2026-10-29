@@ -1,9 +1,9 @@
-import { CoachingMode, TrainingGoal, Sex } from '@/types/coach';
+import { TrainingGoal, Sex } from '@/types/coach';
 
 export interface NutritionCalcParams {
   weightKg: number;
   heightCm: number;
-  mode: CoachingMode;
+  mode?: any; // Kept as optional for backwards compatibility
   goals: TrainingGoal[];
   activeCaloriesBurned: number; // e.g. from wearable sync or manual entry
   sex?: Sex;
@@ -27,7 +27,7 @@ export interface NutritionRecommendation {
  * biological sex metabolism characteristics, and training goal directives.
  */
 export function calculateSmartNutrition(params: NutritionCalcParams): NutritionRecommendation {
-  const { weightKg, heightCm, mode, goals, activeCaloriesBurned, sex = 'male' } = params;
+  const { weightKg, heightCm, goals, activeCaloriesBurned, sex = 'male' } = params;
 
   if (!weightKg || weightKg <= 0 || !heightCm || heightCm <= 0) {
     return {
@@ -74,25 +74,25 @@ export function calculateSmartNutrition(params: NutritionCalcParams): NutritionR
 
   if (hasFatLoss && hasStrength) {
     // Body Recomposition: slight deficit, high protein
-    goalAdjustmentKcal = mode === 'strict' ? -350 : -250;
+    goalAdjustmentKcal = -300;
     proteinRatio = 2.2;
     fatRatio = 0.8;
     goalSummary = 'Body Recomposition (High Protein Deficit)';
   } else if (hasFatLoss) {
     // Targeted Fat Loss: moderate deficit, high protein to spare muscle
-    goalAdjustmentKcal = mode === 'strict' ? -450 : -350;
+    goalAdjustmentKcal = -400;
     proteinRatio = 2.2;
     fatRatio = 0.75;
     goalSummary = 'Fat Loss Deficit (Lean Mass Preservation)';
   } else if (hasStrength) {
     // Lean Hypertrophy: controlled caloric surplus
-    goalAdjustmentKcal = mode === 'strict' ? 300 : 200;
+    goalAdjustmentKcal = 250;
     proteinRatio = 2.0;
     fatRatio = 0.9;
     goalSummary = 'Lean Hypertrophy Surplus (Muscle Growth)';
   } else if (hasCardio) {
     // Endurance: energy balance + high carb allocation
-    goalAdjustmentKcal = mode === 'strict' ? 100 : 0;
+    goalAdjustmentKcal = 0;
     proteinRatio = 1.6;
     fatRatio = 0.8;
     goalSummary = 'Endurance Fueling (High Glycogen Carbs)';

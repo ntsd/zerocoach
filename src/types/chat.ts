@@ -1,4 +1,3 @@
-import { CoachingMode } from './coach';
 import { AgentExecutionStep } from '@/services/agent/types';
 
 export type MessageRole = 'user' | 'assistant' | 'system';
@@ -8,7 +7,6 @@ export interface ChatMessage {
   role: MessageRole;
   content: string;
   timestamp: number;
-  modeAtCreation: CoachingMode;
   readinessAtCreation?: number;
   tokensGenerated?: number;
   tokensPerSecond?: number;

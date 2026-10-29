@@ -37,7 +37,7 @@ A complete specification for generating a high-impact, 2-minute Hackathon Pitch 
 ### Scene 2: Real-Time On-Device Coach Chat (0:25 – 0:55)
 * **Screen Action**:
   - Navigates to `COACH` tab.
-  - Taps persona toggle: switches between `STRICT` and `COMFORT` mode.
+  - Direct & Professional sports-science coach active with signature Obsidian Cyan theme.
   - Health Connect readiness score shows `79/100` with sleep and heart rate metrics.
   - User submits prompt: *"I slept 6 hours and have heavy leg soreness. What should my squat workout look like today?"*
   - Shows **REAL-TIME STREAMING INFERENCE** indicator (`~38 TOK/S`) as tokens stream onto the screen with structured, science-backed guidance.

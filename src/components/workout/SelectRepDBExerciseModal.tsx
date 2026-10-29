@@ -12,7 +12,6 @@ import {
 import { AppModal } from '@/components/common/AppModal';
 import { RepDBExercise } from '@/types/exercise';
 import { ExerciseItem } from '@/types/workout';
-import { CoachingMode } from '@/types/coach';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { RADIUS, SPACING } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
@@ -35,7 +34,6 @@ interface SelectRepDBExerciseModalProps {
   visible: boolean;
   onClose: () => void;
   onSelectExercise: (repDbExercise: RepDBExercise) => void;
-  mode: CoachingMode;
   swapTargetExercise?: ExerciseItem | null;
 }
 
@@ -75,11 +73,10 @@ export const SelectRepDBExerciseModal: React.FC<SelectRepDBExerciseModalProps> =
   visible,
   onClose,
   onSelectExercise,
-  mode,
   swapTargetExercise,
 }) => {
   const { t } = useTranslation();
-  const modeColors = getModeColors(mode);
+  const modeColors = getModeColors();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
 

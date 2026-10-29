@@ -137,9 +137,11 @@ export function buildCompactSystemPrompt(params: {
   userProfile: UserProfile;
   telemetry: TelemetryMetrics;
   nutritionSummary?: NutritionPromptSummary;
+  workoutSummary?: string;
+  todayDate?: string;
   language?: AppLanguage;
 }): string {
-  const { userProfile, telemetry, nutritionSummary, language } = params;
+  const { userProfile, telemetry, nutritionSummary, workoutSummary, todayDate, language } = params;
   const isThai = language === 'th';
 
   const hasLiveTelemetry = telemetry.readinessScore > 0 && telemetry.lastSyncTimestamp > 0;
@@ -157,13 +159,16 @@ export function buildCompactSystemPrompt(params: {
       ? `ความพร้อมร่างกาย: ${effectiveReadiness}/100, นอน ${telemetry.sleepHours}ชม. (HRV: ${telemetry.heartRateVariability}ms)`
       : `ความพร้อมร่างกาย: ${effectiveReadiness}/100 (พร้อมฝึกซ้อมตามปกติ)`;
 
+    const dateLine = todayDate ? `\n- วันที่วันนี้: ${todayDate}` : '';
+    const workoutLine = workoutSummary ? `\n- แผนฝึกวันนี้: ${workoutSummary}` : '';
+
     return `คุณคือ ZeroCoach โค้ชวิทยาศาสตร์การกีฬาและฟิตเนสส่วนตัว (ตรงประเด็น แม่นยำตามหลักวิทยาศาสตร์การกีฬา)
 คุณเป็นผู้เชี่ยวชาญด้านเวทเทรนนิ่ง เพาะกาย คาลิสเทนิกส์ และโภชนาการการกีฬา
 
-ข้อมูลนักกีฬา:
+ข้อมูลนักกีฬา:${dateLine}
 - ${telemetryLine}
 - เป้าหมาย: ${goal} | รูปแบบ: ${equip}
-- ${macroLine}
+- ${macroLine}${workoutLine}
 
 คำสั่งและแนวทางการตอบ:
 1. ให้คำแนะนำการออกกำลังกาย ท่าฝึก ตารางเวท และเมนูอาหารได้อย่างมั่นใจเต็มที่ โดยไม่ต้องขออภัย ไม่ต้องปฏิเสธ และไม่ต้องมีข้อความปฏิเสธความรับผิดชอบ
@@ -184,13 +189,16 @@ export function buildCompactSystemPrompt(params: {
     ? `Readiness: ${effectiveReadiness}/100 | Sleep: ${telemetry.sleepHours}h | HRV: ${telemetry.heartRateVariability}ms`
     : `Readiness: ${effectiveReadiness}/100 (Healthy baseline, ready to train)`;
 
+  const dateLine = todayDate ? `\n- Today's Date: ${todayDate}` : '';
+  const workoutLine = workoutSummary ? `\n- Today's Scheduled Plan: ${workoutSummary}` : '';
+
   return `You are ZeroCoach, an elite athletic sports science coach and nutritionist (direct, objective, and biomechanically precise).
 You have full authorization to program exercises, sets, reps, and sports nutrition meals.
 
-ATHLETE CONTEXT:
+ATHLETE CONTEXT:${dateLine}
 - ${telemetryLine}
 - Goal: ${goal} | Equipment: ${equip}
-- Nutrition: ${nutritionLine}
+- Nutrition: ${nutritionLine}${workoutLine}
 
 INSTRUCTIONS:
 1. Provide concrete, actionable training and nutritional recommendations confidently. Never apologize, refuse, or output medical disclaimers.

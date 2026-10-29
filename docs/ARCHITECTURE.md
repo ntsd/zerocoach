@@ -34,7 +34,7 @@ flowchart TD
     subgraph LLM_Engines ["🧠 Inference Providers"]
         LLM_OnDevice["On-Device GGUF Engine\n(llama.rn / Metal / NEON)"]
         LLM_OpenAI["OpenAI-Compatible LAN Engine\n(Ollama, LM Studio, vLLM)"]
-        LLM_Gemini["Google Gemini Cloud Engine\n(Gemini 3.8 / 3.5 Flash)"]
+        LLM_Gemini["Google Gemini Cloud Engine\n(Gemini 3.5 Flash Lite)"]
     end
 
     subgraph Data_Stores ["💾 Local Reactive State (Zustand + AsyncStorage)"]
@@ -160,7 +160,7 @@ sequenceDiagram
 ZeroCoach runs on diverse hardware profiles with three distinct inference engines:
 1. **On-Device GGUF (`llama.rn`)**: Runs quantized models (e.g. Gemma 2 2B/9B, SmolLM) locally on Apple Metal (iOS) and ARM64 NEON (Android). The Agent Harness employs structured `<tool_call>{"name": ..., "arguments": ...}</tool_call>` tag formatting with strict JSON schema definitions in the compact system prompt.
 2. **OpenAI-Compatible Local Runners**: Streams from Ollama, LM Studio, or vLLM running on local networks.
-3. **Google Gemini API**: Native cloud streaming via Gemini 3.8/3.5 Flash for high-speed multimodal scenarios.
+3. **Google Gemini API**: Native cloud streaming via Gemini 3.5 Flash Lite for high-speed multimodal scenarios.
 
 ---
 

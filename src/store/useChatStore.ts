@@ -6,6 +6,7 @@ import { AppLanguage } from '@/types/coach';
 import { useCoachStore } from './useCoachStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { useNutritionStore } from './useNutritionStore';
+import { useWorkoutStore } from './useWorkoutStore';
 import { buildSystemPrompt, buildCompactSystemPrompt } from '@/services/prompts/systemPromptBuilder';
 import { llmService } from '@/services/llm/llmService';
 import { useModelStore } from './useModelStore';
@@ -94,11 +95,20 @@ export const useChatStore = create<ChatState>()(
           loggedMealsCount: currentNutritionLog.foods.length,
         };
 
+        const todayDate = new Date().toISOString().split('T')[0];
+        const workoutState = useWorkoutStore.getState();
+        const todayPlan = workoutState.getPlanForDate(todayDate);
+        const workoutSummary = todayPlan
+          ? `"${todayPlan.title}" (${todayPlan.exercises.length} exercises)`
+          : 'None scheduled yet';
+
         const systemPrompt = isCompactModel
           ? buildCompactSystemPrompt({
               userProfile: coachState.userProfile,
               telemetry: telemetryState.metrics,
               nutritionSummary,
+              workoutSummary,
+              todayDate,
               language: effectiveLanguage,
             })
           : buildSystemPrompt({
@@ -161,7 +171,8 @@ export const useChatStore = create<ChatState>()(
                 } else {
                   currentSteps.push(step);
                 }
-                set({ activeSteps: [...currentSteps] });
+                streamedText = '';
+                set({ activeSteps: [...currentSteps], streamingMessage: '' });
               },
             },
           });

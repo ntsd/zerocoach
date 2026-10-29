@@ -47,7 +47,7 @@ Visit the official website at [**zerocoach.tech**](https://zerocoach.tech).
 - 🏋️ **Goal-Driven Adaptive Training & Persistent Plans**: Automatically generates personalized workout splits based on readiness scores, equipment (Gym vs. Bodyweight), and athlete skill level, stored persistently by date.
 - 📅 **Calendar Date Navigation**: Seamless date navigation across both Workout and Nutrition modules—review past sessions, modify upcoming routines, or plan ahead with instant 1-tap jump to today.
 - 📚 **RepDB Exercise Library**: Integrated catalog of 643 science-backed exercises with start/peak pose previews, customizable movement swapping, and skipping.
-- 🥗 **Smart Nutrition & Multimodal Vision**: Dual-mode camera scanner featuring **Gemini 3.8 Flash** food plate analysis and **Open Food Facts NutriSight** label extraction alongside 11 micronutrient RDA bio-scores.
+- 🥗 **Smart Nutrition & Multimodal Vision**: Dual-mode camera scanner featuring **Gemini 3.5 Flash Lite** food plate analysis and **Open Food Facts NutriSight** label extraction alongside 11 micronutrient RDA bio-scores.
 - 📈 **Unified Athletic Analytics**: Multi-domain bio-history tracking recovery, workout volume, and nutrition with composite scoring and SVG trendline charts.
 - ⌚ **Universal Wearable & Health Sync**: Direct on-device sync with Android Health Connect and Apple HealthKit to aggregate sleep, HRV, heart rate, and steps across Garmin, Apple Watch, Whoop, Oura, Samsung, and more.
 - 🎨 **Privacy-First Obsidian Interface**: Dark-mode glassmorphic aesthetic optimized for fluid mobile interactions and system safe insets.
@@ -107,7 +107,7 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution with
 - **Log Food Modal**:
   - *Database Search*: Search whole foods (USDA) and packaged products (Open Food Facts).
   - *Barcode Scanner*: Scan barcodes or enter codes with instant OFF product lookup.
-  - *Snap / NutriSight Label Scanner*: Dual-mode camera scanner featuring **Open Food Facts NutriSight** (`openfoodfacts/nutrition-extractor` LayoutLMv3 token schema) to extract exact nutrition tables (calories, protein, carbs, fat, fiber, sodium, and serving grams) from packaging labels, alongside multimodal cooked meal plate decomposition via Gemini 3.8 Flash.
+  - *Snap / NutriSight Label Scanner*: Dual-mode camera scanner featuring **Open Food Facts NutriSight** (`openfoodfacts/nutrition-extractor` LayoutLMv3 token schema) to extract exact nutrition tables (calories, protein, carbs, fat, fiber, sodium, and serving grams) from packaging labels, alongside multimodal cooked meal plate decomposition via Gemini 3.5 Flash Lite.
   - *Portion Review Sheet*: Adjust grams/servings with real-time nutrient recalculation before logging.
 
 ### 3. 🏋️ Workout (`ProgressionsScreen`)

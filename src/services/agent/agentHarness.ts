@@ -11,7 +11,7 @@ import {
 import { llmService } from '@/services/llm/llmService';
 import { CompletionRequest, CompletionResult } from '@/services/llm/types';
 
-const MAX_AGENT_ITERATIONS = 3;
+const MAX_TOOL_CALLS = 4;
 
 /**
  * Builds compact tool declaration prompt block to save LLM tokens
@@ -27,16 +27,20 @@ You have real-time read and write tools to the athlete's fitness telemetry, nutr
 
 ${toolLines}
 
-TOOL CALLING PROTOCOL:
-When you need to read data or perform an action requested by the athlete (e.g. log food, swap an exercise, check telemetry, search database, or update goals), emit EXACTLY one tool call tag:
+TOOL CALLING PROTOCOL & RULES:
+1. ATHLETE CONTEXT IS ALREADY LOADED:
+   - Live telemetry (Readiness score, sleep, HRV), goals, and today's scheduled workout plan are ALREADY provided in the ATHLETE CONTEXT above.
+   - Do NOT call get_fitness_telemetry or get_workout_plan if the data is already present in the ATHLETE CONTEXT. Answer the athlete directly!
+2. ONLY call tools when:
+   - The athlete requests an ACTION (e.g. "log my food", "save/change this workout plan", "update my goal", "swap an exercise").
+   - Detailed external database search is needed (search_food_database, search_exercise_database) or reading past days history.
+3. PROTOCOL:
+   - When calling a tool, emit EXACTLY one tool call tag:
 <tool_call>
 {"name": "tool_name", "arguments": { ... }}
 </tool_call>
-
-RULES:
-1. When calling a tool, output ONLY the <tool_call> tag and nothing else in that turn.
-2. After the tool result is provided, provide a direct, concise, and helpful response to the athlete.
-3. If no action or tool call is needed, respond normally to the athlete without any <tool_call> tags.
+   - When tool results are provided, synthesize your full coaching answer directly.
+   - If no action or tool call is needed, respond normally to the athlete without any <tool_call> tags.
 `;
 }
 
@@ -102,12 +106,11 @@ export class AgentHarness {
     const steps: AgentExecutionStep[] = [];
     let totalTokens = 0;
     let finalTokensPerSecond = 0;
-    let iteration = 0;
+    let toolCallsCount = 0;
 
-    while (iteration < MAX_AGENT_ITERATIONS) {
-      iteration++;
-
+    while (toolCallsCount < MAX_TOOL_CALLS) {
       let iterationStreamedText = '';
+
       const completionResult: CompletionResult = await llmService.streamCompletion(
         {
           systemPrompt: augmentedSystemPrompt,
@@ -147,8 +150,9 @@ export class AgentHarness {
       }
 
       // Tool Call Detected!
+      toolCallsCount++;
       const meta = getToolMeta(detectedCall.name);
-      const stepId = `step-${Date.now()}-${iteration}`;
+      const stepId = `step-${Date.now()}-${toolCallsCount}`;
       const runningStep: AgentExecutionStep = {
         id: stepId,
         toolName: detectedCall.name,
@@ -183,13 +187,47 @@ export class AgentHarness {
         role: 'user',
         content: `<tool_result>\n${JSON.stringify(
           toolResult.success ? toolResult.data : { error: toolResult.error }
-        )}\n</tool_result>\nPlease provide the final response to the user based on this result.`,
+        )}\n</tool_result>\nTool execution completed. Now synthesize and write your complete coaching response for the athlete.`,
       });
     }
 
-    // Fallback if max iterations exceeded
+    // If max tool calls were reached without a final text response turn,
+    // ALWAYS run a final synthesis pass so the athlete receives their full coaching response!
+    conversationHistory.push({
+      role: 'user',
+      content: `[SYSTEM: All data retrievals and tool actions are completed. Synthesize your final, comprehensive, structured coaching answer to the athlete's request based on all the data above. Do NOT call any more tools or output <tool_call> tags.]`,
+    });
+
+    let synthesisStreamedText = '';
+    const synthesisResult: CompletionResult = await llmService.streamCompletion(
+      {
+        systemPrompt: augmentedSystemPrompt,
+        messages: conversationHistory,
+        temperature,
+        maxTokens: Math.max(maxTokens, 800),
+      },
+      (token: string) => {
+        synthesisStreamedText += token;
+        if (!synthesisStreamedText.includes('<tool_call>')) {
+          callbacks?.onToken?.(token);
+        }
+      }
+    );
+
+    totalTokens += synthesisResult.tokensGenerated;
+    finalTokensPerSecond = synthesisResult.tokensPerSecond || finalTokensPerSecond;
+
+    const cleanFinalText = synthesisResult.fullText
+      .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+      .replace(/<\/?tool_call>/gi, '')
+      .trim();
+
     return {
-      fullText: 'Action completed. Please check your updated dashboard.',
+      fullText:
+        cleanFinalText ||
+        (steps.length > 0
+          ? `Completed actions: ${steps.map((s) => s.summary).join('; ')}`
+          : 'Action completed. Please check your updated dashboard.'),
       steps,
       tokensGenerated: totalTokens,
       tokensPerSecond: finalTokensPerSecond,

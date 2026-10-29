@@ -43,6 +43,10 @@ TOOL CALLING PROTOCOL & RULES:
 <tool_call>
 {"name": "log_food_item", "arguments": {"name": "Grilled Chicken", "calories": 250, "proteinGrams": 30, "carbsGrams": 0, "fatGrams": 3, "mealType": "lunch"}}
 </tool_call>
+   - Example to log exercise set or workout:
+<tool_call>
+{"name": "log_completed_workout", "arguments": {"title": "Pull-up Set", "exercises": [{"name": "Pull-up", "sets": 1, "reps": "10 reps"}]}}
+</tool_call>
    - When tool results are provided, synthesize your full coaching answer directly.
    - If no action or tool call is needed, respond normally to the athlete without any <tool_call> tags.
 `;

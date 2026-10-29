@@ -428,51 +428,79 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
       case 'log_completed_workout': {
         const targetDate = args.date || getTodayString();
         const workoutStore = useWorkoutStore.getState();
-        const exerciseNames: string[] = args.exerciseNames || [];
 
-        const mockExercises: ExerciseItem[] = exerciseNames.map((name, i) => {
-          const repDb = exerciseRepository.search(name)[0];
+        // Support detailed exercises array or fallback to exerciseNames array
+        const rawExercises: Array<{ name: string; sets?: number; reps?: string | number; weightKg?: number }> =
+          Array.isArray(args.exercises) && args.exercises.length > 0
+            ? args.exercises
+            : (args.exerciseNames || []).map((name: string) => ({
+                name,
+                sets: args.sets || 1,
+                reps: args.reps ? String(args.reps) : '10 reps',
+              }));
+
+        // If both were empty but a title was passed (e.g. "Pull-up 10 reps"), extract title as exercise name
+        if (rawExercises.length === 0 && args.title) {
+          rawExercises.push({
+            name: args.title,
+            sets: args.sets || 1,
+            reps: args.reps ? String(args.reps) : '10 reps',
+          });
+        }
+
+        const completedExercises: ExerciseItem[] = rawExercises.map((ex, i) => {
+          const sets = Math.max(1, parseNumber(ex.sets, 1));
+          const repsRaw = ex.reps !== undefined ? String(ex.reps).trim() : '10 reps';
+          const repsFormatted = repsRaw.toLowerCase().includes('rep') ? repsRaw : `${repsRaw} reps`;
+
+          const repDb = exerciseRepository.search(ex.name)[0];
           if (repDb) {
-            return createExerciseItemFromRepDB(repDb, 'strength', 3, '8–12 reps');
+            return createExerciseItemFromRepDB(repDb, 'strength', sets, repsFormatted);
           }
           return {
             id: `manual-ex-${Date.now()}-${i}`,
-            name,
+            name: ex.name,
             category: 'strength',
-            targetSets: 3,
-            targetReps: '8–12 reps',
+            targetSets: sets,
+            targetReps: repsFormatted,
             restPeriodSeconds: 90,
             intensityNote: 'Logged via AI Coach',
             coachingCue: 'Executed with controlled cadence.',
           };
         });
 
-        const completedIds = mockExercises.map((e) => e.id);
-        const totalSets = mockExercises.reduce((sum, e) => sum + (e.targetSets || 3), 0);
+        const completedIds = completedExercises.map((e) => e.id);
+        const totalSets = completedExercises.reduce((sum, e) => sum + (e.targetSets || 1), 0);
+        const durationMinutes = Math.max(1, parseNumber(args.durationMinutes, Math.min(45, totalSets * 3)));
+        const caloriesBurned = Math.max(10, parseNumber(args.caloriesBurned, totalSets * 12));
 
         const session = workoutStore.finishWorkout({
           date: targetDate,
           planId: `session-${Date.now()}`,
-          title: args.title || 'Completed Session',
+          title: args.title || (completedExercises[0] ? `${completedExercises[0].name} Session` : 'Completed Workout'),
           split: 'full_body',
           tier: 'optimal',
-          exercises: mockExercises,
+          exercises: completedExercises,
           completedExerciseIds: completedIds,
           skippedExerciseIds: [],
-          totalMovements: mockExercises.length,
+          totalMovements: completedExercises.length,
           completedMovements: completedIds.length,
           totalSets,
-          startedAt: Date.now() - (args.durationMinutes || 45) * 60 * 1000,
-          durationMinutes: args.durationMinutes || 45,
-          caloriesBurned: args.caloriesBurned || 250,
+          startedAt: Date.now() - durationMinutes * 60 * 1000,
+          durationMinutes,
+          caloriesBurned,
         });
+
+        const summaryText = completedExercises
+          .map((e) => `${e.name} (${e.targetSets} set${e.targetSets > 1 ? 's' : ''} × ${e.targetReps})`)
+          .join(', ');
 
         return {
           toolCallId: id,
-          name,
+          name: 'log_completed_workout',
           success: true,
           data: session,
-          summary: `Logged completed workout: "${session.title}" on ${targetDate} (${session.durationMinutes} min, ${session.exercises.length} exercises)`,
+          summary: `Logged workout: ${summaryText} on ${targetDate}`,
         };
       }
 

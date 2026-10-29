@@ -226,7 +226,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: 'log_completed_workout',
     description:
-      'Write/log a finished workout session to history with completed exercises, sets, reps, duration, and volume.',
+      'Write/log a finished workout session or exercise set to history with completed exercises, exact sets, reps, duration, and volume.',
     domain: 'workout_history',
     access: 'write',
     parameters: {
@@ -234,7 +234,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       properties: {
         title: {
           type: 'string',
-          description: 'Workout session title (e.g., "Upper Body Strength", "Push Power").',
+          description: 'Workout session title (e.g., "Pull-up Session", "Upper Body Strength").',
         },
         date: {
           type: 'string',
@@ -242,12 +242,46 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         },
         durationMinutes: {
           type: 'number',
-          description: 'Total duration of workout in minutes.',
+          description: 'Total duration of workout or exercise in minutes (defaults to 10).',
+        },
+        exercises: {
+          type: 'array',
+          description: 'List of completed exercises with exact sets and reps performed.',
+          items: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'Exercise name (e.g., "Pull-up", "Push-up", "Barbell Squat").',
+              },
+              sets: {
+                type: 'number',
+                description: 'Number of sets completed (default 1 if user did a single set).',
+              },
+              reps: {
+                type: 'string',
+                description: 'Reps per set or total reps (e.g. "10 reps", "10", or "12-10-8").',
+              },
+              weightKg: {
+                type: 'number',
+                description: 'Weight added in kg if any (0 for bodyweight).',
+              },
+            },
+            required: ['name'],
+          },
         },
         exerciseNames: {
           type: 'array',
           items: { type: 'string' },
-          description: 'List of completed exercise names.',
+          description: 'Fallback list of exercise names if detailed exercises array is not provided.',
+        },
+        sets: {
+          type: 'number',
+          description: 'Default sets across exercises if detailed exercises array is omitted (default 1).',
+        },
+        reps: {
+          type: 'string',
+          description: 'Default reps across exercises if detailed exercises array is omitted (e.g. "10 reps").',
         },
         totalVolumeKg: {
           type: 'number',
@@ -258,7 +292,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           description: 'Estimated active calories burned.',
         },
       },
-      required: ['title', 'durationMinutes', 'exerciseNames'],
+      required: ['title'],
     },
   },
 

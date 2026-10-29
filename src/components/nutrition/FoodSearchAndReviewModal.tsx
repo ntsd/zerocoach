@@ -61,7 +61,7 @@ import {
 
 interface FoodSearchAndReviewModalProps {
   visible: boolean;
-  initialMealType: MealType;
+  initialMealType?: MealType;
   onClose: () => void;
   onLogFood: (food: FoodItem, mealType: MealType, servings: number, consumedGrams: number) => void;
 }
@@ -70,7 +70,7 @@ type ModalTab = 'snap' | 'search' | 'barcode';
 
 export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> = ({
   visible,
-  initialMealType,
+  initialMealType = 'snack',
   onClose,
   onLogFood,
 }) => {
@@ -537,33 +537,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   </View>
                 </View>
 
-                {/* Target Meal Type Chips */}
-                <Text style={styles.subSectionTitle}>{t.nutrition.targetMeal}</Text>
-                <View style={styles.mealChipRow}>
-                  {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((m) => (
-                    <TouchableOpacity
-                      key={m}
-                      style={[
-                        styles.mealChip,
-                        selectedMealType === m && styles.mealChipActive,
-                      ]}
-                      onPress={() => setSelectedMealType(m)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.mealChipText,
-                          selectedMealType === m && styles.mealChipTextActive,
-                        ]}
-                      >
-                        {(t.nutrition.meals as any)[m] || m.toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
                 {/* Gram Weight Stepper */}
-                <Text style={[styles.subSectionTitle, { marginTop: 16 }]}>{t.nutrition.adjustServing.toUpperCase()}</Text>
+                <Text style={styles.subSectionTitle}>{t.nutrition.adjustServing.toUpperCase()}</Text>
                 <View style={styles.stepperContainer}>
                   <TouchableOpacity
                     style={styles.stepBtn}
@@ -865,7 +840,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
               >
                 <CheckCircle size={18} color="#080B10" />
                 <Text style={styles.confirmLogButtonText}>
-                  {t.nutrition.confirmLogBtn} ({consumedGrams}g • {t.nutrition.meals[selectedMealType] || selectedMealType.toUpperCase()})
+                  {t.nutrition.confirmLogBtn} ({consumedGrams}g • {dynamicNutrients.calories} kcal)
                 </Text>
               </TouchableOpacity>
             </View>

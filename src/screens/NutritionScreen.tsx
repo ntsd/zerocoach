@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNutritionStore } from '../store/useNutritionStore';
 import { MacroProgressHeader } from '../components/nutrition/MacroProgressHeader';
 import { MicronutrientScorecard } from '../components/nutrition/MicronutrientScorecard';
-import { MealSectionCard } from '../components/nutrition/MealSectionCard';
+import { DailyFoodLedgerCard } from '../components/nutrition/DailyFoodLedgerCard';
 import { FoodSearchAndReviewModal } from '../components/nutrition/FoodSearchAndReviewModal';
 import { FoodItem, MealType } from '../types/nutrition';
 import { useTranslation } from '../i18n';
@@ -30,7 +30,6 @@ export const NutritionScreen: React.FC = () => {
   } = useNutritionStore();
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [activeModalMealType, setActiveModalMealType] = useState<MealType>('breakfast');
 
   // Always ensure selectedDate is today on mount
   useEffect(() => {
@@ -89,8 +88,7 @@ export const NutritionScreen: React.FC = () => {
     setSelectedDate(todayStr);
   };
 
-  const handleOpenAddFood = (mealType: MealType) => {
-    setActiveModalMealType(mealType);
+  const handleOpenAddFood = () => {
     setModalVisible(true);
   };
 
@@ -102,12 +100,6 @@ export const NutritionScreen: React.FC = () => {
   ) => {
     logFood(food, mealType, servings, consumedGrams, selectedDate);
   };
-
-  // Group logged foods by meal
-  const breakfastFoods = dailyLog.foods.filter((f) => f.mealType === 'breakfast');
-  const lunchFoods = dailyLog.foods.filter((f) => f.mealType === 'lunch');
-  const dinnerFoods = dailyLog.foods.filter((f) => f.mealType === 'dinner');
-  const snackFoods = dailyLog.foods.filter((f) => f.mealType === 'snack');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -123,7 +115,7 @@ export const NutritionScreen: React.FC = () => {
 
         <TouchableOpacity
           style={styles.quickAddButton}
-          onPress={() => handleOpenAddFood('lunch')}
+          onPress={handleOpenAddFood}
           activeOpacity={0.7}
         >
           <Plus size={16} color="#080B10" />
@@ -149,35 +141,9 @@ export const NutritionScreen: React.FC = () => {
         {/* Micronutrient Bio-Scorecard */}
         <MicronutrientScorecard summary={summary} />
 
-        {/* 4 Meal Cards */}
-        <MealSectionCard
-          mealType="breakfast"
-          title={t.nutrition.meals.breakfast}
-          foods={breakfastFoods}
-          onAddFood={handleOpenAddFood}
-          onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
-        />
-
-        <MealSectionCard
-          mealType="lunch"
-          title={t.nutrition.meals.lunch}
-          foods={lunchFoods}
-          onAddFood={handleOpenAddFood}
-          onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
-        />
-
-        <MealSectionCard
-          mealType="dinner"
-          title={t.nutrition.meals.dinner}
-          foods={dinnerFoods}
-          onAddFood={handleOpenAddFood}
-          onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
-        />
-
-        <MealSectionCard
-          mealType="snack"
-          title={t.nutrition.meals.snack}
-          foods={snackFoods}
+        {/* Unified Daily Food Ledger Card */}
+        <DailyFoodLedgerCard
+          foods={dailyLog.foods}
           onAddFood={handleOpenAddFood}
           onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
         />
@@ -198,7 +164,6 @@ export const NutritionScreen: React.FC = () => {
       {/* Food Search and Review Modal */}
       <FoodSearchAndReviewModal
         visible={modalVisible}
-        initialMealType={activeModalMealType}
         onClose={() => setModalVisible(false)}
         onLogFood={handleLogFoodItem}
       />

@@ -5,8 +5,14 @@ export interface GeminiEngineConfig {
   modelName?: string;
 }
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
-const FALLBACK_GEMINI_MODEL = 'gemini-1.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+const FALLBACK_GEMINI_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3-flash-preview',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+];
 
 export class GeminiEngine implements LLMEngine {
   private config: GeminiEngineConfig;
@@ -60,47 +66,56 @@ export class GeminiEngine implements LLMEngine {
     }
 
     const startTime = Date.now();
-    try {
-      const model = this.config.modelName || DEFAULT_GEMINI_MODEL;
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const primaryModel = this.config.modelName || DEFAULT_GEMINI_MODEL;
+    const tryModels = [
+      primaryModel,
+      ...FALLBACK_GEMINI_MODELS.filter((m) => m !== primaryModel),
+    ];
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'Ping' }] }],
-          generationConfig: { maxOutputTokens: 5 },
-        }),
-      });
+    let lastErrorMsg = '';
 
-      clearTimeout(timeoutId);
-      const latencyMs = Date.now() - startTime;
+    for (const model of tryModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => res.statusText);
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'Ping' }] }],
+            generationConfig: { maxOutputTokens: 5 },
+          }),
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => res.statusText);
+          lastErrorMsg = `HTTP ${res.status}: ${errorText.slice(0, 150)}`;
+          continue;
+        }
+
+        const latencyMs = Date.now() - startTime;
+        this.config.modelName = model;
         return {
-          success: false,
-          message: `HTTP ${res.status}: ${errorText.slice(0, 150)}`,
+          success: true,
+          message: `Connected to Google Gemini (${model}, ${latencyMs}ms)`,
           latencyMs,
         };
+      } catch (err: any) {
+        lastErrorMsg = err?.message || 'Connection failed';
       }
-
-      return {
-        success: true,
-        message: `Connected to Google Gemini (${latencyMs}ms)`,
-        latencyMs,
-      };
-    } catch (err: any) {
-      const latencyMs = Date.now() - startTime;
-      return {
-        success: false,
-        message: err?.message || 'Connection failed',
-        latencyMs,
-      };
     }
+
+    const latencyMs = Date.now() - startTime;
+    return {
+      success: false,
+      message: lastErrorMsg || 'Connection failed',
+      latencyMs,
+    };
   }
 
   public async streamCompletion(
@@ -135,9 +150,10 @@ export class GeminiEngine implements LLMEngine {
       };
     }
 
+    const primaryModel = this.config.modelName || DEFAULT_GEMINI_MODEL;
     const tryModels = [
-      this.config.modelName || DEFAULT_GEMINI_MODEL,
-      FALLBACK_GEMINI_MODEL,
+      primaryModel,
+      ...FALLBACK_GEMINI_MODELS.filter((m) => m !== primaryModel),
     ];
 
     let lastError: Error | null = null;
@@ -224,6 +240,7 @@ export class GeminiEngine implements LLMEngine {
         }
 
         if (fullText.trim().length > 0) {
+          this.config.modelName = model;
           const durationMs = Math.max(1, Date.now() - startTime);
           const tokensPerSecond = Number(((tokenCount / durationMs) * 1000).toFixed(1));
 

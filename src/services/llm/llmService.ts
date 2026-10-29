@@ -171,7 +171,8 @@ export class LLMService {
   public getActiveModelName(): string {
     const modelState = useModelStore.getState();
     if (this.provider === 'gemini') {
-      return 'Google Gemini 2.5 Flash';
+      const configModel = this.geminiEngine.getConfig().modelName;
+      return configModel ? `Google Gemini (${configModel})` : 'Google Gemini 3.8 Flash';
     }
     if (this.provider === 'openai_compatible') {
       return modelState.openAIConfig.modelName || 'OpenAI Compatible';

@@ -13,8 +13,14 @@ export const ALL_CYCLE_DAY_TYPES: CoreWorkoutDayType[] = [
   'pull',
   'legs',
   'cardio',
-  'rest',
 ];
+
+function sanitizeTrainingCycle(raw?: CoreWorkoutDayType[]): CoreWorkoutDayType[] {
+  const filtered = (raw || []).filter(
+    (d) => d === 'push' || d === 'pull' || d === 'legs' || d === 'cardio'
+  );
+  return filtered.length > 0 ? filtered : ['push', 'pull', 'legs', 'cardio'];
+}
 
 function getTodayString(): string {
   const d = new Date();
@@ -68,6 +74,12 @@ export interface WorkoutState {
 
   // Schedule & Rolling Cycle Actions
   getScheduledSplitForDate: (date?: string) => CoreWorkoutDayType;
+  getScheduledCycleStepForDate: (date?: string) => {
+    split: CoreWorkoutDayType;
+    cycleIndex: number;
+    isOverride: boolean;
+  };
+  setActiveCycleStepForDate: (date: string, cycleIndex: number) => void;
   setSplitForDate: (date: string, split: CoreWorkoutDayType) => void;
   skipWorkoutDay: (date?: string) => {
     skippedSplit: CoreWorkoutDayType;
@@ -76,6 +88,8 @@ export interface WorkoutState {
   skipRestDay: (date?: string) => {
     newSplit: CoreWorkoutDayType;
   };
+  appendCycleStep: (dayType: CoreWorkoutDayType) => CoreWorkoutDayType[];
+  removeCycleStepAt: (index: number) => CoreWorkoutDayType[];
   toggleCycleDayType: (dayType: CoreWorkoutDayType) => CoreWorkoutDayType[];
   setActiveCycle: (cycle: CoreWorkoutDayType[]) => void;
 
@@ -99,7 +113,7 @@ export const useWorkoutStore = create<WorkoutState>()(
       historyByDate: {},
       plansByDate: {},
 
-      activeCycle: ['push', 'pull', 'legs', 'cardio', 'rest'],
+      activeCycle: ['push', 'pull', 'legs', 'cardio'],
       cycleAnchorDate: getTodayString(),
       cycleAnchorIndex: 0,
       scheduleOverridesByDate: {},
@@ -179,36 +193,102 @@ export const useWorkoutStore = create<WorkoutState>()(
         });
       },
 
-      getScheduledSplitForDate: (date?: string): CoreWorkoutDayType => {
+      getScheduledCycleStepForDate: (date?: string) => {
         const targetDate = date || getTodayString();
         const state = get();
-        const overrides = state.scheduleOverridesByDate || {};
-        if (overrides[targetDate]) {
-          return overrides[targetDate];
-        }
-
-        const cycle =
-          state.activeCycle && state.activeCycle.length > 0
-            ? state.activeCycle
-            : (['push', 'pull', 'legs', 'cardio', 'rest'] as CoreWorkoutDayType[]);
+        const cycle = sanitizeTrainingCycle(state.activeCycle);
         const anchorDate = state.cycleAnchorDate || getTodayString();
         const anchorIdx = state.cycleAnchorIndex || 0;
-        const diff = diffDaysBetweenDates(anchorDate, targetDate);
         const len = cycle.length;
-        const idx = (((anchorIdx + diff) % len) + len) % len;
-        return cycle[idx];
+
+        // If a workout was already completed on a past date, return its logged split if valid
+        const loggedSession = (state.historyByDate || {})[targetDate];
+        if (
+          targetDate < getTodayString() &&
+          loggedSession &&
+          (loggedSession.split === 'push' ||
+            loggedSession.split === 'pull' ||
+            loggedSession.split === 'legs' ||
+            loggedSession.split === 'cardio')
+        ) {
+          const loggedIdx = Math.max(0, cycle.indexOf(loggedSession.split));
+          return {
+            split: loggedSession.split,
+            cycleIndex: loggedIdx,
+            isOverride: false,
+          };
+        }
+
+        // Completion-Driven Workout Queue:
+        // Only advance the cycle index by the number of days with a completed workout!
+        // Any day with 0 completed exercises is automatically a Rest Day and keeps the queue waiting.
+        const historyKeys = Object.keys(state.historyByDate || {});
+        let completedSteps = 0;
+        if (targetDate >= anchorDate) {
+          completedSteps = historyKeys.filter(
+            (d) => d >= anchorDate && d < targetDate && (state.historyByDate[d]?.completedMovements || 0) > 0
+          ).length;
+        } else {
+          completedSteps = -historyKeys.filter(
+            (d) => d >= targetDate && d < anchorDate && (state.historyByDate[d]?.completedMovements || 0) > 0
+          ).length;
+        }
+
+        const cycleIndex = (((anchorIdx + completedSteps) % len) + len) % len;
+
+        const overrides = state.scheduleOverridesByDate || {};
+        if (overrides[targetDate] && overrides[targetDate] !== 'rest') {
+          return {
+            split: overrides[targetDate],
+            cycleIndex,
+            isOverride: true,
+          };
+        }
+
+        return {
+          split: cycle[cycleIndex],
+          cycleIndex,
+          isOverride: false,
+        };
+      },
+
+      getScheduledSplitForDate: (date?: string): CoreWorkoutDayType => {
+        return get().getScheduledCycleStepForDate(date).split;
+      },
+
+      setActiveCycleStepForDate: (date: string, cycleIndex: number) => {
+        const state = get();
+        const cycle = sanitizeTrainingCycle(state.activeCycle);
+        const clampedIdx = Math.max(0, Math.min(cycle.length - 1, cycleIndex));
+
+        const nextOverrides = { ...(state.scheduleOverridesByDate || {}) };
+        delete nextOverrides[date];
+
+        const nextPlans = { ...(state.plansByDate || {}) };
+        delete nextPlans[date];
+
+        set({
+          activeCycle: cycle,
+          scheduleOverridesByDate: nextOverrides,
+          cycleAnchorDate: date,
+          cycleAnchorIndex: clampedIdx,
+          plansByDate: nextPlans,
+        });
       },
 
       setSplitForDate: (date: string, split: CoreWorkoutDayType) => {
+        if (split === 'rest') return;
         const state = get();
-        const cycle = state.activeCycle || ['push', 'pull', 'legs', 'cardio', 'rest'];
+        const cycle = sanitizeTrainingCycle(state.activeCycle);
         const idxInCycle = cycle.indexOf(split);
         const nextOverrides = { ...(state.scheduleOverridesByDate || {}), [date]: split };
         const nextPlans = { ...(state.plansByDate || {}) };
         delete nextPlans[date];
 
         if (idxInCycle !== -1) {
+          delete nextOverrides[date];
           set({
+            activeCycle: cycle,
             scheduleOverridesByDate: nextOverrides,
             cycleAnchorDate: date,
             cycleAnchorIndex: idxInCycle,
@@ -216,6 +296,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           });
         } else {
           set({
+            activeCycle: cycle,
             scheduleOverridesByDate: nextOverrides,
             plansByDate: nextPlans,
           });
@@ -223,41 +304,25 @@ export const useWorkoutStore = create<WorkoutState>()(
       },
 
       skipWorkoutDay: (date?: string) => {
+        // With the Completion-Driven Queue, not logging a workout on `date` automatically makes `date` a Rest Day
+        // and keeps the current workout step ready for tomorrow.
         const targetDate = date || getTodayString();
         const state = get();
-        const currentSplit = state.getScheduledSplitForDate(targetDate);
-        const cycle =
-          state.activeCycle && state.activeCycle.length > 0
-            ? state.activeCycle
-            : (['push', 'pull', 'legs', 'cardio', 'rest'] as CoreWorkoutDayType[]);
-
-        // Find the workout split we want to shift to tomorrow
-        const workoutToShift: CoreWorkoutDayType =
-          currentSplit === 'rest'
-            ? cycle.find((c) => c !== 'rest') || 'push'
-            : currentSplit;
-
-        const shiftIdx = Math.max(0, cycle.indexOf(workoutToShift));
+        const step = state.getScheduledCycleStepForDate(targetDate);
         const tomorrowDate = addDaysToDateString(targetDate, 1);
 
-        const nextOverrides = {
-          ...(state.scheduleOverridesByDate || {}),
-          [targetDate]: 'rest' as CoreWorkoutDayType,
-        };
-        delete nextOverrides[tomorrowDate];
-
-        const nextPlans = { ...(state.plansByDate || {}) };
-        delete nextPlans[targetDate];
+        // Clear any logged workout on targetDate if the user explicitly asks to rest today
+        const nextHistory = { ...(state.historyByDate || {}) };
+        delete nextHistory[targetDate];
 
         set({
-          scheduleOverridesByDate: nextOverrides,
-          cycleAnchorDate: tomorrowDate,
-          cycleAnchorIndex: shiftIdx,
-          plansByDate: nextPlans,
+          historyByDate: nextHistory,
+          cycleAnchorDate: targetDate,
+          cycleAnchorIndex: step.cycleIndex,
         });
 
         return {
-          skippedSplit: workoutToShift,
+          skippedSplit: step.split,
           shiftedToDate: tomorrowDate,
         };
       },
@@ -265,53 +330,48 @@ export const useWorkoutStore = create<WorkoutState>()(
       skipRestDay: (date?: string) => {
         const targetDate = date || getTodayString();
         const state = get();
-        const cycle =
-          state.activeCycle && state.activeCycle.length > 0
-            ? state.activeCycle
-            : (['push', 'pull', 'legs', 'cardio', 'rest'] as CoreWorkoutDayType[]);
-
-        const tomorrowDate = addDaysToDateString(targetDate, 1);
-        const tomorrowSplit = state.getScheduledSplitForDate(tomorrowDate);
-        const nextWorkoutSplit: CoreWorkoutDayType =
-          tomorrowSplit !== 'rest'
-            ? tomorrowSplit
-            : cycle.find((c) => c !== 'rest') || 'push';
-
-        const nextIdx = Math.max(0, cycle.indexOf(nextWorkoutSplit));
-        const nextOverrides = {
-          ...(state.scheduleOverridesByDate || {}),
-          [targetDate]: nextWorkoutSplit,
-        };
-        delete nextOverrides[tomorrowDate];
-
-        const nextPlans = { ...(state.plansByDate || {}) };
-        delete nextPlans[targetDate];
-
-        set({
-          scheduleOverridesByDate: nextOverrides,
-          cycleAnchorDate: targetDate,
-          cycleAnchorIndex: nextIdx,
-          plansByDate: nextPlans,
-        });
-
+        const step = state.getScheduledCycleStepForDate(targetDate);
         return {
-          newSplit: nextWorkoutSplit,
+          newSplit: step.split,
         };
       },
 
-      toggleCycleDayType: (dayType: CoreWorkoutDayType) => {
+      appendCycleStep: (dayType: CoreWorkoutDayType) => {
+        if (dayType === 'rest') return sanitizeTrainingCycle(get().activeCycle);
         const state = get();
-        const current = state.activeCycle || ['push', 'pull', 'legs', 'cardio', 'rest'];
+        const current = sanitizeTrainingCycle(state.activeCycle);
+        const nextCycle = [...current, dayType];
+        set({
+          activeCycle: nextCycle,
+        });
+        return nextCycle;
+      },
+
+      removeCycleStepAt: (index: number) => {
+        const state = get();
+        const current = sanitizeTrainingCycle(state.activeCycle);
+        if (current.length <= 1) return current; // Keep at least 1 step
+        const nextCycle = current.filter((_, idx) => idx !== index);
+        const nextAnchorIdx = Math.min(state.cycleAnchorIndex || 0, nextCycle.length - 1);
+        set({
+          activeCycle: nextCycle,
+          cycleAnchorIndex: Math.max(0, nextAnchorIdx),
+        });
+        return nextCycle;
+      },
+
+      toggleCycleDayType: (dayType: CoreWorkoutDayType) => {
+        if (dayType === 'rest') return sanitizeTrainingCycle(get().activeCycle);
+        const state = get();
+        const current = sanitizeTrainingCycle(state.activeCycle);
         let nextCycle: CoreWorkoutDayType[];
 
         if (current.includes(dayType)) {
-          if (current.length <= 1) return current; // Keep at least 1 day type in cycle
-          nextCycle = current.filter((d) => d !== dayType);
+          const filtered = current.filter((d) => d !== dayType);
+          if (filtered.length === 0) return current;
+          nextCycle = filtered;
         } else {
-          // Insert in canonical order: push -> pull -> legs -> cardio -> rest
-          nextCycle = ALL_CYCLE_DAY_TYPES.filter(
-            (d) => current.includes(d) || d === dayType
-          );
+          nextCycle = [...current, dayType];
         }
 
         set({
@@ -322,11 +382,12 @@ export const useWorkoutStore = create<WorkoutState>()(
       },
 
       setActiveCycle: (cycle: CoreWorkoutDayType[]) => {
-        const valid = ALL_CYCLE_DAY_TYPES.filter((d) => cycle.includes(d));
-        if (valid.length === 0) return;
+        const valid = sanitizeTrainingCycle(cycle);
         set({
           activeCycle: valid,
+          cycleAnchorDate: getTodayString(),
           cycleAnchorIndex: 0,
+          scheduleOverridesByDate: {},
         });
       },
 

@@ -168,23 +168,53 @@ export const useChatStore = create<ChatState>()(
               timestamp: Date.now(),
             });
           } else {
-            const removeCycleMatch = lowerMsg.match(
-              /\bremove\s+(push|pull|legs|cardio|rest)(?:\s+day)?(?:\s+from\s+(?:my\s+)?(?:cycle|schedule|split))?\b/i
-            );
-            if (removeCycleMatch && removeCycleMatch[1]) {
-              const dayToRemove = removeCycleMatch[1].toLowerCase() as any;
-              const currentCycle = workoutState.activeCycle || ['push', 'pull', 'legs', 'cardio', 'rest'];
-              if (currentCycle.includes(dayToRemove) && currentCycle.length > 1) {
-                const updated = workoutState.toggleCycleDayType(dayToRemove);
-                autoMemorySteps.push({
-                  id: `step-sched-${Date.now()}`,
-                  toolName: 'manage_workout_schedule',
-                  domain: 'workout_plan',
-                  access: 'write',
-                  status: 'completed',
-                  summary: `📅 Removed ${dayToRemove.toUpperCase()} from cycle (${updated.map((d) => d.toUpperCase()).join(' → ')})`,
-                  timestamp: Date.now(),
-                });
+            // Check for explicit sequence definition (e.g. "set my cycle to pull, rest, rest, push, rest")
+            const mentionsCycleOrSequence =
+              /\b(cycle|sequence|rotation|schedule|split\s+order)\b/i.test(lowerMsg) ||
+              /ตารางซ้อม|ลำดับการซ้อม|รอบการซ้อม/.test(lowerMsg);
+            const dayMatches = lowerMsg.match(/\b(push|pull|legs|leg|cardio|rest)\b/gi);
+
+            if (mentionsCycleOrSequence && dayMatches && dayMatches.length >= 2) {
+              const normalizedSeq = dayMatches.map((tok) => {
+                const t = tok.toLowerCase();
+                return (t === 'leg' ? 'legs' : t) as any;
+              });
+              workoutState.setActiveCycle(normalizedSeq);
+              autoMemorySteps.push({
+                id: `step-sched-${Date.now()}`,
+                toolName: 'manage_workout_schedule',
+                domain: 'workout_plan',
+                access: 'write',
+                status: 'completed',
+                summary: `📅 Updated workout sequence: ${normalizedSeq.map((d) => d.toUpperCase()).join(' → ')}`,
+                timestamp: Date.now(),
+              });
+            } else {
+              const removeCycleMatch = lowerMsg.match(
+                /\bremove\s+(push|pull|legs|leg|cardio|rest)(?:\s+day)?(?:\s+from\s+(?:my\s+)?(?:cycle|schedule|split))?\b/i
+              );
+              if (removeCycleMatch && removeCycleMatch[1]) {
+                const rawDay = removeCycleMatch[1].toLowerCase();
+                const dayToRemove = (rawDay === 'leg' ? 'legs' : rawDay) as any;
+                const currentCycle = workoutState.activeCycle || [
+                  'push',
+                  'pull',
+                  'legs',
+                  'cardio',
+                  'rest',
+                ];
+                if (currentCycle.includes(dayToRemove) && currentCycle.length > 1) {
+                  const updated = workoutState.toggleCycleDayType(dayToRemove);
+                  autoMemorySteps.push({
+                    id: `step-sched-${Date.now()}`,
+                    toolName: 'manage_workout_schedule',
+                    domain: 'workout_plan',
+                    access: 'write',
+                    status: 'completed',
+                    summary: `📅 Removed ${dayToRemove.toUpperCase()} from cycle (${updated.map((d) => d.toUpperCase()).join(' → ')})`,
+                    timestamp: Date.now(),
+                  });
+                }
               }
             }
           }

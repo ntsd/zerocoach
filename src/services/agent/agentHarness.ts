@@ -48,6 +48,10 @@ TOOL CALLING PROTOCOL & RULES:
 <tool_call>
 {"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "favorite_skill", "content": "Favorite workout skill: Muscle-Up"}}
 </tool_call>
+   - Example when athlete is busy or wants to skip today's workout / rest day:
+<tool_call>
+{"name": "manage_workout_schedule", "arguments": {"action": "skip_workout"}}
+</tool_call>
    - Example to log exercise set or workout:
 <tool_call>
 {"name": "log_completed_workout", "arguments": {"title": "Pull-up Set", "exercises": [{"name": "Pull-up", "sets": 1, "reps": "10 reps"}]}}

@@ -596,6 +596,12 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                             </Text>
                           </View>
 
+                          {item.isFavorite && (
+                            <View style={styles.favoriteBadge}>
+                              <Text style={styles.favoriteBadgeText}>{t.workout.favoriteBadge}</Text>
+                            </View>
+                          )}
+
                           {item.isCustomAdded && (
                             <View style={styles.customBadge}>
                               <Text style={styles.customBadgeText}>{t.workout.card.added}</Text>
@@ -610,7 +616,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                             </View>
                           )}
 
-                          {!isSkipped && (
+                          {!isSkipped && !item.isFavorite && (
                             <Text style={styles.intensityTag} numberOfLines={1}>
                               {item.intensityNote}
                             </Text>
@@ -633,7 +639,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                         {item.name}
                       </Text>
 
-                      {/* RepDB Biomechanical Specs Row */}
+                      {/* Simplified RepDB Biomechanical Specs Row */}
                       {!isSkipped && (
                         <View style={styles.badgeTagsRow}>
                           {item.equipment && (
@@ -643,24 +649,9 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                             </View>
                           )}
 
-                          {item.mechanic && (
-                            <View style={styles.tagBadge}>
-                              <Layers size={9} color={COLORS.textMuted} />
-                              <Text style={styles.tagBadgeText}>
-                                {item.mechanic.charAt(0).toUpperCase() + item.mechanic.slice(1)}
-                              </Text>
-                            </View>
-                          )}
-
                           {firstMuscle && (
                             <View style={styles.tagBadge}>
                               <Text style={styles.tagBadgeText}>{formatMuscle(firstMuscle)}</Text>
-                            </View>
-                          )}
-
-                          {item.met && (
-                            <View style={styles.metTagBadge}>
-                              <Text style={styles.metTagText}>{item.met} MET</Text>
                             </View>
                           )}
                         </View>
@@ -1174,6 +1165,20 @@ const styles = StyleSheet.create({
   catBadgeText: {
     ...TYPOGRAPHY.badge,
     fontSize: 8,
+    fontWeight: '800',
+  },
+  favoriteBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: RADIUS.xs,
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+  },
+  favoriteBadgeText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 8,
+    color: COLORS.warning,
     fontWeight: '800',
   },
   customBadge: {

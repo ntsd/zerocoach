@@ -2,11 +2,11 @@ import { TrainingGoal, SkillLevel } from './coach';
 
 export type ExerciseCategory = 'warmup' | 'skill' | 'strength' | 'metabolic' | 'cooldown';
 
+export type CoreWorkoutDayType = 'push' | 'pull' | 'legs' | 'cardio' | 'rest';
+
 export type WorkoutSplit =
+  | CoreWorkoutDayType
   | 'full_body'
-  | 'push'
-  | 'pull'
-  | 'legs'
   | 'upper'
   | 'lower'
   | 'core_mobility'
@@ -34,6 +34,7 @@ export interface ExerciseItem {
   completed?: boolean;
   skipped?: boolean;
   isCustomAdded?: boolean;
+  isFavorite?: boolean;
   equipment?: string;
   bodyPart?: string;
   primaryMuscles?: string[];

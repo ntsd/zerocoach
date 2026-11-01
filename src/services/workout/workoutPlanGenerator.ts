@@ -295,6 +295,34 @@ export function generateAdaptiveWorkoutPlan(
   const coachRec = getCoachSplitRecommendation(params);
   const activeSplit: WorkoutSplit = selectedSplit || coachRec.recommendedSplit;
 
+  // Handle Dedicated Rest Day cleanly
+  if (activeSplit === 'rest') {
+    return {
+      id: `plan-rest-${equipmentMode || 'all'}`,
+      title: 'Rest & Recovery Day',
+      focusSummary: 'Active Recovery • Sleep & Tissue Repair • 0 Heavy Sets',
+      tier: 'baseline',
+      tierLabel: 'RECOVERY DAY',
+      readinessMultiplierDesc:
+        'Scheduled rest day. Muscles synthesize protein and repair connective tissue during recovery. Stay hydrated, hit your daily protein target, or tap "Skip Rest Day" if you want to train today.',
+      estimatedDurationMin: 0,
+      estimatedCaloriesBurn: 0,
+      equipmentMode,
+      exercises: [],
+      coachingNotes:
+        'Rest Day Protocol: Prioritize 7–9 hours of sleep, light walking, and hitting your daily protein target.',
+      generatedDate: new Date().toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      }),
+      sourceAttribution: 'Exercise data by RepDB (repdb.co)',
+      skillLevel,
+      selectedSplit: 'rest',
+      coachRecommendation: coachRec,
+    };
+  }
+
   // 1. Determine Autoregulated Intensity Tier from Readiness
   let tier: WorkoutIntensityTier = 'baseline';
   let tierLabel = 'METABOLIC BASELINE';
@@ -1368,6 +1396,7 @@ export function generateAdaptiveWorkoutPlan(
     // ------------------------------------------
     // 8. CARDIO ENGINE SPLIT
     // ------------------------------------------
+    case 'cardio':
     case 'cardio_engine': {
       const jumpRope = exerciseRepository.getById('jump-rope');
       if (jumpRope) {
@@ -1570,8 +1599,16 @@ export function generateAdaptiveWorkoutPlan(
   }
 
   // ==========================================
-  // MEM0 ATHLETE MEMORY ADAPTATION (INJURIES & FAVORITE SKILLS)
+  // SIMPLIFY TO FOCUSED CORE EXERCISES & APPLY MEM0 FAVORITES / INJURIES
   // ==========================================
+  // Keep only core movements (skill, strength, metabolic) so humans get a clean 4-exercise workout
+  let focusedExercises = exercises.filter(
+    (ex) => ex.category !== 'warmup' && ex.category !== 'cooldown'
+  );
+  if (focusedExercises.length === 0) {
+    focusedExercises = [...exercises];
+  }
+
   const athleteMemories = params.memories ?? useMemoryStore.getState().memories;
   const memoryCoachingNotes: string[] = [];
 
@@ -1579,86 +1616,161 @@ export function generateAdaptiveWorkoutPlan(
     const injuryMemories = athleteMemories.filter((m) => m.category === 'injury_limitation');
     const workoutPrefs = athleteMemories.filter((m) => m.category === 'workout_preference');
 
-    // 1. Apply injury precautions & protective cues to relevant movements
+    // 1. Remove any disliked exercises stored in memory
+    const dislikedMems = workoutPrefs.filter(
+      (m) =>
+        m.topic.startsWith('disliked_exercise') ||
+        /^dislikes exercise:/i.test(m.content)
+    );
+    for (const dis of dislikedMems) {
+      const dislikedTerm = dis.content
+        .replace(/^Dislikes exercise:\s*/i, '')
+        .trim()
+        .toLowerCase();
+      if (dislikedTerm.length >= 3) {
+        const filtered = focusedExercises.filter(
+          (ex) => !ex.name.toLowerCase().includes(dislikedTerm)
+        );
+        if (filtered.length > 0) {
+          focusedExercises = filtered;
+        }
+      }
+    }
+
+    // 2. Apply favorite workout skill / exercise preferences & inject into plan
+    const favMems = workoutPrefs.filter(
+      (m) =>
+        m.topic === 'favorite_skill' ||
+        m.topic === 'favorite_exercise' ||
+        /^favorite /i.test(m.content)
+    );
+
+    for (const favMem of favMems) {
+      const cleanedSkill = favMem.content
+        .replace(/^Favorite (?:workout skill|exercise\/workout|skill|exercise):\s*/i, '')
+        .trim();
+      if (!cleanedSkill) continue;
+
+      targetSkillMilestone = `${cleanedSkill} (⭐ Favorite)`;
+      memoryCoachingNotes.push(`Tailored for favorite: ${cleanedSkill}`);
+
+      const lowerSkill = cleanedSkill.toLowerCase();
+      const existingIdx = focusedExercises.findIndex(
+        (ex) =>
+          ex.name.toLowerCase().includes(lowerSkill) ||
+          lowerSkill.includes(ex.name.toLowerCase())
+      );
+
+      if (existingIdx !== -1) {
+        const matched = {
+          ...focusedExercises[existingIdx],
+          isFavorite: true,
+          intensityNote: '⭐ Your Favorite',
+        };
+        focusedExercises.splice(existingIdx, 1);
+        focusedExercises.unshift(matched);
+      } else {
+        // Check if this favorite belongs to the current split
+        const isPushFav = /push|bench|dip|planche|handstand|pike|press|chest|tricep/i.test(lowerSkill);
+        const isPullFav = /pull|chin|muscle[- ]?up|lever|row|lat|bicep|hang/i.test(lowerSkill);
+        const isLegsFav = /squat|pistol|deadlift|lunge|leg|calf|glute|hamstring/i.test(lowerSkill);
+        const isCardioFav = /run|jump|rope|burpee|cardio|bike|sprint|swing|climber/i.test(lowerSkill);
+
+        const matchesSplit =
+          (activeSplit === 'push' && isPushFav) ||
+          (activeSplit === 'pull' && isPullFav) ||
+          (activeSplit === 'legs' && isLegsFav) ||
+          ((activeSplit === 'cardio' || activeSplit === 'cardio_engine') && isCardioFav) ||
+          (activeSplit !== 'push' &&
+            activeSplit !== 'pull' &&
+            activeSplit !== 'legs' &&
+            activeSplit !== 'cardio' &&
+            activeSplit !== 'cardio_engine') ||
+          (!isPushFav && !isPullFav && !isLegsFav && !isCardioFav);
+
+        if (matchesSplit) {
+          const repDbMatch = exerciseRepository.search(cleanedSkill)[0];
+          const favExercise: ExerciseItem = repDbMatch
+            ? {
+                ...createExerciseItemFromRepDB(
+                  repDbMatch,
+                  'skill',
+                  compoundSets,
+                  compoundReps,
+                  compoundRestSec,
+                  '⭐ Your Favorite'
+                ),
+                isFavorite: true,
+              }
+            : {
+                id: `fav-skill-${lowerSkill.replace(/[^a-z0-9]+/g, '-')}`,
+                name: cleanedSkill.charAt(0).toUpperCase() + cleanedSkill.slice(1),
+                category: 'skill',
+                targetSets: compoundSets,
+                targetReps: compoundReps,
+                restPeriodSeconds: compoundRestSec,
+                intensityNote: '⭐ Your Favorite',
+                coachingCue: 'Focus on crisp form and controlled tension on your favorite movement.',
+                isFavorite: true,
+                equipment: isGym ? 'equipment' : 'bodyweight',
+              };
+
+          focusedExercises.unshift(favExercise);
+        }
+      }
+    }
+
+    // 3. Apply injury precautions & protective cues to relevant movements
     for (const inj of injuryMemories) {
       const lower = inj.content.toLowerCase();
       memoryCoachingNotes.push(`Protected against: ${inj.content}`);
 
       if (/shoulder|rotator|ไหล่/.test(lower)) {
-        for (const ex of exercises) {
+        for (const ex of focusedExercises) {
           if (
             ex.primaryMuscles?.some((m) => /shoulder|deltoid|chest/i.test(m)) ||
             /press|dip|handstand/i.test(ex.name)
           ) {
-            ex.coachingCue = `[Shoulder-Safe Protocol] Tuck elbows to 45° scapular plane and stop 2 reps shy of failure. ${ex.coachingCue}`;
+            ex.coachingCue = `[Shoulder-Safe] Tuck elbows to 45° and stop 2 reps shy of failure. ${ex.coachingCue}`;
           }
         }
       } else if (/knee|meniscus|acl|เข่า/.test(lower)) {
-        for (const ex of exercises) {
+        for (const ex of focusedExercises) {
           if (
             ex.primaryMuscles?.some((m) => /quad|hamstring|glute/i.test(m)) ||
             /squat|lunge|jump/i.test(ex.name)
           ) {
-            ex.coachingCue = `[Knee-Safe Protocol] Control eccentric descent, avoid ballistic knee valgus, and limit depth to pain-free ROM. ${ex.coachingCue}`;
+            ex.coachingCue = `[Knee-Safe] Control descent and limit depth to pain-free range. ${ex.coachingCue}`;
           }
         }
       } else if (/wrist|ข้อมือ/.test(lower)) {
-        for (const ex of exercises) {
+        for (const ex of focusedExercises) {
           if (/push-up|plank|dip|handstand|l-sit/i.test(ex.name)) {
-            ex.coachingCue = `[Wrist-Safe Protocol] Use neutral-grip parallettes or dumbbells to avoid wrist hyperextension. ${ex.coachingCue}`;
+            ex.coachingCue = `[Wrist-Safe] Use parallettes or neutral grip to avoid wrist strain. ${ex.coachingCue}`;
           }
         }
       } else if (/back|spine|lumbar|หลัง/.test(lower)) {
-        for (const ex of exercises) {
+        for (const ex of focusedExercises) {
           if (/deadlift|row|squat/i.test(ex.name)) {
-            ex.coachingCue = `[Spine-Safe Protocol] Maintain 360° intra-abdominal bracing and neutral lumbar alignment. ${ex.coachingCue}`;
+            ex.coachingCue = `[Spine-Safe] Brace core 360° and keep neutral lower back. ${ex.coachingCue}`;
           }
         }
       }
     }
-
-    // 2. Apply favorite workout skill / exercise preferences
-    const favSkillMem = workoutPrefs.find(
-      (m) => m.topic === 'favorite_skill' || m.topic === 'favorite_exercise'
-    );
-    if (favSkillMem) {
-      const cleanedSkill = favSkillMem.content
-        .replace(/^Favorite (?:workout skill|exercise\/workout|skill|exercise):\s*/i, '')
-        .trim();
-      if (cleanedSkill) {
-        targetSkillMilestone = `${cleanedSkill} (Athlete Favorite)`;
-        memoryCoachingNotes.push(`Tailored for favorite focus: ${cleanedSkill}`);
-      }
-    }
   }
 
-  // ==========================================
-  // COOLDOWN & DOWN-REGULATION BLOCK
-  // ==========================================
-  const childPose = exerciseRepository.getById('childs-pose') || exerciseRepository.getById('cobra-stretch');
-  if (childPose) {
-    exercises.push(
-      createExerciseItemFromRepDB(
-        childPose,
-        'cooldown',
-        2,
-        '45s deep stretch + diaphragmatic box breathing',
-        30,
-        'Parasympathetic Down-Regulation',
-        childPose.tips_en?.[0]
-      )
-    );
-  }
+  // Keep workout focused to at most 4 movements so it feels simple and achievable
+  const finalExercises = focusedExercises.slice(0, 4);
 
   // Calculations
-  const totalSets = exercises.reduce((acc, ex) => acc + ex.targetSets, 0);
-  const totalRestSeconds = exercises.reduce((acc, ex) => acc + ex.targetSets * ex.restPeriodSeconds, 0);
+  const totalSets = finalExercises.reduce((acc, ex) => acc + ex.targetSets, 0);
+  const totalRestSeconds = finalExercises.reduce((acc, ex) => acc + ex.targetSets * ex.restPeriodSeconds, 0);
   const workSeconds = totalSets * 45;
-  const estimatedDurationMin = Math.round((totalRestSeconds + workSeconds) / 60);
+  const estimatedDurationMin = Math.max(15, Math.round((totalRestSeconds + workSeconds) / 60));
 
   const athleteWeight = weightKg > 0 ? weightKg : (isFemale ? 62 : 75);
   let calculatedCalories = 0;
-  for (const ex of exercises) {
+  for (const ex of finalExercises) {
     const met = ex.met || 5.0;
     const exerciseMinutes = (ex.targetSets * (45 + ex.restPeriodSeconds)) / 60;
     calculatedCalories += met * athleteWeight * (exerciseMinutes / 60);
@@ -1667,24 +1779,26 @@ export function generateAdaptiveWorkoutPlan(
 
   // Format split title
   const splitTitles: Record<WorkoutSplit, string> = {
-    full_body: isGym ? 'Full Gym Compound' : 'Full Body Calisthenics',
-    push: isGym ? 'Push Focus (Chest & Delts)' : 'Push Skills (Push-Ups & Dips)',
-    pull: isGym ? 'Pull Focus (Back & Biceps)' : 'Pull Skills (Pull-Ups & Levers)',
-    legs: isGym ? 'Legs & Posterior Chain' : 'Legs & Pistols',
-    upper: 'Upper Body Integration',
+    full_body: isGym ? 'Full Body Workout' : 'Full Body Calisthenics',
+    push: isGym ? 'Push Day (Chest, Shoulders & Triceps)' : 'Push Day (Push-Ups & Dips)',
+    pull: isGym ? 'Pull Day (Back & Biceps)' : 'Pull Day (Pull-Ups & Rows)',
+    legs: isGym ? 'Legs Day (Quads, Glutes & Hamstrings)' : 'Legs Day (Squats & Lunges)',
+    cardio: 'Cardio & Conditioning',
+    rest: 'Rest & Recovery Day',
+    upper: 'Upper Body Workout',
     lower: 'Lower Body & Core',
     core_mobility: 'Core & Joint Mobility',
-    calisthenics_skills: 'Calisthenics Progression Mastery',
-    cardio_engine: 'Cardio Engine & Conditioning',
+    calisthenics_skills: 'Calisthenics Skills',
+    cardio_engine: 'Cardio & Conditioning',
   };
 
-  const title = splitTitles[activeSplit] || 'Adaptive Routine';
+  const title = splitTitles[activeSplit] || 'Daily Workout';
   const primaryGoal = goals[0] || 'strength_hypertrophy';
 
   return {
     id: `plan-${activeSplit}-${equipmentMode || 'all'}-${skillLevel || 'intermediate'}-${primaryGoal}`,
     title,
-    focusSummary: `${title} • ${tierLabel} • ${estimatedDurationMin} min • ~${estimatedCaloriesBurn} kcal`,
+    focusSummary: `${title} • ${estimatedDurationMin} min • ~${estimatedCaloriesBurn} kcal`,
     tier,
     tierLabel,
     readinessMultiplierDesc,
@@ -1692,10 +1806,10 @@ export function generateAdaptiveWorkoutPlan(
     estimatedCaloriesBurn,
     equipmentMode,
     targetSkillMilestone,
-    exercises,
-    coachingNotes: `Sports Science Protocol: Adhere to target cadences and RPE guidelines. Progression is calibrated to autonomic readiness (${readinessScore}/100).${
-      memoryCoachingNotes.length > 0 ? ` [Coach Memory Active: ${memoryCoachingNotes.join(' • ')}]` : ''
-    } Log completed sets for adaptive feedback.`,
+    exercises: finalExercises,
+    coachingNotes: `Focus on clean form and steady breathing.${
+      memoryCoachingNotes.length > 0 ? ` (${memoryCoachingNotes.join(' • ')})` : ''
+    }`,
     generatedDate: new Date().toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',

@@ -129,10 +129,73 @@ export const useChatStore = create<ChatState>()(
 
         const todayDate = new Date().toISOString().split('T')[0];
         const workoutState = useWorkoutStore.getState();
-        const todayPlan = workoutState.getPlanForDate(todayDate);
+
+        // Fast natural-language workout scheduler handler (e.g. "today is a busy day I can't do workout", "skip rest day")
+        if (trimmed) {
+          const lowerMsg = trimmed.toLowerCase();
+          const isSkipRest =
+            /\b(skip\s+rest(\s+day)?|don'?t\s+want\s+to\s+rest|no\s+rest\s+today|train\s+instead\s+of\s+rest)\b/i.test(
+              lowerMsg
+            ) || /ข้ามวันพัก|ไม่อยากพักวันนี้/.test(lowerMsg);
+
+          const isSkipWorkout =
+            !isSkipRest &&
+            (/\b(busy\s+day|too\s+busy|can'?t\s+(?:do\s+)?(?:workout|train|exercise)|cannot\s+(?:do\s+)?(?:workout|train)|skip\s+(?:today'?s?\s+)?workout|take\s+a\s+rest\s+day\s+today|rest\s+today)\b/i.test(
+              lowerMsg
+            ) ||
+              /วันนี้ยุ่ง|ไม่ว่างออกกำลังกาย|ไม่ว่างซ้อม|ขอพักวันนี้|ข้ามวันซ้อม/.test(lowerMsg));
+
+          if (isSkipRest) {
+            const { newSplit } = workoutState.skipRestDay(todayDate);
+            autoMemorySteps.push({
+              id: `step-sched-${Date.now()}`,
+              toolName: 'manage_workout_schedule',
+              domain: 'workout_plan',
+              access: 'write',
+              status: 'completed',
+              summary: `📅 Skipped Rest Day — pulled ${newSplit.toUpperCase()} workout into today (${todayDate})`,
+              timestamp: Date.now(),
+            });
+          } else if (isSkipWorkout) {
+            const { skippedSplit, shiftedToDate } = workoutState.skipWorkoutDay(todayDate);
+            autoMemorySteps.push({
+              id: `step-sched-${Date.now()}`,
+              toolName: 'manage_workout_schedule',
+              domain: 'workout_plan',
+              access: 'write',
+              status: 'completed',
+              summary: `📅 Set today (${todayDate}) to Rest Day — shifted ${skippedSplit.toUpperCase()} workout to ${shiftedToDate}`,
+              timestamp: Date.now(),
+            });
+          } else {
+            const removeCycleMatch = lowerMsg.match(
+              /\bremove\s+(push|pull|legs|cardio|rest)(?:\s+day)?(?:\s+from\s+(?:my\s+)?(?:cycle|schedule|split))?\b/i
+            );
+            if (removeCycleMatch && removeCycleMatch[1]) {
+              const dayToRemove = removeCycleMatch[1].toLowerCase() as any;
+              const currentCycle = workoutState.activeCycle || ['push', 'pull', 'legs', 'cardio', 'rest'];
+              if (currentCycle.includes(dayToRemove) && currentCycle.length > 1) {
+                const updated = workoutState.toggleCycleDayType(dayToRemove);
+                autoMemorySteps.push({
+                  id: `step-sched-${Date.now()}`,
+                  toolName: 'manage_workout_schedule',
+                  domain: 'workout_plan',
+                  access: 'write',
+                  status: 'completed',
+                  summary: `📅 Removed ${dayToRemove.toUpperCase()} from cycle (${updated.map((d) => d.toUpperCase()).join(' → ')})`,
+                  timestamp: Date.now(),
+                });
+              }
+            }
+          }
+        }
+
+        const refreshedWorkoutState = useWorkoutStore.getState();
+        const todayScheduledSplit = refreshedWorkoutState.getScheduledSplitForDate(todayDate);
+        const todayPlan = refreshedWorkoutState.getPlanForDate(todayDate);
         const workoutSummary = todayPlan
-          ? `"${todayPlan.title}" (${todayPlan.exercises.length} exercises)`
-          : 'None scheduled yet';
+          ? `"${todayPlan.title}" [Split: ${todayScheduledSplit.toUpperCase()}] (${todayPlan.exercises.length} exercises)`
+          : `Scheduled Split: ${todayScheduledSplit.toUpperCase()} (Active Cycle: ${refreshedWorkoutState.activeCycle.map((c) => c.toUpperCase()).join(' → ')})`;
 
         const systemPrompt = isCompactModel
           ? buildCompactSystemPrompt({

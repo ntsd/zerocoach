@@ -23,6 +23,13 @@ export function formatDateDisplay(dateStr: string, language?: string): string {
   ).padStart(2, '0')}`;
   if (dateStr === yesterdayStr) return language === 'th' ? 'เมื่อวาน' : 'Yesterday';
 
+  const tmr = new Date();
+  tmr.setDate(tmr.getDate() + 1);
+  const tomorrowStr = `${tmr.getFullYear()}-${String(tmr.getMonth() + 1).padStart(2, '0')}-${String(
+    tmr.getDate()
+  ).padStart(2, '0')}`;
+  if (dateStr === tomorrowStr) return language === 'th' ? 'พรุ่งนี้' : 'Tomorrow';
+
   try {
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day);
@@ -43,6 +50,7 @@ export interface DateNavigationBarProps {
   onToday: () => void;
   style?: StyleProp<ViewStyle>;
   accentColor?: string;
+  allowFutureDates?: boolean;
 }
 
 export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
@@ -52,10 +60,12 @@ export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
   onToday,
   style,
   accentColor = COLORS.strict.accent,
+  allowFutureDates = false,
 }) => {
   const { language } = useTranslation();
   const todayStr = getTodayDateString();
   const isToday = currentDate === todayStr;
+  const isNextDisabled = !allowFutureDates && isToday;
 
   return (
     <View style={[styles.dateRow, style]}>
@@ -76,15 +86,15 @@ export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.navButton, isToday && styles.navButtonDisabled]}
+        style={[styles.navButton, isNextDisabled && styles.navButtonDisabled]}
         onPress={onNextDay}
-        disabled={isToday}
+        disabled={isNextDisabled}
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <ChevronRight
           size={20}
-          color={isToday ? 'rgba(255, 255, 255, 0.2)' : COLORS.textSecondary}
+          color={isNextDisabled ? 'rgba(255, 255, 255, 0.2)' : COLORS.textSecondary}
         />
       </TouchableOpacity>
     </View>

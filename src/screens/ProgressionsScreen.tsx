@@ -10,19 +10,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useChatStore } from '@/store/useChatStore';
+import { useMemoryStore } from '@/store/useMemoryStore';
 import { SkillLevel, TrainingGoal } from '@/types/coach';
-import { WorkoutSplit } from '@/types/workout';
-import {
-  generateAdaptiveWorkoutPlan,
-  getCoachSplitRecommendation,
-} from '@/services/workout/workoutPlanGenerator';
+import { CoreWorkoutDayType } from '@/types/workout';
+import { generateAdaptiveWorkoutPlan } from '@/services/workout/workoutPlanGenerator';
 import { AdaptiveWorkoutCard } from '@/components/workout/AdaptiveWorkoutCard';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
-import { HorizontalChipBar, ChipItem } from '@/components/common/HorizontalChipBar';
 import { GlassCard } from '@/components/common/GlassCard';
-import { useWorkoutStore } from '@/store/useWorkoutStore';
+import {
+  useWorkoutStore,
+  ALL_CYCLE_DAY_TYPES,
+  addDaysToDateString,
+} from '@/store/useWorkoutStore';
 import { useTranslation } from '@/i18n';
 import {
   DateNavigationBar,
@@ -39,51 +40,57 @@ import {
   CheckCircle2,
   MessageSquare,
   Sliders,
-  Target,
   Calendar,
+  Moon,
+  SkipForward,
+  FastForward,
+  Plus,
+  X,
 } from 'lucide-react-native';
 
 interface ProgressionsScreenProps {
   onNavigateToChat: () => void;
 }
 
-const TRAINING_GOALS: Array<{ id: TrainingGoal; label: string; icon: any }> = [
-  { id: 'strength_hypertrophy', label: 'Strength & Hypertrophy', icon: Dumbbell },
-  { id: 'calisthenics_mastery', label: 'Calisthenics Skills', icon: Zap },
-  { id: 'fat_loss_recomp', label: 'Fat Loss & Recomp', icon: Flame },
-  { id: 'cardio_endurance', label: 'Cardio & Aerobic', icon: Activity },
-  { id: 'daily_health_longevity', label: 'Health & Longevity', icon: ShieldCheck },
-];
-
-const SKILL_LEVELS: Array<{ id: SkillLevel; label: string; subLabel: string }> = [
-  { id: 'beginner', label: '🌱 Beginner', subLabel: 'Form & Base' },
-  { id: 'intermediate', label: '⚡ Intermediate', subLabel: 'Progression' },
-  { id: 'advanced', label: '🔥 Advanced', subLabel: 'Peak Overload' },
-];
-
-const WORKOUT_SPLITS: Array<{ id: WorkoutSplit; label: string; icon: any }> = [
-  { id: 'full_body', label: 'Full Body', icon: Dumbbell },
-  { id: 'push', label: 'Push', icon: Zap },
-  { id: 'pull', label: 'Pull', icon: ShieldCheck },
-  { id: 'legs', label: 'Legs', icon: Flame },
-  { id: 'upper', label: 'Upper', icon: Dumbbell },
-  { id: 'lower', label: 'Lower', icon: Activity },
-  { id: 'core_mobility', label: 'Core & Mobility', icon: ShieldCheck },
-  { id: 'calisthenics_skills', label: 'Calisthenics Skills', icon: Zap },
-  { id: 'cardio_engine', label: 'Cardio Engine', icon: Activity },
-];
+const CYCLE_PILL_META: Record<
+  CoreWorkoutDayType,
+  { defaultLabel: string; icon: any; accentColor?: string }
+> = {
+  push: { defaultLabel: 'Push', icon: Zap },
+  pull: { defaultLabel: 'Pull', icon: ShieldCheck },
+  legs: { defaultLabel: 'Legs', icon: Flame },
+  cardio: { defaultLabel: 'Cardio', icon: Activity },
+  rest: { defaultLabel: 'Rest', icon: Moon, accentColor: '#38BDF8' },
+};
 
 export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
   const { t } = useTranslation();
-  const { userProfile, updateProfile, setSkillLevel } = useCoachStore();
-  const defaultMode = userProfile?.equipmentPreference === 'home' ? 'bodyweight' : 'all';
-  const [equipmentMode, setEquipmentMode] = useState<'all' | 'bodyweight'>(defaultMode);
+  const { userProfile } = useCoachStore();
+  const equipmentMode: 'all' | 'bodyweight' =
+    userProfile?.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const { calisthenicsStages, metrics } = useTelemetryStore();
   const { sendMessage } = useChatStore();
-  const { selectedDate, setSelectedDate, historyByDate, plansByDate } = useWorkoutStore();
+  const memories = useMemoryStore((state) => state.memories);
+  const {
+    selectedDate,
+    setSelectedDate,
+    historyByDate,
+    plansByDate,
+    activeCycle,
+    scheduleOverridesByDate,
+    cycleAnchorDate,
+    cycleAnchorIndex,
+    getScheduledSplitForDate,
+    setSplitForDate,
+    skipWorkoutDay,
+    skipRestDay,
+    toggleCycleDayType,
+  } = useWorkoutStore();
   const modeColors = getModeColors();
+
+  const [isEditingCycle, setIsEditingCycle] = useState(false);
 
   const todayStr = useMemo(() => getTodayDateString(), []);
   const activeDate = selectedDate || todayStr;
@@ -91,57 +98,46 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   const completedSessionForDate = (historyByDate || {})[activeDate];
 
   const handlePrevDay = () => {
-    const [year, month, day] = activeDate.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    date.setDate(date.getDate() - 1);
-    const prevStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-      date.getDate()
-    ).padStart(2, '0')}`;
-    setSelectedDate(prevStr);
+    setSelectedDate(addDaysToDateString(activeDate, -1));
   };
 
   const handleNextDay = () => {
-    if (activeDate >= todayStr) return; // Prevent navigating into future dates
-    const [year, month, day] = activeDate.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    date.setDate(date.getDate() + 1);
-    const nextStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-      date.getDate()
-    ).padStart(2, '0')}`;
-    setSelectedDate(nextStr);
+    setSelectedDate(addDaysToDateString(activeDate, 1));
   };
 
   const handleToday = () => {
     setSelectedDate(todayStr);
   };
 
-  // Active goal (from profile or fallback)
+  // Active goal & skill level (configured in Settings -> Athlete Profile)
   const activeGoal: TrainingGoal = userProfile.primaryGoals?.[0] || 'strength_hypertrophy';
   const activeSkillLevel: SkillLevel = userProfile.skillLevel || 'intermediate';
 
-  // Selected Split state (null means follow Coach's recommendation)
-  const [selectedSplit, setSelectedSplit] = useState<WorkoutSplit | null>(null);
+  // Scheduled day type from the rolling cycle + any skip/override shifts
+  const currentSplit = useMemo(() => {
+    return getScheduledSplitForDate(activeDate);
+  }, [
+    activeDate,
+    activeCycle,
+    scheduleOverridesByDate,
+    cycleAnchorDate,
+    cycleAnchorIndex,
+    getScheduledSplitForDate,
+  ]);
 
-  // Compute coach recommendation
-  const coachRec = useMemo(() => {
-    return getCoachSplitRecommendation({
-      goals: [activeGoal],
-      readinessScore: metrics.readinessScore,
-      weightKg: userProfile.weightKg,
-      heightCm: userProfile.heightCm,
-      activeStages: calisthenicsStages,
-      activeCalories: metrics.activeCalories,
-      equipmentMode,
-      sex: userProfile.sex,
-      skillLevel: activeSkillLevel,
-    });
-  }, [activeGoal, metrics, userProfile, calisthenicsStages, equipmentMode, activeSkillLevel]);
+  const tomorrowDate = useMemo(() => addDaysToDateString(activeDate, 1), [activeDate]);
+  const tomorrowSplit = useMemo(() => {
+    return getScheduledSplitForDate(tomorrowDate);
+  }, [
+    tomorrowDate,
+    activeCycle,
+    scheduleOverridesByDate,
+    cycleAnchorDate,
+    cycleAnchorIndex,
+    getScheduledSplitForDate,
+  ]);
 
-  // Current active split
-  const currentSplit = selectedSplit || coachRec.recommendedSplit;
-  const isUsingCoachRec = !selectedSplit || selectedSplit === coachRec.recommendedSplit;
-
-  // Compute adaptive exercise plan dynamically generated by the user's data, goal, skill level, and RepDB
+  // Compute simplified 4-movement adaptive plan (with Mem0 favorites prioritized)
   const adaptivePlan = useMemo(() => {
     return generateAdaptiveWorkoutPlan({
       goals: [activeGoal],
@@ -163,49 +159,22 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     equipmentMode,
     activeSkillLevel,
     currentSplit,
+    memories,
   ]);
 
   // Read saved plan if user or AI Agent has explicitly customized/scheduled it for this date
   const effectivePlan = useMemo(() => {
     const savedPlan = (plansByDate || {})[activeDate];
-    if (savedPlan && savedPlan.exercises && savedPlan.exercises.length > 0) {
+    if (
+      savedPlan &&
+      savedPlan.selectedSplit === currentSplit &&
+      savedPlan.exercises &&
+      savedPlan.exercises.length > 0
+    ) {
       return savedPlan;
     }
     return adaptivePlan;
-  }, [plansByDate, activeDate, adaptivePlan]);
-
-  // Handle switching goal
-  const handleSelectGoal = (goal: TrainingGoal) => {
-    const existing = userProfile.primaryGoals || [];
-    const updated = [goal, ...existing.filter((g) => g !== goal)];
-    updateProfile({ primaryGoals: updated });
-    // Reset selected split so coach re-evaluates
-    setSelectedSplit(null);
-  };
-
-  // Handle switching skill level
-  const handleSelectSkillLevel = (level: SkillLevel) => {
-    setSkillLevel(level);
-  };
-
-  // Goal chip items
-  const goalChipItems: ChipItem[] = useMemo(() => {
-    return TRAINING_GOALS.map((g) => ({
-      id: g.id,
-      label: t.workout.goals[g.id] || g.label,
-      icon: g.icon,
-    }));
-  }, [t]);
-
-  // Split chip items
-  const splitChipItems: ChipItem[] = useMemo(() => {
-    return WORKOUT_SPLITS.map((s) => ({
-      id: s.id,
-      label: t.workout.splits[s.id] || s.label,
-      icon: s.icon,
-      badge: s.id === coachRec.recommendedSplit ? t.workout.coachRecommendation : undefined,
-    }));
-  }, [coachRec.recommendedSplit, t]);
+  }, [plansByDate, activeDate, currentSplit, adaptivePlan]);
 
   const handleAskCoachPlan = () => {
     onNavigateToChat();
@@ -220,6 +189,8 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     sendMessage(query);
   };
 
+  const pillsToDisplay = isEditingCycle ? ALL_CYCLE_DAY_TYPES : activeCycle;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
@@ -232,257 +203,246 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
             <Dumbbell size={20} color={modeColors.accent} />
             <Text style={styles.title}>{t.workout.screenTitle}</Text>
           </View>
-          <Text style={styles.subtitle}>
-            {t.workout.screenSubtitle}
-          </Text>
+          <Text style={styles.subtitle}>{t.workout.screenSubtitle}</Text>
         </View>
 
-        {/* Date Navigation Bar (parity with Nutrition) */}
+        {/* Date Navigation Bar (supports past, today, and future scheduling) */}
         <DateNavigationBar
           currentDate={activeDate}
           onPrevDay={handlePrevDay}
           onNextDay={handleNextDay}
           onToday={handleToday}
           accentColor={modeColors.accent}
+          allowFutureDates={true}
           style={styles.dateNavBar}
         />
 
-        {/* Contextual Notice for Past Dates */}
-        {!isToday && (
-          completedSessionForDate ? (
-            <View style={styles.pastDateBanner}>
-              <CheckCircle2 size={14} color={COLORS.success} />
-              <Text style={styles.pastDateBannerText}>
-                {t.workout.completedOnDate.replace('{date}', `${formatDateDisplay(activeDate)} (${activeDate})`)}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.pastDateBannerMuted}>
-              <Calendar size={14} color={COLORS.textMuted} />
-              <Text style={styles.pastDateBannerTextMuted}>
-                {t.workout.noWorkoutOnDate.replace('{date}', formatDateDisplay(activeDate))}
-              </Text>
-            </View>
-          )
+        {/* Contextual Notice for Completed Sessions */}
+        {completedSessionForDate && (
+          <View style={styles.pastDateBanner}>
+            <CheckCircle2 size={14} color={COLORS.success} />
+            <Text style={styles.pastDateBannerText}>
+              {t.workout.completedOnDate.replace(
+                '{date}',
+                `${formatDateDisplay(activeDate)} (${activeDate})`
+              )}
+            </Text>
+          </View>
         )}
 
         {/* ========================================================== */}
-        {/* CONTROLS: GOAL, SKILL LEVEL, WORKOUT PLAN SELECTORS       */}
+        {/* SMART 5-PILL WORKOUT CYCLE BAR (PUSH · PULL · LEGS · CARDIO · REST) */}
         {/* ========================================================== */}
-
-        {/* 1. Primary Training Goal Selector */}
-        <View style={styles.selectorGroup}>
+        <View style={styles.cycleSection}>
           <View style={styles.selectorHeaderRow}>
             <View style={styles.selectorTitleRow}>
-              <Target size={13} color={modeColors.accent} />
-              <Text style={styles.selectorGroupTitle}>{t.workout.trainingGoalSection}</Text>
+              <Calendar size={13} color={modeColors.accent} />
+              <Text style={styles.selectorGroupTitle}>{t.workout.cycleSection}</Text>
             </View>
-            <Text style={styles.selectorActiveText}>
-              {t.workout.goals[activeGoal] || activeGoal}
-            </Text>
-          </View>
-          <HorizontalChipBar
-            items={goalChipItems}
-            selectedId={activeGoal}
-            onSelect={(item) => handleSelectGoal(item.id as TrainingGoal)}
-            style={styles.selectorChipScroll}
-            contentContainerStyle={styles.selectorChipContent}
-          />
-        </View>
-
-        {/* 2. Athlete Skill Level Segmented Control */}
-        <View style={styles.selectorGroup}>
-          <View style={styles.selectorHeaderRow}>
-            <View style={styles.selectorTitleRow}>
-              <Sliders size={13} color={modeColors.accent} />
-              <Text style={styles.selectorGroupTitle}>{t.workout.skillLevelSection}</Text>
-            </View>
-            <Text style={[styles.selectorActiveText, { color: modeColors.accent }]}>
-              {activeSkillLevel.toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.skillSegmentContainer}>
-            {SKILL_LEVELS.map((level) => {
-              const isSelected = activeSkillLevel === level.id;
-              const levelLabel = (t.workout.skillLevels as any)[level.id] || level.label;
-              const subLabel = (t.workout.skillLevels as any)[`${level.id}Sub`] || level.subLabel;
-              return (
-                <TouchableOpacity
-                  key={level.id}
-                  onPress={() => handleSelectSkillLevel(level.id)}
-                  style={[
-                    styles.skillSegmentOption,
-                    isSelected && {
-                      borderColor: modeColors.accent,
-                      backgroundColor: `${modeColors.accent}20`,
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.skillSegmentText,
-                      isSelected && { color: modeColors.accent, fontWeight: '700' },
-                    ]}
-                  >
-                    {levelLabel}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.skillSegmentSubText,
-                      isSelected && { color: modeColors.accent, opacity: 0.9 },
-                    ]}
-                  >
-                    {subLabel}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 3. Workout Plan / Split Selector */}
-        <View style={styles.selectorGroup}>
-          <View style={styles.selectorHeaderRow}>
-            <View style={styles.selectorTitleRow}>
-              <Zap size={13} color={modeColors.accent} />
-              <Text style={styles.selectorGroupTitle}>{t.workout.splitSection}</Text>
-            </View>
-            <Text style={styles.selectorActiveText}>
-              {t.workout.splits[currentSplit] || currentSplit}
-            </Text>
-          </View>
-          <HorizontalChipBar
-            items={splitChipItems}
-            selectedId={currentSplit}
-            onSelect={(item) => setSelectedSplit(item.id as WorkoutSplit)}
-            style={styles.selectorChipScroll}
-            contentContainerStyle={styles.selectorChipContent}
-          />
-        </View>
-
-        {/* ========================================================== */}
-        {/* COACH RECOMMENDATION BANNER                                */}
-        {/* ========================================================== */}
-        <GlassCard
-          glowColor={`${modeColors.accent}25`}
-          borderColor={`${modeColors.accent}40`}
-          style={styles.coachRecCard}
-        >
-          <View style={styles.coachRecTopRow}>
-            <View style={styles.coachRecTitleBox}>
-              <View style={[styles.coachRecIconBadge, { backgroundColor: `${modeColors.accent}20` }]}>
-                <Sparkles size={14} color={modeColors.accent} />
-              </View>
-              <View>
-                <Text style={styles.coachRecLabel}>{t.workout.coachSuggestion}</Text>
-                <Text style={styles.coachRecSplitTitle}>{coachRec.splitTitle}</Text>
-              </View>
-            </View>
-            <View style={[styles.coachRecBadge, { borderColor: `${modeColors.accent}50`, backgroundColor: `${modeColors.accent}15` }]}>
-              <Text style={[styles.coachRecBadgeText, { color: modeColors.accent }]}>
-                {coachRec.badge}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.coachRecReasoning}>{coachRec.reasoning}</Text>
-
-          {/* Action Row */}
-          <View style={styles.coachRecActionsRow}>
-            {!isUsingCoachRec ? (
-              <TouchableOpacity
-                onPress={() => setSelectedSplit(coachRec.recommendedSplit)}
-                style={[styles.applyCoachBtn, { backgroundColor: modeColors.accent }]}
-                activeOpacity={0.8}
-              >
-                <Zap size={13} color={COLORS.background} />
-                <Text style={styles.applyCoachBtnText}>
-                  {t.workout.applyCoachPlan.replace('{split}', coachRec.splitTitle)}
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={[styles.activeCoachBadge, { borderColor: `${COLORS.success}60`, backgroundColor: `${COLORS.success}15` }]}>
-                <CheckCircle2 size={13} color={COLORS.success} />
-                <Text style={[styles.activeCoachBadgeText, { color: COLORS.success }]}>
-                  {t.workout.activeCoachPick}
-                </Text>
-              </View>
-            )}
-
             <TouchableOpacity
-              onPress={handleAskCoachPlan}
-              style={[styles.askCoachPlanBtn, { borderColor: `${modeColors.accent}40` }]}
-              activeOpacity={0.8}
+              onPress={() => setIsEditingCycle((prev) => !prev)}
+              style={[
+                styles.editCycleToggleBtn,
+                isEditingCycle && {
+                  borderColor: modeColors.accent,
+                  backgroundColor: `${modeColors.accent}20`,
+                },
+              ]}
+              activeOpacity={0.75}
             >
-              <MessageSquare size={13} color={modeColors.accent} />
-              <Text style={[styles.askCoachPlanBtnText, { color: modeColors.accent }]}>
-                {t.workout.askCoach}
+              <Sliders
+                size={11}
+                color={isEditingCycle ? modeColors.accent : COLORS.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.editCycleToggleText,
+                  isEditingCycle && { color: modeColors.accent, fontWeight: '700' },
+                ]}
+              >
+                {isEditingCycle ? t.workout.doneCycleBtn : t.workout.editCycleBtn}
               </Text>
             </TouchableOpacity>
           </View>
-        </GlassCard>
 
-        {/* Equipment Mode Segmented Selector */}
-        <View style={styles.equipmentToggleContainer}>
-          <TouchableOpacity
-            onPress={() => setEquipmentMode('all')}
-            style={[
-              styles.equipmentOption,
-              equipmentMode === 'all' && {
-                borderColor: modeColors.accent,
-                backgroundColor: `${modeColors.accent}20`,
-              },
-            ]}
-            activeOpacity={0.8}
-          >
-            <Dumbbell
-              size={14}
-              color={equipmentMode === 'all' ? modeColors.accent : COLORS.textMuted}
-            />
-            <Text
-              style={[
-                styles.equipmentOptionText,
-                equipmentMode === 'all' && { color: modeColors.accent, fontWeight: '700' },
-              ]}
-            >
-              {t.onboarding.fullGym}
-            </Text>
-          </TouchableOpacity>
+          {isEditingCycle && (
+            <Text style={styles.editCycleHint}>{t.workout.editCycleHint}</Text>
+          )}
 
-          <TouchableOpacity
-            onPress={() => setEquipmentMode('bodyweight')}
-            style={[
-              styles.equipmentOption,
-              equipmentMode === 'bodyweight' && {
-                borderColor: modeColors.accent,
-                backgroundColor: `${modeColors.accent}20`,
-              },
-            ]}
-            activeOpacity={0.8}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.cyclePillScroll}
+            contentContainerStyle={styles.cyclePillContent}
           >
-            <Activity
-              size={14}
-              color={equipmentMode === 'bodyweight' ? modeColors.accent : COLORS.textMuted}
-            />
-            <Text
-              style={[
-                styles.equipmentOptionText,
-                equipmentMode === 'bodyweight' && { color: modeColors.accent, fontWeight: '700' },
-              ]}
-            >
-              {t.onboarding.homeEquipment}
-            </Text>
-          </TouchableOpacity>
+            {pillsToDisplay.map((dayType) => {
+              const meta = CYCLE_PILL_META[dayType];
+              const IconComp = meta.icon;
+              const label = (t.workout.splits as any)[dayType] || meta.defaultLabel;
+              const isInCycle = activeCycle.includes(dayType);
+              const isSelectedToday = !isEditingCycle && currentSplit === dayType;
+              const pillAccent = meta.accentColor || modeColors.accent;
+
+              return (
+                <TouchableOpacity
+                  key={dayType}
+                  onPress={() => {
+                    if (isEditingCycle) {
+                      toggleCycleDayType(dayType);
+                    } else {
+                      setSplitForDate(activeDate, dayType);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.cyclePill,
+                    isEditingCycle && !isInCycle && styles.cyclePillDisabled,
+                    isEditingCycle &&
+                      isInCycle && {
+                        borderColor: `${pillAccent}70`,
+                        backgroundColor: `${pillAccent}18`,
+                      },
+                    isSelectedToday && {
+                      borderColor: pillAccent,
+                      backgroundColor: `${pillAccent}25`,
+                    },
+                  ]}
+                >
+                  <IconComp
+                    size={13}
+                    color={
+                      isEditingCycle
+                        ? isInCycle
+                          ? pillAccent
+                          : COLORS.textMuted
+                        : isSelectedToday
+                        ? pillAccent
+                        : COLORS.textSecondary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.cyclePillText,
+                      isEditingCycle && !isInCycle && styles.cyclePillTextDisabled,
+                      (isSelectedToday || (isEditingCycle && isInCycle)) && {
+                        color: pillAccent,
+                        fontWeight: '800',
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                  {isEditingCycle && (
+                    <View
+                      style={[
+                        styles.cycleEditBadge,
+                        {
+                          backgroundColor: isInCycle
+                            ? 'rgba(239, 68, 68, 0.2)'
+                            : 'rgba(16, 185, 129, 0.2)',
+                        },
+                      ]}
+                    >
+                      {isInCycle ? (
+                        <X size={9} color={COLORS.danger} />
+                      ) : (
+                        <Plus size={9} color={COLORS.success} />
+                      )}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
-        {/* Adaptive Exercise Plan Generated by Goal, Skill Level, Split & RepDB */}
-        <AdaptiveWorkoutCard
-          key={activeDate}
-          plan={effectivePlan}
-          date={activeDate}
-          onAskCoach={() => handleAskCoachPlan()}
-        />
+        {/* ========================================================== */}
+        {/* 1-TAP SCHEDULE ROLLOVER ACTION OR REST DAY RECOVERY CARD   */}
+        {/* ========================================================== */}
+        {currentSplit === 'rest' ? (
+          <GlassCard
+            glowColor="rgba(56, 189, 248, 0.22)"
+            borderColor="rgba(56, 189, 248, 0.4)"
+            style={styles.restDayCard}
+          >
+            <View style={styles.restHeaderRow}>
+              <View style={styles.restIconCircle}>
+                <Moon size={20} color="#38BDF8" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.restSuperLabel}>ACTIVE RECOVERY & CNS RESET</Text>
+                <Text style={styles.restTitle}>{t.workout.restDayTitle}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.restDesc}>{t.workout.restDayDesc}</Text>
+
+            <View style={styles.upNextBox}>
+              <Calendar size={13} color="#38BDF8" />
+              <Text style={styles.upNextText}>
+                {t.workout.tomorrowUpNext.replace(
+                  '{split}',
+                  (t.workout.splits as any)[tomorrowSplit] || tomorrowSplit.toUpperCase()
+                )}
+              </Text>
+            </View>
+
+            <View style={styles.restActionsRow}>
+              <TouchableOpacity
+                onPress={() => skipRestDay(activeDate)}
+                style={[styles.skipRestBtn, { backgroundColor: modeColors.accent }]}
+                activeOpacity={0.85}
+              >
+                <FastForward size={14} color={COLORS.textDark} />
+                <Text style={styles.skipRestBtnText}>{t.workout.skipRestBtn}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleAskCoachPlan}
+                style={[styles.askCoachCompactBtn, { borderColor: `${modeColors.accent}45` }]}
+                activeOpacity={0.8}
+              >
+                <MessageSquare size={14} color={modeColors.accent} />
+                <Text style={[styles.askCoachCompactText, { color: modeColors.accent }]}>
+                  {t.workout.askCoach}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        ) : (
+          <>
+            {/* Quick 1-Tap Skip Workout Bar (shifts today's workout to tomorrow) */}
+            <View style={styles.quickScheduleBar}>
+              <TouchableOpacity
+                onPress={() => skipWorkoutDay(activeDate)}
+                style={styles.skipWorkoutBtn}
+                activeOpacity={0.8}
+              >
+                <SkipForward size={13} color={COLORS.warning} />
+                <Text style={styles.skipWorkoutBtnText}>{t.workout.skipWorkoutBtn}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleAskCoachPlan}
+                style={[styles.askCoachPillBtn, { borderColor: `${modeColors.accent}40` }]}
+                activeOpacity={0.8}
+              >
+                <Sparkles size={12} color={modeColors.accent} />
+                <Text style={[styles.askCoachPillText, { color: modeColors.accent }]}>
+                  {t.workout.askCoach}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Simplified 4-Movement Adaptive Workout Card */}
+            <AdaptiveWorkoutCard
+              key={`${activeDate}-${currentSplit}`}
+              plan={effectivePlan}
+              date={activeDate}
+              onAskCoach={() => handleAskCoachPlan()}
+            />
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -521,24 +481,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.success,
   },
-  pastDateBannerMuted: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  pastDateBannerTextMuted: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    flex: 1,
-  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -556,9 +498,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Selector Groups (Goal, Skill Level, Workout Plan)
-  selectorGroup: {
-    marginBottom: SPACING.sm + 4,
+  // Smart 5-Pill Cycle Bar
+  cycleSection: {
+    marginBottom: SPACING.md,
     gap: 6,
   },
   selectorHeaderRow: {
@@ -578,177 +520,201 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     letterSpacing: 0.8,
   },
-  selectorActiveText: {
-    ...TYPOGRAPHY.captionBold,
-    fontSize: 11,
-    color: COLORS.textPrimary,
-  },
-  selectorChipScroll: {
-    marginHorizontal: -SPACING.lg,
-    height: 36,
-  },
-  selectorChipContent: {
-    paddingHorizontal: SPACING.lg,
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-  },
-
-  // Skill Level Segmented Control
-  skillSegmentContainer: {
+  editCycleToggleBtn: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: RADIUS.md,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
+    alignItems: 'center',
     gap: 4,
-  },
-  skillSegmentOption: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  skillSegmentText: {
-    ...TYPOGRAPHY.captionBold,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-  },
-  skillSegmentSubText: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 9,
-    color: COLORS.textMuted,
-    marginTop: 1,
-  },
-
-  // Coach Recommendation Banner
-  coachRecCard: {
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    marginBottom: SPACING.md,
-    gap: 8,
-  },
-  coachRecTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  coachRecTitleBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  coachRecIconBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coachRecLabel: {
-    ...TYPOGRAPHY.badge,
-    fontSize: 8.5,
-    color: COLORS.textMuted,
-    letterSpacing: 0.8,
-  },
-  coachRecSplitTitle: {
-    ...TYPOGRAPHY.bodyBold,
-    fontSize: 13,
-    color: COLORS.textPrimary,
-  },
-  coachRecBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
-  coachRecBadgeText: {
+  editCycleToggleText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10.5,
+    color: COLORS.textSecondary,
+  },
+  editCycleHint: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    paddingHorizontal: 2,
+  },
+  cyclePillScroll: {
+    marginHorizontal: -SPACING.lg,
+  },
+  cyclePillContent: {
+    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  cyclePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  cyclePillDisabled: {
+    opacity: 0.45,
+    borderStyle: 'dashed',
+  },
+  cyclePillText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  cyclePillTextDisabled: {
+    color: COLORS.textMuted,
+    textDecorationLine: 'line-through',
+  },
+  cycleEditBadge: {
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+
+  // Quick 1-Tap Skip Workout Bar
+  quickScheduleBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: SPACING.md,
+  },
+  skipWorkoutBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    backgroundColor: 'rgba(245, 158, 11, 0.09)',
+  },
+  skipWorkoutBtnText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11.5,
+    color: COLORS.warning,
+  },
+  askCoachPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  askCoachPillText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11.5,
+  },
+
+  // Rest & Muscle Recovery Card
+  restDayCard: {
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    gap: SPACING.md,
+  },
+  restHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  restIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  restSuperLabel: {
     ...TYPOGRAPHY.badge,
     fontSize: 9,
-    fontWeight: '800',
+    color: '#38BDF8',
+    letterSpacing: 1,
   },
-  coachRecReasoning: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11.5,
+  restTitle: {
+    ...TYPOGRAPHY.h3,
+    fontSize: 17,
+    color: COLORS.textPrimary,
+    marginTop: 2,
+  },
+  restDesc: {
+    ...TYPOGRAPHY.body,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    lineHeight: 16,
+    lineHeight: 19,
   },
-  coachRecActionsRow: {
+  upNextBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  upNextText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 12,
+    color: '#E0F2FE',
+  },
+  restActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginTop: 2,
   },
-  applyCoachBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: RADIUS.xs,
-  },
-  applyCoachBtnText: {
-    ...TYPOGRAPHY.captionBold,
-    fontSize: 11,
-    color: COLORS.background,
-  },
-  activeCoachBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.xs,
-    borderWidth: 1,
-  },
-  activeCoachBadgeText: {
-    ...TYPOGRAPHY.captionBold,
-    fontSize: 11,
-  },
-  askCoachPlanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.xs,
-    borderWidth: 1,
-  },
-  askCoachPlanBtnText: {
-    ...TYPOGRAPHY.captionBold,
-    fontSize: 11,
-  },
-
-  // Equipment Mode Segmented Selector
-  equipmentToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: RADIUS.md,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: COLORS.borderSubtle,
-    marginBottom: SPACING.md,
-    gap: 4,
-  },
-  equipmentOption: {
+  skipRestBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: RADIUS.md,
   },
-  equipmentOptionText: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
+  skipRestBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 12.5,
+    color: COLORS.textDark,
+  },
+  askCoachCompactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  askCoachCompactText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 12,
   },
 });

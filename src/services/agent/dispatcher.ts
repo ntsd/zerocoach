@@ -80,6 +80,14 @@ export function normalizeToolName(name: string): string {
     case 'replace_exercise':
       return 'swap_plan_exercise';
 
+    case 'manage_workout_schedule':
+    case 'skip_workout':
+    case 'skip_workout_day':
+    case 'skip_rest_day':
+    case 'reschedule_workout':
+    case 'update_workout_schedule':
+      return 'manage_workout_schedule';
+
     case 'search_exercises':
     case 'search_exercise_database':
     case 'search_exercise':
@@ -563,6 +571,7 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
         // Fallback: Generate adaptive readiness plan for that date
         const coach = useCoachStore.getState();
         const telemetry = useTelemetryStore.getState();
+        const scheduledSplit = workoutStore.getScheduledSplitForDate(targetDate);
         const plan = generateAdaptiveWorkoutPlan({
           goals: coach.userProfile.primaryGoals || ['strength_hypertrophy'],
           readinessScore: telemetry.metrics.readinessScore,
@@ -572,6 +581,7 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           activeCalories: telemetry.metrics.activeCalories,
           skillLevel: coach.userProfile.skillLevel,
           equipmentMode: coach.userProfile.equipmentPreference === 'home' ? 'bodyweight' : 'all',
+          selectedSplit: scheduledSplit,
         });
 
         const compactGenerated = {
@@ -726,6 +736,71 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
             swappedIn: replacementItem.name,
           },
           summary: `Swapped "${targetEx.name}" with "${replacementItem.name}" in ${targetDate} workout plan`,
+        };
+      }
+
+      case 'manage_workout_schedule': {
+        const targetDate = args.date || getTodayString();
+        const workoutStore = useWorkoutStore.getState();
+        const rawAction = String(args.action || 'skip_workout').toLowerCase();
+
+        if (rawAction.includes('skip_workout') || rawAction === 'rest') {
+          const { skippedSplit, shiftedToDate } = workoutStore.skipWorkoutDay(targetDate);
+          return {
+            toolCallId: id,
+            name: 'manage_workout_schedule',
+            success: true,
+            data: {
+              date: targetDate,
+              newTodayStatus: 'rest',
+              skippedSplit,
+              shiftedToDate,
+            },
+            summary: `📅 Set ${targetDate} to Rest Day — shifted ${skippedSplit.toUpperCase()} workout to ${shiftedToDate}`,
+          };
+        }
+
+        if (rawAction.includes('skip_rest') || rawAction === 'train_today') {
+          const { newSplit } = workoutStore.skipRestDay(targetDate);
+          return {
+            toolCallId: id,
+            name: 'manage_workout_schedule',
+            success: true,
+            data: {
+              date: targetDate,
+              newSplit,
+            },
+            summary: `📅 Skipped Rest Day — pulled ${newSplit.toUpperCase()} workout into ${targetDate}`,
+          };
+        }
+
+        if (rawAction.includes('update_cycle') && Array.isArray(args.cycle)) {
+          const validSplits = args.cycle
+            .map((s: any) => String(s).toLowerCase().trim())
+            .filter((s: string) => ['push', 'pull', 'legs', 'cardio', 'rest'].includes(s));
+          if (validSplits.length > 0) {
+            workoutStore.setActiveCycle(validSplits as any);
+            return {
+              toolCallId: id,
+              name: 'manage_workout_schedule',
+              success: true,
+              data: { activeCycle: validSplits },
+              summary: `📅 Updated workout rotation cycle: ${validSplits.map((s: string) => s.toUpperCase()).join(' → ')}`,
+            };
+          }
+        }
+
+        const splitArg = String(args.split || 'push').toLowerCase();
+        const validSplit = (['push', 'pull', 'legs', 'cardio', 'rest'].includes(splitArg)
+          ? splitArg
+          : 'push') as any;
+        workoutStore.setSplitForDate(targetDate, validSplit);
+        return {
+          toolCallId: id,
+          name: 'manage_workout_schedule',
+          success: true,
+          data: { date: targetDate, split: validSplit },
+          summary: `📅 Scheduled ${validSplit.toUpperCase()} for ${targetDate}`,
         };
       }
 

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
 import { useCoachStore } from '@/store/useCoachStore';
+import { SkillLevel, TrainingGoal } from '@/types/coach';
 import { useMemoryStore } from '@/store/useMemoryStore';
 import { MemoryCategory } from '@/types/memory';
 import { llmService } from '@/services/llm/llmService';
@@ -88,7 +89,7 @@ export const ModelManagerScreen: React.FC = () => {
     testGeminiConnection,
   } = useModelStore();
 
-  const { userProfile, updateProfile, language, setLanguage } = useCoachStore();
+  const { userProfile, updateProfile, setSkillLevel, language, setLanguage } = useCoachStore();
   const { memories, remember, forget } = useMemoryStore();
   const { t } = useTranslation();
   const memoryInfo = getDeviceMemoryInfo();
@@ -1135,6 +1136,87 @@ export const ModelManagerScreen: React.FC = () => {
                         ]}
                       >
                         {eq.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Primary Training Goal Selector */}
+            <View>
+              <Text style={styles.profileSectionLabel}>{t.workout.trainingGoalSection}</Text>
+              <View style={[styles.pillRow, { flexWrap: 'wrap' }]}>
+                {(
+                  [
+                    'strength_hypertrophy',
+                    'calisthenics_mastery',
+                    'fat_loss_recomp',
+                    'cardio_endurance',
+                    'daily_health_longevity',
+                  ] as TrainingGoal[]
+                ).map((goalId) => {
+                  const activeGoal = userProfile.primaryGoals?.[0] || 'strength_hypertrophy';
+                  const isSelected = activeGoal === goalId;
+                  return (
+                    <TouchableOpacity
+                      key={goalId}
+                      onPress={() => {
+                        const existing = userProfile.primaryGoals || [];
+                        updateProfile({
+                          primaryGoals: [goalId, ...existing.filter((g) => g !== goalId)],
+                        });
+                      }}
+                      style={[
+                        styles.profilePill,
+                        { flex: 0, paddingHorizontal: 10 },
+                        isSelected && {
+                          borderColor: modeColors.accent,
+                          backgroundColor: `${modeColors.accent}20`,
+                        },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.profilePillText,
+                          isSelected && { color: modeColors.accent, fontWeight: '700' },
+                        ]}
+                      >
+                        {(t.workout.goals as any)[goalId] || goalId}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Athlete Skill Level Selector */}
+            <View>
+              <Text style={styles.profileSectionLabel}>{t.workout.skillLevelSection}</Text>
+              <View style={styles.pillRow}>
+                {(['beginner', 'intermediate', 'advanced'] as SkillLevel[]).map((lvl) => {
+                  const isSelected = (userProfile.skillLevel || 'intermediate') === lvl;
+                  return (
+                    <TouchableOpacity
+                      key={lvl}
+                      onPress={() => setSkillLevel(lvl)}
+                      style={[
+                        styles.profilePill,
+                        isSelected && {
+                          borderColor: modeColors.accent,
+                          backgroundColor: `${modeColors.accent}20`,
+                        },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.profilePillText,
+                          isSelected && { color: modeColors.accent, fontWeight: '700' },
+                        ]}
+                      >
+                        {(t.workout.skillLevels as any)[lvl] || lvl.toUpperCase()}
                       </Text>
                     </TouchableOpacity>
                   );

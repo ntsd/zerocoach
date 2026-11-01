@@ -392,6 +392,40 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       required: ['targetExerciseNameOrId', 'replacementExerciseNameOrId'],
     },
   },
+  {
+    name: 'manage_workout_schedule',
+    description:
+      'Manage the athlete workout schedule: skip today workout (turns today into Rest and shifts the missed workout to tomorrow), skip rest day (pulls next workout into today), set a specific day split (push/pull/legs/cardio/rest), or customize the active 5-pill cycle.',
+    domain: 'workout_plan',
+    access: 'write',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['skip_workout', 'skip_rest', 'set_day_split', 'update_cycle'],
+          description:
+            'skip_workout (busy/rest today, shift workout to tomorrow), skip_rest (train today instead of resting), set_day_split (assign push/pull/legs/cardio/rest to date), or update_cycle (modify active cycle pills).',
+        },
+        split: {
+          type: 'string',
+          enum: ['push', 'pull', 'legs', 'cardio', 'rest'],
+          description: 'Target split when action is set_day_split.',
+        },
+        cycle: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Updated array of day types in cycle (subset of ["push", "pull", "legs", "cardio", "rest"]) when action is update_cycle.',
+        },
+        date: {
+          type: 'string',
+          description: 'Calendar date in YYYY-MM-DD format. Defaults to today if omitted.',
+        },
+      },
+      required: ['action'],
+    },
+  },
 
   // =========================================================================
   // DOMAIN 6: WORKOUT DATABASE (REPDB) [READ]

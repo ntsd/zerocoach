@@ -7,7 +7,6 @@ import { TYPOGRAPHY } from '@/theme/typography';
 import { GlassCard } from '@/components/common/GlassCard';
 import { ExerciseDetailModal } from './ExerciseDetailModal';
 import { SelectRepDBExerciseModal } from './SelectRepDBExerciseModal';
-import { WorkoutSummaryModal } from './WorkoutSummaryModal';
 import { createExerciseItemFromRepDB } from '@/services/workout/workoutPlanGenerator';
 import { RepDBExercise } from '@/types/exercise';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
@@ -69,7 +68,8 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const todayDateStr = new Date().toISOString().split('T')[0];
   const currentDateStr = date || todayDateStr;
   const isToday = currentDateStr === todayDateStr;
-  const { historyByDate, plansByDate, finishWorkout, savePlanForDate } = useWorkoutStore();
+  const { historyByDate, plansByDate, finishWorkout, removeWorkoutForDate, savePlanForDate } =
+    useWorkoutStore();
   const sessionForDate = (historyByDate || {})[currentDateStr];
   const storedPlan = (plansByDate || {})[currentDateStr];
 
@@ -121,6 +121,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const startedAtRef = useRef<number>(
     sessionForDate?.startedAt || useWorkoutStore.getState().activeDraft?.startedAt || Date.now()
   );
+  const isFirstRenderRef = useRef(true);
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const selectedExerciseForModal = exercises.find((ex) => ex.id === selectedExerciseId) || null;
@@ -129,72 +130,98 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const [isRepDBModalVisible, setIsRepDBModalVisible] = useState(false);
   const [swapTargetExercise, setSwapTargetExercise] = useState<ExerciseItem | null>(null);
 
-  // Workout Summary completion modal
-  const [isSummaryModalVisible, setIsSummaryModalVisible] = useState(false);
-
-  // Auto-save workout draft to local AsyncStorage only when user has active progress
+  // Instant Live Auto-Log: automatically persist or clear session in historyByDate whenever exercises are checked/unchecked or sets change
   useEffect(() => {
-    if (sessionForDate) return; // Already finalized on this date
-    if (!isToday) return; // Only auto-save active draft for today
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
 
-    const hasProgress =
-      Object.keys(completedExercises).some((k) => completedExercises[k]) ||
-      Object.keys(skippedExercises).some((k) => skippedExercises[k]);
+    const completedIds = exercises
+      .filter((ex) => completedExercises[ex.id] && !skippedExercises[ex.id])
+      .map((ex) => ex.id);
+    const skippedIds = exercises.filter((ex) => skippedExercises[ex.id]).map((ex) => ex.id);
 
-    if (!hasProgress) {
-      const currentDraft = useWorkoutStore.getState().activeDraft;
-      if (currentDraft && currentDraft.date === currentDateStr) {
-        useWorkoutStore.getState().clearDraft();
+    if (completedIds.length === 0) {
+      if (useWorkoutStore.getState().historyByDate[currentDateStr]) {
+        removeWorkoutForDate(currentDateStr);
       }
       return;
     }
 
-    useWorkoutStore.getState().saveDraft({
+    const completedSets = exercises
+      .filter((ex) => completedExercises[ex.id] && !skippedExercises[ex.id])
+      .reduce((acc, ex) => acc + ex.targetSets, 0);
+    const totalActiveSets = Math.max(
+      1,
+      exercises
+        .filter((ex) => !skippedExercises[ex.id])
+        .reduce((acc, ex) => acc + ex.targetSets, 0)
+    );
+    const ratio = Math.min(1, completedSets / totalActiveSets);
+    const durationMinutes = Math.max(
+      3,
+      Math.round((plan.estimatedDurationMin || 25) * ratio)
+    );
+    const caloriesBurned = Math.max(
+      15,
+      Math.round((plan.estimatedCaloriesBurn || 180) * ratio)
+    );
+
+    finishWorkout({
       date: currentDateStr,
       planId: plan.id,
+      title: plan.title,
+      split: plan.selectedSplit || 'push',
+      tier: plan.tier,
       exercises,
-      completedExercises,
-      skippedExercises,
+      completedExerciseIds: completedIds,
+      skippedExerciseIds: skippedIds,
+      totalMovements: exercises.length,
+      completedMovements: completedIds.length,
+      totalSets: completedSets,
+      durationMinutes,
+      caloriesBurned,
       startedAt: startedAtRef.current,
-      lastUpdatedAt: Date.now(),
     });
   }, [
     exercises,
     completedExercises,
     skippedExercises,
-    plan.id,
     currentDateStr,
-    sessionForDate,
-    isToday,
+    plan.id,
+    plan.title,
+    plan.selectedSplit,
+    plan.tier,
+    plan.estimatedDurationMin,
+    plan.estimatedCaloriesBurn,
+    finishWorkout,
+    removeWorkoutForDate,
   ]);
 
-  // Synchronize when the generated plan changes (e.g. split switch or goal change)
+  // Synchronize when the generated plan changes (e.g. split switch)
   const prevPlanIdRef = useRef(plan.id);
   useEffect(() => {
     if (prevPlanIdRef.current !== plan.id) {
       prevPlanIdRef.current = plan.id;
-      if (!sessionForDate) {
-        const saved = (useWorkoutStore.getState().plansByDate || {})[currentDateStr];
-        if (saved && saved.exercises?.length > 0) {
-          setExercises(saved.exercises);
-        } else {
-          setExercises(plan.exercises || []);
-        }
-        setCompletedExercises({});
-        setSkippedExercises({});
-        startedAtRef.current = Date.now();
+      const saved = (useWorkoutStore.getState().plansByDate || {})[currentDateStr];
+      if (saved && saved.selectedSplit === plan.selectedSplit && saved.exercises?.length > 0) {
+        setExercises(saved.exercises);
+      } else {
+        setExercises(plan.exercises || []);
       }
+      setCompletedExercises({});
+      setSkippedExercises({});
+      startedAtRef.current = Date.now();
     }
-  }, [plan.id, plan.exercises, sessionForDate, currentDateStr]);
+  }, [plan.id, plan.selectedSplit, plan.exercises, currentDateStr]);
 
   const persistPlanExercises = (updated: ExerciseItem[]) => {
-    if (!sessionForDate) {
-      savePlanForDate(currentDateStr, {
-        ...plan,
-        exercises: updated,
-        generatedDate: currentDateStr,
-      });
-    }
+    savePlanForDate(currentDateStr, {
+      ...plan,
+      exercises: updated,
+      generatedDate: currentDateStr,
+    });
   };
 
   const toggleExercise = (id: string) => {
@@ -363,41 +390,10 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
   const tierColor = getTierColor();
 
-  const handleConfirmFinish = (summary: {
-    durationMinutes: number;
-    caloriesBurned: number;
-    notes?: string;
-  }) => {
-    const completedIds = exercises.filter((ex) => completedExercises[ex.id]).map((ex) => ex.id);
-    const skippedIds = exercises.filter((ex) => skippedExercises[ex.id]).map((ex) => ex.id);
-    const totalSets = exercises
-      .filter((ex) => completedExercises[ex.id])
-      .reduce((acc, ex) => acc + ex.targetSets, 0);
-
-    finishWorkout({
-      date: currentDateStr,
-      planId: plan.id,
-      title: sessionForDate?.title || plan.title,
-      split: sessionForDate?.split || plan.selectedSplit || 'full_body',
-      tier: sessionForDate?.tier || plan.tier,
-      exercises,
-      completedExerciseIds: completedIds,
-      skippedExerciseIds: skippedIds,
-      totalMovements: exercises.length,
-      completedMovements: completedIds.length,
-      totalSets,
-      durationMinutes: summary.durationMinutes,
-      caloriesBurned: summary.caloriesBurned,
-      startedAt: startedAtRef.current,
-    });
-
-    setIsSummaryModalVisible(false);
-  };
-
   return (
     <>
       <GlassCard glowColor={`${tierColor}30`} borderColor={`${tierColor}40`} style={styles.card}>
-        {/* Completed Session Status Banner */}
+        {/* Live Auto-Logged Session Status Banner */}
         {sessionForDate && (
           <View style={styles.completedSessionBanner}>
             <View style={styles.completedBannerLeft}>
@@ -411,17 +407,10 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                     : t.workout.card.loggedOnDate.replace('{date}', formatDateDisplay(currentDateStr).toUpperCase())}
                 </Text>
                 <Text style={styles.completedBannerSub}>
-                  {sessionForDate.durationMinutes}m • {sessionForDate.caloriesBurned} kcal • {sessionForDate.completedMovements} {t.common.movements} • {sessionForDate.totalSets} {t.common.sets}
+                  ~{sessionForDate.durationMinutes}m • ~{sessionForDate.caloriesBurned} kcal • {sessionForDate.completedMovements} {t.common.movements} • {sessionForDate.totalSets} {t.common.sets}
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={() => setIsSummaryModalVisible(true)}
-              style={styles.reopenBtn}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Text style={[styles.reopenBtnText, { color: modeColors.accent }]}>{t.common.edit}</Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -812,50 +801,6 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
           </Text>
         </View>
 
-        {/* Finish Workout CTA Button */}
-        <TouchableOpacity
-          onPress={() => setIsSummaryModalVisible(true)}
-          style={[
-            styles.finishWorkoutBtn,
-            sessionForDate
-              ? { backgroundColor: `${COLORS.success}20`, borderColor: `${COLORS.success}60` }
-              : completedCount > 0
-              ? { backgroundColor: COLORS.success, borderColor: COLORS.success }
-              : { backgroundColor: `${modeColors.accent}20`, borderColor: `${modeColors.accent}50` },
-          ]}
-          activeOpacity={0.85}
-        >
-          <Trophy
-            size={16}
-            color={
-              sessionForDate
-                ? COLORS.success
-                : completedCount > 0
-                ? COLORS.background
-                : modeColors.accent
-            }
-          />
-          <Text
-            style={[
-              styles.finishWorkoutBtnText,
-              {
-                color:
-                  sessionForDate
-                    ? COLORS.success
-                    : completedCount > 0
-                    ? COLORS.background
-                    : modeColors.accent,
-              },
-            ]}
-          >
-            {sessionForDate
-              ? t.workout.card.editWorkoutBtn
-              : completedCount > 0
-              ? t.workout.card.finishWorkoutBtn
-              : t.workout.card.resumeWorkoutBtn}
-          </Text>
-        </TouchableOpacity>
-
         {/* Ask Coach CTA */}
         <TouchableOpacity
           onPress={() => onAskCoach({ ...plan, exercises })}
@@ -905,18 +850,6 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
         }}
         onSelectExercise={handleSelectRepDBExercise}
         swapTargetExercise={swapTargetExercise}
-      />
-
-      {/* Workout Summary Completion Modal */}
-      <WorkoutSummaryModal
-        visible={isSummaryModalVisible}
-        onClose={() => setIsSummaryModalVisible(false)}
-        onConfirmFinish={handleConfirmFinish}
-        plan={plan}
-        completedExercises={exercises.filter((ex) => completedExercises[ex.id])}
-        skippedExercises={exercises.filter((ex) => skippedExercises[ex.id])}
-        initialDurationMin={sessionForDate?.durationMinutes || plan.estimatedDurationMin}
-        initialCaloriesBurn={sessionForDate?.caloriesBurned || plan.estimatedCaloriesBurn || 220}
       />
     </>
   );

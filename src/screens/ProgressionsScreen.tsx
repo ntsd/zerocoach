@@ -217,19 +217,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           style={styles.dateNavBar}
         />
 
-        {/* Contextual Notice for Completed Sessions */}
-        {completedSessionForDate && (
-          <View style={styles.pastDateBanner}>
-            <CheckCircle2 size={14} color={COLORS.success} />
-            <Text style={styles.pastDateBannerText}>
-              {t.workout.completedOnDate.replace(
-                '{date}',
-                `${formatDateDisplay(activeDate)} (${activeDate})`
-              )}
-            </Text>
-          </View>
-        )}
-
         {/* ========================================================== */}
         {/* SMART 5-PILL WORKOUT CYCLE BAR (PUSH · PULL · LEGS · CARDIO · REST) */}
         {/* ========================================================== */}

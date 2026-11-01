@@ -61,6 +61,7 @@ export interface WorkoutState {
   finishWorkout: (
     sessionData: Omit<CompletedWorkoutSession, 'id' | 'completedAt'>
   ) => CompletedWorkoutSession;
+  removeWorkoutForDate: (date: string) => void;
   getWorkoutForDate: (date: string) => CompletedWorkoutSession | undefined;
   getRecentHistory: (daysCount: number) => CompletedWorkoutSession[];
   clearWorkoutHistory: () => void;
@@ -134,6 +135,19 @@ export const useWorkoutStore = create<WorkoutState>()(
         }));
 
         return completedSession;
+      },
+
+      removeWorkoutForDate: (date: string) => {
+        set((state) => {
+          if (!state.historyByDate[date]) return state;
+          const nextHistory = { ...state.historyByDate };
+          delete nextHistory[date];
+          return {
+            historyByDate: nextHistory,
+            activeDraft:
+              state.activeDraft?.date === date ? null : state.activeDraft,
+          };
+        });
       },
 
       getWorkoutForDate: (date: string) => {

@@ -490,5 +490,87 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       required: [],
     },
   },
+
+  // =========================================================================
+  // DOMAIN 8: ATHLETE MEMORY & PERSONALITY (MEM0 LAYER) [READ / WRITE]
+  // =========================================================================
+  {
+    name: 'save_memory',
+    description:
+      'Save or update a long-term memory about the athlete (e.g., favorite/disliked foods, allergies, favorite workout skills or exercises, injuries/limitations, or personality/coaching style preferences).',
+    domain: 'memory',
+    access: 'write',
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: [
+            'food_preference',
+            'workout_preference',
+            'injury_limitation',
+            'personality_style',
+          ],
+          description:
+            'Memory category: food_preference, workout_preference, injury_limitation, or personality_style.',
+        },
+        content: {
+          type: 'string',
+          description:
+            'Concise atomic fact to remember (e.g., "Favorite food: Grilled salmon & rice", "Favorite workout skill: Muscle-Up", "Left shoulder impingement").',
+        },
+        topic: {
+          type: 'string',
+          description:
+            'Optional normalized subject key for deduplication (e.g. "favorite_food", "favorite_skill", "injury_shoulder").',
+        },
+      },
+      required: ['category', 'content'],
+    },
+  },
+  {
+    name: 'get_memories',
+    description:
+      'Retrieve stored long-term memories about the athlete (personality, favorite foods, favorite workout skills, injuries), optionally filtered by category or search query.',
+    domain: 'memory',
+    access: 'read',
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: [
+            'food_preference',
+            'workout_preference',
+            'injury_limitation',
+            'personality_style',
+          ],
+          description: 'Optional category filter.',
+        },
+        query: {
+          type: 'string',
+          description: 'Optional keyword search query.',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'remove_memory',
+    description:
+      'Delete or forget an outdated memory about the athlete by its ID, topic, or keyword.',
+    domain: 'memory',
+    access: 'write',
+    parameters: {
+      type: 'object',
+      properties: {
+        idOrQuery: {
+          type: 'string',
+          description: 'Memory ID, topic key, or keyword phrase of the memory to forget.',
+        },
+      },
+      required: ['idOrQuery'],
+    },
+  },
 ];
 

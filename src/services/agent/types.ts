@@ -5,7 +5,8 @@ export type DomainName =
   | 'workout_history'
   | 'workout_plan'
   | 'workout_database'
-  | 'settings';
+  | 'settings'
+  | 'memory';
 
 export type ToolAccessType = 'read' | 'write';
 

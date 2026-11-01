@@ -33,6 +33,7 @@ TOOL CALLING PROTOCOL & RULES:
    - Do NOT call get_telemetry_metrics or get_workout_plan if the data is already present in the ATHLETE CONTEXT. Answer the athlete directly!
 2. ONLY call tools when:
    - The athlete requests an ACTION (e.g. "log my food", "save/change this workout plan", "update my goal", "swap an exercise").
+   - The athlete shares personal preferences, personality traits, favorite/disliked foods, favorite workout skills/exercises, or injuries/limitations -> call save_memory (or remove_memory if a past preference/injury changed).
    - Detailed external database search is needed (search_food_database, search_exercises) or reading past days history.
 3. PROTOCOL:
    - When calling a tool, emit EXACTLY one tool call tag:
@@ -42,6 +43,10 @@ TOOL CALLING PROTOCOL & RULES:
    - Example to log food:
 <tool_call>
 {"name": "log_food_item", "arguments": {"name": "Grilled Chicken", "calories": 250, "proteinGrams": 30, "carbsGrams": 0, "fatGrams": 3, "mealType": "lunch"}}
+</tool_call>
+   - Example to save athlete memory (favorite food, favorite workout skill, injury, personality):
+<tool_call>
+{"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "favorite_skill", "content": "Favorite workout skill: Muscle-Up"}}
 </tool_call>
    - Example to log exercise set or workout:
 <tool_call>

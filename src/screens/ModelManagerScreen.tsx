@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useMemoryStore } from '@/store/useMemoryStore';
+import { MemoryCategory } from '@/types/memory';
 import { llmService } from '@/services/llm/llmService';
 import { updateService } from '@/services/updates/updateService';
 import { COLORS, getModeColors } from '@/theme/colors';
@@ -42,10 +44,14 @@ import {
   Database,
   User,
   Cloud,
+  Brain,
+  Plus,
+  X,
 } from 'lucide-react-native';
 import {
   clearAllUserData,
   clearChatHistoryOnly,
+  clearCoachMemoryOnly,
   clearBiometricsAndProgressionsOnly,
 } from '@/services/storage/userDataService';
 import { useTranslation } from '@/i18n';
@@ -83,6 +89,7 @@ export const ModelManagerScreen: React.FC = () => {
   } = useModelStore();
 
   const { userProfile, updateProfile, language, setLanguage } = useCoachStore();
+  const { memories, remember, forget } = useMemoryStore();
   const { t } = useTranslation();
   const memoryInfo = getDeviceMemoryInfo();
   const modeColors = getModeColors();
@@ -103,6 +110,9 @@ export const ModelManagerScreen: React.FC = () => {
   const [editingMetrics, setEditingMetrics] = useState(false);
   const [weightInput, setWeightInput] = useState(userProfile.weightKg > 0 ? userProfile.weightKg.toString() : '');
   const [heightInput, setHeightInput] = useState(userProfile.heightCm > 0 ? userProfile.heightCm.toString() : '');
+  const [selectedMemFilter, setSelectedMemFilter] = useState<'all' | MemoryCategory>('all');
+  const [newMemCategory, setNewMemCategory] = useState<MemoryCategory>('food_preference');
+  const [newMemInput, setNewMemInput] = useState('');
 
   const [remoteSubTab, setRemoteSubTab] = useState<'gemini' | 'openai_compatible'>(() => {
     return provider === 'gemini' ? 'gemini' : 'openai_compatible';
@@ -160,6 +170,23 @@ export const ModelManagerScreen: React.FC = () => {
     await clearChatHistoryOnly();
     setActionNotice(t.settings.actionNoticeChat);
     setTimeout(() => setActionNotice(null), 3500);
+  };
+
+  const handleClearMemory = async () => {
+    await clearCoachMemoryOnly();
+    setActionNotice(t.settings.actionNoticeMemory);
+    setTimeout(() => setActionNotice(null), 3500);
+  };
+
+  const handleAddManualMemory = () => {
+    const trimmed = newMemInput.trim();
+    if (!trimmed) return;
+    remember({
+      category: newMemCategory,
+      content: trimmed,
+      source: 'manual',
+    });
+    setNewMemInput('');
   };
 
   const handleClearBiometrics = async () => {
@@ -1183,6 +1210,190 @@ export const ModelManagerScreen: React.FC = () => {
           </View>
         </GlassCard>
 
+        {/* Coach Memory (Mem0 Layer) */}
+        <GlassCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Brain size={16} color={modeColors.accent} />
+            <Text style={styles.cardTitle}>{t.settings.coachMemoryTitle}</Text>
+            <View
+              style={[
+                styles.memCountBadge,
+                {
+                  borderColor: `${modeColors.accent}40`,
+                  backgroundColor: `${modeColors.accent}18`,
+                },
+              ]}
+            >
+              <Text style={[styles.memCountBadgeText, { color: modeColors.accent }]}>
+                {memories.length}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.otaDesc}>{t.settings.coachMemoryDesc}</Text>
+
+          {/* Add Manual Memory Row */}
+          <View style={styles.memAddBox}>
+            <View style={styles.memCatSelectRow}>
+              {(
+                [
+                  { id: 'food_preference', label: t.settings.memCatFood },
+                  { id: 'workout_preference', label: t.settings.memCatWorkout },
+                  { id: 'injury_limitation', label: t.settings.memCatInjury },
+                  { id: 'personality_style', label: t.settings.memCatPersonality },
+                ] as const
+              ).map((cat) => {
+                const isSelected = newMemCategory === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    onPress={() => setNewMemCategory(cat.id)}
+                    style={[
+                      styles.memCatPill,
+                      isSelected && {
+                        borderColor: modeColors.accent,
+                        backgroundColor: `${modeColors.accent}20`,
+                      },
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.memCatPillText,
+                        isSelected && { color: modeColors.accent, fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.memInputRow}>
+              <TextInput
+                value={newMemInput}
+                onChangeText={setNewMemInput}
+                placeholder={t.settings.coachMemoryAddPlaceholder}
+                placeholderTextColor={COLORS.textMuted}
+                style={[styles.textInput, { flex: 1, fontSize: 12 }]}
+                onSubmitEditing={handleAddManualMemory}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                onPress={handleAddManualMemory}
+                disabled={!newMemInput.trim()}
+                style={[
+                  styles.memAddBtn,
+                  {
+                    backgroundColor: newMemInput.trim() ? modeColors.accent : COLORS.cardSecondary,
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <Plus
+                  size={14}
+                  color={newMemInput.trim() ? COLORS.textDark : COLORS.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.memAddBtnText,
+                    { color: newMemInput.trim() ? COLORS.textDark : COLORS.textMuted },
+                  ]}
+                >
+                  {t.settings.coachMemoryAddBtn}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Filter Tabs */}
+          {memories.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.memFilterRow}
+            >
+              {(
+                [
+                  { id: 'all', label: `${t.settings.memCatAll} (${memories.length})` },
+                  { id: 'food_preference', label: t.settings.memCatFood },
+                  { id: 'workout_preference', label: t.settings.memCatWorkout },
+                  { id: 'injury_limitation', label: t.settings.memCatInjury },
+                  { id: 'personality_style', label: t.settings.memCatPersonality },
+                ] as const
+              ).map((tab) => {
+                const isActive = selectedMemFilter === tab.id;
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    onPress={() => setSelectedMemFilter(tab.id)}
+                    style={[
+                      styles.memFilterChip,
+                      isActive && {
+                        borderColor: modeColors.accent,
+                        backgroundColor: `${modeColors.accent}18`,
+                      },
+                    ]}
+                    activeOpacity={0.75}
+                  >
+                    <Text
+                      style={[
+                        styles.memFilterChipText,
+                        isActive && { color: modeColors.accent, fontWeight: '700' },
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {/* Memory Items List */}
+          {memories.length === 0 ? (
+            <View style={styles.memEmptyBox}>
+              <Text style={styles.memEmptyText}>{t.settings.coachMemoryEmpty}</Text>
+            </View>
+          ) : (
+            <View style={styles.memListContainer}>
+              {memories
+                .filter((m) => selectedMemFilter === 'all' || m.category === selectedMemFilter)
+                .map((m) => {
+                  const catBadge =
+                    m.category === 'food_preference'
+                      ? t.settings.memCatFood
+                      : m.category === 'workout_preference'
+                      ? t.settings.memCatWorkout
+                      : m.category === 'injury_limitation'
+                      ? t.settings.memCatInjury
+                      : t.settings.memCatPersonality;
+
+                  return (
+                    <View key={m.id} style={styles.memItemRow}>
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <View style={styles.memItemMetaRow}>
+                          <Text style={[styles.memItemCategory, { color: modeColors.accent }]}>
+                            {catBadge}
+                          </Text>
+                        </View>
+                        <Text style={styles.memItemContent}>{m.content}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => forget(m.id)}
+                        style={styles.memDeleteBtn}
+                        activeOpacity={0.7}
+                      >
+                        <X size={14} color={COLORS.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+            </View>
+          )}
+        </GlassCard>
+
         {/* Open Source Exercise Dataset & Attributions */}
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
@@ -1238,6 +1449,15 @@ export const ModelManagerScreen: React.FC = () => {
             >
               <Trash2 size={13} color={COLORS.textSecondary} />
               <Text style={styles.storageBtnSecondaryText}>{t.settings.clearChatBtn}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleClearMemory}
+              style={styles.storageBtnSecondary}
+              activeOpacity={0.8}
+            >
+              <Brain size={13} color={COLORS.textSecondary} />
+              <Text style={styles.storageBtnSecondaryText}>{t.settings.clearMemoryBtn}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -2021,5 +2241,134 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 11,
     lineHeight: 16,
+  },
+  memCountBadge: {
+    marginLeft: 'auto',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+  },
+  memCountBadgeText: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  memAddBox: {
+    marginTop: SPACING.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    padding: SPACING.sm,
+    gap: SPACING.xs + 2,
+  },
+  memCatSelectRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  memCatPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    backgroundColor: COLORS.cardSecondary,
+  },
+  memCatPillText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+  },
+  memInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  memAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+  },
+  memAddBtnText: {
+    ...TYPOGRAPHY.captionBold,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  memFilterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: SPACING.sm,
+    paddingBottom: 2,
+  },
+  memFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    backgroundColor: COLORS.cardSecondary,
+  },
+  memFilterChipText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+  },
+  memEmptyBox: {
+    marginTop: SPACING.sm,
+    padding: SPACING.md,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    alignItems: 'center',
+  },
+  memEmptyText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  memListContainer: {
+    marginTop: SPACING.sm,
+    gap: 6,
+  },
+  memItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 8,
+    gap: SPACING.sm,
+  },
+  memItemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  memItemCategory: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  memItemContent: {
+    ...TYPOGRAPHY.body,
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    lineHeight: 17,
+  },
+  memDeleteBtn: {
+    padding: 6,
+    borderRadius: RADIUS.round,
+    backgroundColor: COLORS.cardSecondary,
   },
 });

@@ -9,6 +9,8 @@ import {
 } from '@/types/workout';
 import { exerciseRepository } from './exerciseRepository';
 import { RepDBExercise } from '@/types/exercise';
+import { MemoryItem } from '@/types/memory';
+import { useMemoryStore } from '@/store/useMemoryStore';
 
 export interface WorkoutPlanGenerationParams {
   goals: TrainingGoal[];
@@ -22,6 +24,7 @@ export interface WorkoutPlanGenerationParams {
   sex?: Sex;
   skillLevel?: SkillLevel;
   selectedSplit?: WorkoutSplit;
+  memories?: MemoryItem[];
 }
 
 const REPDB_MEDIA_BASE_URL = 'https://raw.githubusercontent.com/RepDB/exercise-dataset/main/';
@@ -1567,6 +1570,69 @@ export function generateAdaptiveWorkoutPlan(
   }
 
   // ==========================================
+  // MEM0 ATHLETE MEMORY ADAPTATION (INJURIES & FAVORITE SKILLS)
+  // ==========================================
+  const athleteMemories = params.memories ?? useMemoryStore.getState().memories;
+  const memoryCoachingNotes: string[] = [];
+
+  if (athleteMemories && athleteMemories.length > 0) {
+    const injuryMemories = athleteMemories.filter((m) => m.category === 'injury_limitation');
+    const workoutPrefs = athleteMemories.filter((m) => m.category === 'workout_preference');
+
+    // 1. Apply injury precautions & protective cues to relevant movements
+    for (const inj of injuryMemories) {
+      const lower = inj.content.toLowerCase();
+      memoryCoachingNotes.push(`Protected against: ${inj.content}`);
+
+      if (/shoulder|rotator|ไหล่/.test(lower)) {
+        for (const ex of exercises) {
+          if (
+            ex.primaryMuscles?.some((m) => /shoulder|deltoid|chest/i.test(m)) ||
+            /press|dip|handstand/i.test(ex.name)
+          ) {
+            ex.coachingCue = `[Shoulder-Safe Protocol] Tuck elbows to 45° scapular plane and stop 2 reps shy of failure. ${ex.coachingCue}`;
+          }
+        }
+      } else if (/knee|meniscus|acl|เข่า/.test(lower)) {
+        for (const ex of exercises) {
+          if (
+            ex.primaryMuscles?.some((m) => /quad|hamstring|glute/i.test(m)) ||
+            /squat|lunge|jump/i.test(ex.name)
+          ) {
+            ex.coachingCue = `[Knee-Safe Protocol] Control eccentric descent, avoid ballistic knee valgus, and limit depth to pain-free ROM. ${ex.coachingCue}`;
+          }
+        }
+      } else if (/wrist|ข้อมือ/.test(lower)) {
+        for (const ex of exercises) {
+          if (/push-up|plank|dip|handstand|l-sit/i.test(ex.name)) {
+            ex.coachingCue = `[Wrist-Safe Protocol] Use neutral-grip parallettes or dumbbells to avoid wrist hyperextension. ${ex.coachingCue}`;
+          }
+        }
+      } else if (/back|spine|lumbar|หลัง/.test(lower)) {
+        for (const ex of exercises) {
+          if (/deadlift|row|squat/i.test(ex.name)) {
+            ex.coachingCue = `[Spine-Safe Protocol] Maintain 360° intra-abdominal bracing and neutral lumbar alignment. ${ex.coachingCue}`;
+          }
+        }
+      }
+    }
+
+    // 2. Apply favorite workout skill / exercise preferences
+    const favSkillMem = workoutPrefs.find(
+      (m) => m.topic === 'favorite_skill' || m.topic === 'favorite_exercise'
+    );
+    if (favSkillMem) {
+      const cleanedSkill = favSkillMem.content
+        .replace(/^Favorite (?:workout skill|exercise\/workout|skill|exercise):\s*/i, '')
+        .trim();
+      if (cleanedSkill) {
+        targetSkillMilestone = `${cleanedSkill} (Athlete Favorite)`;
+        memoryCoachingNotes.push(`Tailored for favorite focus: ${cleanedSkill}`);
+      }
+    }
+  }
+
+  // ==========================================
   // COOLDOWN & DOWN-REGULATION BLOCK
   // ==========================================
   const childPose = exerciseRepository.getById('childs-pose') || exerciseRepository.getById('cobra-stretch');
@@ -1627,7 +1693,9 @@ export function generateAdaptiveWorkoutPlan(
     equipmentMode,
     targetSkillMilestone,
     exercises,
-    coachingNotes: `Sports Science Protocol: Adhere to target cadences and RPE guidelines. Progression is calibrated to autonomic readiness (${readinessScore}/100). Log completed sets for adaptive feedback.`,
+    coachingNotes: `Sports Science Protocol: Adhere to target cadences and RPE guidelines. Progression is calibrated to autonomic readiness (${readinessScore}/100).${
+      memoryCoachingNotes.length > 0 ? ` [Coach Memory Active: ${memoryCoachingNotes.join(' • ')}]` : ''
+    } Log completed sets for adaptive feedback.`,
     generatedDate: new Date().toLocaleDateString(undefined, {
       weekday: 'short',
       month: 'short',

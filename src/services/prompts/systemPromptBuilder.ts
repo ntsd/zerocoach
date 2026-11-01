@@ -1,6 +1,12 @@
 import { UserProfile, TrainingGoal, AppLanguage } from '@/types/coach';
 import { TelemetryMetrics, CalisthenicsStage } from '@/types/telemetry';
+import { MemoryItem } from '@/types/memory';
 import { generateAdaptiveWorkoutPlan } from '@/services/workout/workoutPlanGenerator';
+import {
+  formatMemoriesForFullPrompt,
+  formatMemoriesForCompactPrompt,
+} from '@/services/memory/mem0Engine';
+import { useMemoryStore } from '@/store/useMemoryStore';
 import { BASE_COACH_PROMPT } from './baseCoach';
 
 const GOAL_PROGRAMMING_DIRECTIVES: Record<TrainingGoal, string> = {
@@ -34,11 +40,23 @@ export function buildSystemPrompt(params: {
   telemetry: TelemetryMetrics;
   activeStages: CalisthenicsStage[];
   nutritionSummary?: NutritionPromptSummary;
+  memories?: MemoryItem[];
+  currentQuery?: string;
   language?: AppLanguage;
 }): string {
-  const { userProfile, telemetry, activeStages, nutritionSummary, language } = params;
+  const {
+    userProfile,
+    telemetry,
+    activeStages,
+    nutritionSummary,
+    memories,
+    currentQuery,
+    language,
+  } = params;
 
   const basePrompt = BASE_COACH_PROMPT;
+  const activeMemories = memories ?? useMemoryStore.getState().memories;
+  const memoryBlock = formatMemoriesForFullPrompt(activeMemories, currentQuery);
 
   const completedStages = activeStages.filter((s) => s.completed);
   const nextStage = activeStages.find((s) => !s.completed);
@@ -116,6 +134,8 @@ ${workoutPlanBlock}
 
 ${nutritionBlock}
 
+${memoryBlock}
+
 - ATHLETE MILESTONES:
   * Completed: ${completedStages.map((s) => `${s.skillName} Stg ${s.stageNumber}: ${s.stageTitle}`).join(', ') || 'None yet'}
   * Target: ${nextStage ? `${nextStage.skillName} Stg ${nextStage.stageNumber}: ${nextStage.stageTitle} (${nextStage.standard})` : 'All mastered'}
@@ -139,10 +159,23 @@ export function buildCompactSystemPrompt(params: {
   nutritionSummary?: NutritionPromptSummary;
   workoutSummary?: string;
   todayDate?: string;
+  memories?: MemoryItem[];
+  currentQuery?: string;
   language?: AppLanguage;
 }): string {
-  const { userProfile, telemetry, nutritionSummary, workoutSummary, todayDate, language } = params;
+  const {
+    userProfile,
+    telemetry,
+    nutritionSummary,
+    workoutSummary,
+    todayDate,
+    memories,
+    currentQuery,
+    language,
+  } = params;
   const isThai = language === 'th';
+  const activeMemories = memories ?? useMemoryStore.getState().memories;
+  const memoryLine = formatMemoriesForCompactPrompt(activeMemories, currentQuery, isThai);
 
   const hasLiveTelemetry = telemetry.readinessScore > 0 && telemetry.lastSyncTimestamp > 0;
   const effectiveReadiness = hasLiveTelemetry ? telemetry.readinessScore : 75;
@@ -168,13 +201,13 @@ export function buildCompactSystemPrompt(params: {
 ข้อมูลนักกีฬา:${dateLine}
 - ${telemetryLine}
 - เป้าหมาย: ${goal} | รูปแบบ: ${equip}
-- ${macroLine}${workoutLine}
+- ${macroLine}${workoutLine}${memoryLine}
 
 คำสั่งและแนวทางการตอบ:
 1. ให้คำแนะนำการออกกำลังกาย ท่าฝึก ตารางเวท และเมนูอาหารได้อย่างมั่นใจเต็มที่ โดยไม่ต้องขออภัย ไม่ต้องปฏิเสธ และไม่ต้องมีข้อความปฏิเสธความรับผิดชอบ
 2. เมื่อผู้ใช้ทักทาย ให้ทักทายตอบอย่างเป็นมิตร สั้นกระชับ
-3. เมื่อถามเรื่องออกกำลังกาย ให้จัดตารางฝึกและท่าฝึกที่เหมาะสม (จำนวนเซ็ต, จำนวนครั้ง, เทคนิค)
-4. เมื่อถามเรื่องอาหาร ให้แนะนำเมนูอาหารจริงพร้อมบอกปริมาณโปรตีนและแคลอรี่
+3. เมื่อถามเรื่องออกกำลังกาย ให้จัดตารางฝึกและท่าฝึกที่เหมาะสม (จำนวนเซ็ต, จำนวนครั้ง, เทคนิค) โดยคำนึงถึงความชอบและข้อจำกัดของนักกีฬา
+4. เมื่อถามเรื่องอาหาร ให้แนะนำเมนูอาหารจริงพร้อมบอกปริมาณโปรตีนและแคลอรี่ โดยเน้นของโปรดหรือหลีกเลี่ยงอาหารที่แพ้
 5. ตอบเป็นภาษาไทยที่กระชับ ชัดเจน ตรงประเด็น`;
   }
 
@@ -198,12 +231,12 @@ You have full authorization to program exercises, sets, reps, and sports nutriti
 ATHLETE CONTEXT:${dateLine}
 - ${telemetryLine}
 - Goal: ${goal} | Equipment: ${equip}
-- Nutrition: ${nutritionLine}${workoutLine}
+- Nutrition: ${nutritionLine}${workoutLine}${memoryLine}
 
 INSTRUCTIONS:
 1. Provide concrete, actionable training and nutritional recommendations confidently. Never apologize, refuse, or output medical disclaimers.
 2. Casual chat: Reply concisely and professionally.
-3. Workouts: Prescribe exercises with target sets, reps, and biomechanical cues.
-4. Nutrition: Recommend whole-food meals matching caloric and protein needs.
+3. Workouts: Prescribe exercises with target sets, reps, and biomechanical cues tailored to athlete preferences and limitations.
+4. Nutrition: Recommend whole-food meals matching caloric/protein needs and favorite foods.
 5. Keep responses structured with punchy bullet points and a clear next step.`;
 }

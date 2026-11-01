@@ -7,6 +7,8 @@ import { useCoachStore } from './useCoachStore';
 import { useTelemetryStore } from './useTelemetryStore';
 import { useNutritionStore } from './useNutritionStore';
 import { useWorkoutStore } from './useWorkoutStore';
+import { useMemoryStore } from './useMemoryStore';
+import { extractMemoriesFromMessage } from '@/services/memory/mem0Engine';
 import { buildSystemPrompt, buildCompactSystemPrompt } from '@/services/prompts/systemPromptBuilder';
 import { llmService } from '@/services/llm/llmService';
 import { useModelStore } from './useModelStore';
@@ -102,6 +104,29 @@ export const useChatStore = create<ChatState>()(
           loggedMealsCount: currentNutritionLog.foods.length,
         };
 
+        // Run fast local Mem0 fact extractor on user message so even compact on-device models capture explicit facts
+        const autoMemorySteps: AgentExecutionStep[] = [];
+        if (trimmed) {
+          const candidates = extractMemoriesFromMessage(trimmed);
+          const memStore = useMemoryStore.getState();
+          for (const candidate of candidates) {
+            const rec = memStore.remember(candidate);
+            if (rec.operation === 'ADD' || rec.operation === 'UPDATE' || rec.operation === 'DELETE') {
+              autoMemorySteps.push({
+                id: `step-mem-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                toolName: rec.operation === 'DELETE' ? 'remove_memory' : 'save_memory',
+                domain: 'memory',
+                access: 'write',
+                status: 'completed',
+                summary: `🧠 Memory (${rec.operation}): ${rec.summary}`,
+                timestamp: Date.now(),
+              });
+            }
+          }
+        }
+
+        const latestMemories = useMemoryStore.getState().memories;
+
         const todayDate = new Date().toISOString().split('T')[0];
         const workoutState = useWorkoutStore.getState();
         const todayPlan = workoutState.getPlanForDate(todayDate);
@@ -116,6 +141,8 @@ export const useChatStore = create<ChatState>()(
               nutritionSummary,
               workoutSummary,
               todayDate,
+              memories: latestMemories,
+              currentQuery: trimmed,
               language: effectiveLanguage,
             })
           : buildSystemPrompt({
@@ -123,6 +150,8 @@ export const useChatStore = create<ChatState>()(
               telemetry: telemetryState.metrics,
               activeStages: telemetryState.calisthenicsStages,
               nutritionSummary,
+              memories: latestMemories,
+              currentQuery: trimmed,
               language: effectiveLanguage,
             });
 
@@ -225,6 +254,11 @@ export const useChatStore = create<ChatState>()(
 
           console.log(`[useChatStore] Generation complete (${result.tokensGenerated} tokens, ${result.tokensPerSecond} t/s, ${result.steps.length} steps):\n${result.fullText}`);
 
+          const hasAgentMemoryStep = result.steps.some((s) => s.domain === 'memory');
+          const mergedSteps = hasAgentMemoryStep
+            ? result.steps
+            : [...autoMemorySteps, ...result.steps];
+
           const assistantMsg: ChatMessage = {
             id: `msg-asst-${Date.now()}`,
             role: 'assistant',
@@ -233,7 +267,7 @@ export const useChatStore = create<ChatState>()(
             readinessAtCreation: telemetryState.metrics.readinessScore,
             tokensGenerated: result.tokensGenerated,
             tokensPerSecond: result.tokensPerSecond,
-            executionSteps: result.steps.length > 0 ? result.steps : undefined,
+            executionSteps: mergedSteps.length > 0 ? mergedSteps : undefined,
           };
 
           set({

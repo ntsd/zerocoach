@@ -3,6 +3,8 @@ import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { useNutritionStore } from '@/store/useNutritionStore';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useCoachStore } from '@/store/useCoachStore';
+import { useMemoryStore } from '@/store/useMemoryStore';
+import { normalizeMemoryCategory } from '@/services/memory/mem0Engine';
 import {
   searchUsdaFoods,
   searchOpenFoodFacts,
@@ -106,6 +108,26 @@ export function normalizeToolName(name: string): string {
     case 'update_goals':
     case 'set_user_goals':
       return 'update_user_settings';
+
+    case 'save_memory':
+    case 'add_memory':
+    case 'store_memory':
+    case 'update_memory':
+    case 'remember':
+    case 'remember_fact':
+      return 'save_memory';
+
+    case 'get_memories':
+    case 'search_memories':
+    case 'list_memories':
+    case 'read_memories':
+      return 'get_memories';
+
+    case 'remove_memory':
+    case 'delete_memory':
+    case 'forget_memory':
+    case 'forget':
+      return 'remove_memory';
 
     default:
       return lower;
@@ -819,6 +841,82 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           success: true,
           data: { updated: args },
           summary: `Updated athlete settings: ${Object.keys(args).join(', ')}`,
+        };
+      }
+
+      // =====================================================================
+      // DOMAIN 8: ATHLETE MEMORY & PERSONALITY (MEM0 LAYER) [READ / WRITE]
+      // =====================================================================
+      case 'save_memory': {
+        const memoryStore = useMemoryStore.getState();
+        const content = String(args.content || args.fact || args.memory || '').trim();
+        if (!content) {
+          return {
+            toolCallId: id,
+            name: 'save_memory',
+            success: false,
+            error: 'Memory content cannot be empty.',
+            summary: 'Failed to save empty memory',
+          };
+        }
+
+        const category = normalizeMemoryCategory(args.category);
+        const recResult = memoryStore.remember({
+          category,
+          content,
+          topic: args.topic ? String(args.topic) : undefined,
+          source: 'agent',
+        });
+
+        return {
+          toolCallId: id,
+          name: 'save_memory',
+          success: true,
+          data: {
+            operation: recResult.operation,
+            memory: recResult.item,
+            previousContent: recResult.previousContent,
+          },
+          summary: `🧠 Memory (${recResult.operation}): ${recResult.summary}`,
+        };
+      }
+
+      case 'get_memories': {
+        const memoryStore = useMemoryStore.getState();
+        const category = args.category ? normalizeMemoryCategory(args.category) : undefined;
+        const query = args.query ? String(args.query).trim() : '';
+        const memories = query
+          ? memoryStore.searchMemories(query, category, 15)
+          : memoryStore.getMemories(category);
+
+        return {
+          toolCallId: id,
+          name: 'get_memories',
+          success: true,
+          data: {
+            count: memories.length,
+            memories: memories.map((m) => ({
+              id: m.id,
+              category: m.category,
+              topic: m.topic,
+              content: m.content,
+            })),
+          },
+          summary: `Retrieved ${memories.length} stored athlete memories`,
+        };
+      }
+
+      case 'remove_memory': {
+        const memoryStore = useMemoryStore.getState();
+        const target = String(args.idOrQuery || args.id || args.topic || args.query || '').trim();
+        const recResult = memoryStore.forget(target);
+
+        return {
+          toolCallId: id,
+          name: 'remove_memory',
+          success: recResult.operation === 'DELETE',
+          data: recResult,
+          summary: `🧠 ${recResult.summary}`,
         };
       }
 

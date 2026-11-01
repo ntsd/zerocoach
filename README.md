@@ -39,7 +39,8 @@ Visit the official website at [**zerocoach.tech**](https://zerocoach.tech).
 
 ## ✨ Key Features
 
-- ⚡ **AI Chat (Agent Mode with Action Harness)**: Autonomous tool execution harness that reads and writes across all 7 core app domains (telemetry, food history, food DB, workout history, workout plan, RepDB, and athlete settings) in real-time.
+- ⚡ **AI Chat (Agent Mode with Action Harness)**: Autonomous tool execution harness that reads and writes across all 8 core app domains (telemetry, food history, food DB, workout history, workout plan, RepDB, athlete settings, and athlete memory) in real-time.
+- 🧠 **Mem0-Style Athlete Memory Layer**: Local-first long-term memory engine with `ADD` / `UPDATE` / `DELETE` / `NOOP` reconciliation and bilingual fact extraction—remembers favorite foods, dietary restrictions, favorite workout skills, injuries, and personality preferences across sessions.
 - 📱 **100% On-Device AI Inference**: Runs quantized LLM models (e.g. Google Gemma 2) locally with hardware acceleration—zero cloud latency, zero API costs, and absolute data privacy.
 - 🔌 **OpenAI-Compatible Local Endpoints**: Connect seamlessly to local network LLM runners like Ollama, LM Studio, vLLM, or desktop llama.cpp servers.
 - 🔄 **Symmetric UI & AI Access Parity**: 100% parity between direct App UI manipulation and conversational AI commands—log meals, swap workout exercises, modify macro targets, and view wearable biometrics conversationally or through screens.
@@ -74,7 +75,7 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution with
 | **Icons** | [Lucide React Native](https://lucide.dev/) |
 | **Marketing Website** | [Astro](https://astro.build/) + [Tailwind CSS](https://tailwindcss.com/) in `/web` (deployed on [Render](https://render.com/) at `zerocoach.tech`) |
 
-### 📊 7-Domain Symmetric Read/Write Parity
+### 📊 8-Domain Symmetric Read/Write Parity
 
 | Domain | App UI Access | AI Agent Harness Access |
 |---|---|---|
@@ -85,6 +86,7 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution with
 | **5. Workout Plan** | View adaptive daily splits, swap/skip exercises, schedule future routines | **Read**: `get_workout_plan()`<br>**Write**: `update_workout_plan()`, `swap_plan_exercise()` |
 | **6. Workout Database (RepDB)** | Browse 643 movements, filter by muscle/equipment, view poses & cues | **Read**: `search_exercises()`, `get_exercise_details()` |
 | **7. ZeroCoach Settings** | Update athlete profile, goals, weight/height, switch coach persona, language | **Read**: `get_user_settings()`<br>**Write**: `update_user_settings()` |
+| **8. Athlete Memory (Mem0)** | Browse, filter, add, or delete categorized personal memories in Settings | **Read**: `get_memories()`<br>**Write**: `save_memory()`, `remove_memory()` |
 
 ---
 
@@ -135,7 +137,8 @@ ZeroCoach is engineered for privacy, speed, and resilient offline execution with
 - **Inference Provider Configuration**:
   - `On-Device`: Direct quantized GGUF execution via `llama.rn` on iOS/Android, with automatic browser fallback for web previews.
   - `OpenAI-Compatible`: Connect to local desktop or LAN endpoints (e.g., `http://192.168.1.100:11434/v1` for Ollama).
-- **Local Storage Management**: One-tap clearance for chat transcripts or full athlete biometric data wipe.
+- **Coach Memory (Mem0 Layer)**: View, filter, add, and delete categorized personal memories (`Food & Diet`, `Workout & Skills`, `Injuries & Limits`, `Personality & Style`).
+- **Local Storage Management**: One-tap clearance for chat transcripts, coach memories, or full athlete biometric data wipe.
 
 ---
 

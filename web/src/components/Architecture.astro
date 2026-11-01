@@ -7,10 +7,10 @@ const stackLayers = [
     tag: "Mobile Framework"
   },
   {
-    layer: "02. AI Agent Action Harness",
-    tech: "Autonomous Tool Dispatcher",
-    description: "Symmetric read/write execution engine operating across telemetry, food history, workout plans, and athlete settings with live status feeds.",
-    tag: "Agent Mode"
+    layer: "02. AI Agent & Mem0 Memory",
+    tech: "Tool Harness + Mem0 Engine",
+    description: "Symmetric read/write execution engine across 8 domains with a local Mem0 reconciliation layer for favorite foods, skills, injuries, and personality.",
+    tag: "Agent & Memory"
   },
   {
     layer: "03. Neural Inference Engine",
@@ -45,7 +45,8 @@ const parityDomains = [
   { domain: "Workout History", ui: "Review past workout sessions, volume, and sets by calendar date", agent: "Read workout history across recent days and log finished workout sessions", access: "Read / Write" },
   { domain: "Workout Plan", ui: "View adaptive daily splits, swap/skip exercises, schedule future routines", agent: "Read daily workout plans, update full routines, and swap exercises from RepDB", access: "Read / Write" },
   { domain: "Workout DB (RepDB)", ui: "Browse 643 movements, filter by muscle/equipment, view poses & cues", agent: "Search 643 movements and retrieve kinetic cues, biomechanics, and pose metadata", access: "Read" },
-  { domain: "ZeroCoach Settings", ui: "Update athlete profile, goals, weight/height, switch coach persona, language", agent: "Read athlete profile settings and update goals, body weight, coach tone, or language", access: "Read / Write" }
+  { domain: "ZeroCoach Settings", ui: "Update athlete profile, goals, weight/height, switch coach persona, language", agent: "Read athlete profile settings and update goals, body weight, coach tone, or language", access: "Read / Write" },
+  { domain: "Athlete Memory (Mem0)", ui: "View, filter, add, or delete categorized memories (food, skills, injuries, personality)", agent: "Reconcile facts (ADD/UPDATE/DELETE) via save_memory(), get_memories(), remove_memory()", access: "Read / Write" }
 ];
 ---
 
@@ -87,7 +88,7 @@ const parityDomains = [
           <h3 class="text-2xl font-bold text-white mt-1">App UI & AI Agent Parity Matrix</h3>
         </div>
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-mono text-cyan-300 self-start sm:self-auto">
-          <span>7 Core Domains</span>
+          <span>8 Core Domains</span>
         </div>
       </div>
 

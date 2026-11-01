@@ -2,7 +2,7 @@
 
 ZeroCoach is an open-source, privacy-first mobile fitness and sports science coaching application engineered to run entirely on-device and on local infrastructure.
 
-This document specifies the system architecture of ZeroCoach, detailing the **Symmetric App UI and AI Agent Access Model**, the **Agent Harness Execution Lifecycle**, the **7 Core Architectural Domains**, and **Token-Saving Design Patterns**.
+This document specifies the system architecture of ZeroCoach, detailing the **Symmetric App UI and AI Agent Access Model**, the **Agent Harness Execution Lifecycle**, the **8 Core Architectural Domains**, and **Token-Saving Design Patterns**.
 
 ---
 
@@ -43,6 +43,7 @@ flowchart TD
         Store_WorkoutHistory["useWorkoutStore.historyByDate\n(Completed Sessions & Volume)"]
         Store_WorkoutPlan["useWorkoutStore.plansByDate\n(Persistent Workout Plans)"]
         Store_Settings["useCoachStore & useModelStore\n(Profile, Persona, Keys)"]
+        Store_Memory["useMemoryStore\n(Mem0 Athlete Memory)"]
     end
 
     subgraph Data_Sources ["🌐 Local & External Databases"]
@@ -59,6 +60,7 @@ flowchart TD
     UI_Analyze <-->|Read| Store_Telemetry
     UI_Analyze <-->|Read| Store_WorkoutHistory
     UI_Settings <-->|Read / Write| Store_Settings
+    UI_Settings <-->|Read / Write| Store_Memory
     UI_Chat <-->|Interactive Actions| Harness
 
     %% Harness to Stores
@@ -67,6 +69,7 @@ flowchart TD
     ToolDispatcher <-->|Read / Write| Store_WorkoutHistory
     ToolDispatcher <-->|Read / Write| Store_WorkoutPlan
     ToolDispatcher <-->|Read / Write| Store_Settings
+    ToolDispatcher <-->|Read / Write| Store_Memory
 
     %% Data Sources Connections
     Store_Telemetry <-->|On-Device Sync| Bridge_Health
@@ -84,7 +87,7 @@ flowchart TD
 
 ---
 
-## 📊 7-Domain Symmetric Access Parity Matrix
+## 📊 8-Domain Symmetric Access Parity Matrix
 
 Every domain exposes symmetric capabilities across the mobile interface and the agent harness:
 
@@ -97,6 +100,7 @@ Every domain exposes symmetric capabilities across the mobile interface and the 
 | **5. Workout Plan** | View adaptive daily splits, swap movements, skip exercises, schedule future routines | **Read**: `get_workout_plan()`<br>**Write**: `update_workout_plan()`, `swap_plan_exercise()` | `useWorkoutStore` (`plansByDate`) |
 | **6. Workout Database (RepDB)** | Browse 643 movements, filter by muscle/equipment, view start/peak pose images & kinetic cues | **Read**: `search_exercises()`, `get_exercise_details()` | `exerciseRepository` (`data/exercises.json`) |
 | **7. ZeroCoach Settings** | Update athlete goals, weight, height, equipment preference, skill level, language | **Read**: `get_user_settings()`<br>**Write**: `update_user_settings()` | `useCoachStore`, `useModelStore` |
+| **8. Athlete Memory (Mem0)** | View, filter, add, or delete categorized personal memories (`Food`, `Workout`, `Injuries`, `Personality`) | **Read**: `get_memories()`<br>**Write**: `save_memory()`, `remove_memory()` | `useMemoryStore`, `mem0Engine` |
 
 ---
 

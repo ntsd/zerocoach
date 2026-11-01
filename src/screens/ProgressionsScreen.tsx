@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
@@ -33,19 +34,16 @@ import {
 import {
   Dumbbell,
   Activity,
-  Sparkles,
   Flame,
   Zap,
   ShieldCheck,
-  CheckCircle2,
-  MessageSquare,
   Sliders,
   Calendar,
   Moon,
-  SkipForward,
-  FastForward,
   Plus,
   X,
+  Settings,
+  Target,
 } from 'lucide-react-native';
 
 interface ProgressionsScreenProps {
@@ -63,11 +61,21 @@ const CYCLE_PILL_META: Record<
   rest: { defaultLabel: 'Rest', icon: Moon, accentColor: '#38BDF8' },
 };
 
+const TRAINING_GOAL_IDS: TrainingGoal[] = [
+  'strength_hypertrophy',
+  'calisthenics_mastery',
+  'fat_loss_recomp',
+  'cardio_endurance',
+  'daily_health_longevity',
+];
+
+const SKILL_LEVEL_IDS: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
+
 export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
   const { t } = useTranslation();
-  const { userProfile } = useCoachStore();
+  const { userProfile, updateProfile, setSkillLevel } = useCoachStore();
   const equipmentMode: 'all' | 'bodyweight' =
     userProfile?.equipmentPreference === 'home' ? 'bodyweight' : 'all';
   const { calisthenicsStages, metrics } = useTelemetryStore();
@@ -89,7 +97,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   } = useWorkoutStore();
   const modeColors = getModeColors();
 
-  const [isEditingCycle, setIsEditingCycle] = useState(false);
+  const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
 
   const todayStr = useMemo(() => getTodayDateString(), []);
   const activeDate = selectedDate || todayStr;
@@ -117,7 +125,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     setSelectedDate(todayStr);
   };
 
-  // Active goal & skill level (configured in Settings -> Athlete Profile)
+  // Active goal & skill level
   const activeGoal: TrainingGoal = userProfile.primaryGoals?.[0] || 'strength_hypertrophy';
   const activeSkillLevel: SkillLevel = userProfile.skillLevel || 'intermediate';
 
@@ -188,19 +196,50 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
     sendMessage(query);
   };
 
+  const compactEquipmentLabel =
+    equipmentMode === 'bodyweight' ? t.workout.card.bodyweight : t.workout.card.allGym;
+  const compactSkillLabel =
+    activeSkillLevel === 'beginner'
+      ? '🌱 Beg.'
+      : activeSkillLevel === 'advanced'
+      ? '🔥 Adv.'
+      : '⚡ Inter.';
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header + Compact Workout Settings Pill */}
         <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Dumbbell size={20} color={modeColors.accent} />
-            <Text style={styles.title}>{t.workout.screenTitle}</Text>
+          <View style={styles.headerTopRow}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.titleRow}>
+                <Dumbbell size={20} color={modeColors.accent} />
+                <Text style={styles.title}>{t.workout.screenTitle}</Text>
+              </View>
+              <Text style={styles.subtitle}>{t.workout.screenSubtitle}</Text>
+            </View>
+
+            {/* Sleek 1-Line Workout Settings Summary Pill */}
+            <TouchableOpacity
+              onPress={() => setIsSettingsModalVisible(true)}
+              style={[
+                styles.headerSettingsPill,
+                {
+                  borderColor: `${modeColors.accent}45`,
+                  backgroundColor: `${modeColors.accent}12`,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.headerSettingsPillText} numberOfLines={1}>
+                {compactEquipmentLabel} • {compactSkillLabel}
+              </Text>
+              <Settings size={13} color={modeColors.accent} />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.subtitle}>{t.workout.screenSubtitle}</Text>
         </View>
 
         {/* Date Navigation Bar (supports past, today, and future scheduling) */}
@@ -215,7 +254,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         />
 
         {/* ========================================================== */}
-        {/* DYNAMIC WORKOUT SEQUENCE BAR (e.g. PULL → REST → REST → PUSH → REST) */}
+        {/* DYNAMIC WORKOUT SEQUENCE BAR (e.g. 1. PUSH → 2. PULL → 3. LEGS) */}
         {/* ========================================================== */}
         <View style={styles.cycleSection}>
           <View style={styles.selectorHeaderRow}>
@@ -224,36 +263,14 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
               <Text style={styles.selectorGroupTitle}>{t.workout.cycleSection}</Text>
             </View>
             <TouchableOpacity
-              onPress={() => setIsEditingCycle((prev) => !prev)}
-              style={[
-                styles.editCycleToggleBtn,
-                isEditingCycle && {
-                  borderColor: modeColors.accent,
-                  backgroundColor: `${modeColors.accent}20`,
-                },
-              ]}
+              onPress={() => setIsSettingsModalVisible(true)}
+              style={styles.editCycleToggleBtn}
               activeOpacity={0.75}
             >
-              <Sliders
-                size={11}
-                color={isEditingCycle ? modeColors.accent : COLORS.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.editCycleToggleText,
-                  isEditingCycle && { color: modeColors.accent, fontWeight: '700' },
-                ]}
-              >
-                {isEditingCycle ? t.workout.doneCycleBtn : t.workout.editCycleBtn}
-              </Text>
+              <Sliders size={11} color={COLORS.textSecondary} />
+              <Text style={styles.editCycleToggleText}>{t.workout.editCycleBtn}</Text>
             </TouchableOpacity>
           </View>
-
-          {isEditingCycle && (
-            <Text style={styles.editCycleHint}>
-              Tap any step below to remove it, or tap + buttons to append steps in any order. Any day you don&apos;t log a workout is automatically a Rest Day.
-            </Text>
-          )}
 
           {/* Ordered Sequence Row */}
           <ScrollView
@@ -266,32 +283,18 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
               const meta = CYCLE_PILL_META[dayType] || CYCLE_PILL_META.push;
               const IconComp = meta.icon;
               const label = (t.workout.splits as any)[dayType] || meta.defaultLabel;
-              const isSelectedToday =
-                !isEditingCycle &&
-                (!currentStep.isOverride
-                  ? currentStep.cycleIndex === idx
-                  : currentSplit === dayType && displayCycle.indexOf(dayType) === idx);
+              const isSelectedToday = !currentStep.isOverride
+                ? currentStep.cycleIndex === idx
+                : currentSplit === dayType && displayCycle.indexOf(dayType) === idx;
               const pillAccent = meta.accentColor || modeColors.accent;
 
               return (
                 <React.Fragment key={`${dayType}-${idx}`}>
                   <TouchableOpacity
-                    onPress={() => {
-                      if (isEditingCycle) {
-                        if (displayCycle.length > 1) {
-                          removeCycleStepAt(idx);
-                        }
-                      } else {
-                        setActiveCycleStepForDate(activeDate, idx);
-                      }
-                    }}
+                    onPress={() => setActiveCycleStepForDate(activeDate, idx)}
                     activeOpacity={0.8}
                     style={[
                       styles.cyclePill,
-                      isEditingCycle && {
-                        borderColor: 'rgba(239, 68, 68, 0.4)',
-                        backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      },
                       isSelectedToday && {
                         borderColor: pillAccent,
                         backgroundColor: `${pillAccent}25`,
@@ -321,16 +324,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                     >
                       {label}
                     </Text>
-                    {isEditingCycle && displayCycle.length > 1 && (
-                      <View
-                        style={[
-                          styles.cycleEditBadge,
-                          { backgroundColor: 'rgba(239, 68, 68, 0.2)' },
-                        ]}
-                      >
-                        <X size={9} color={COLORS.danger} />
-                      </View>
-                    )}
                   </TouchableOpacity>
                   {idx < displayCycle.length - 1 && (
                     <Text style={styles.sequenceArrowText}>→</Text>
@@ -339,43 +332,6 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
               );
             })}
           </ScrollView>
-
-          {/* "+ Add Step" Palette when editing sequence */}
-          {isEditingCycle && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.cyclePillScroll}
-              contentContainerStyle={[styles.cyclePillContent, { marginTop: 4 }]}
-            >
-              {ALL_CYCLE_DAY_TYPES.map((dayType) => {
-                const meta = CYCLE_PILL_META[dayType];
-                const IconComp = meta.icon;
-                const label = (t.workout.splits as any)[dayType] || meta.defaultLabel;
-                const pillAccent = meta.accentColor || modeColors.accent;
-                return (
-                  <TouchableOpacity
-                    key={`add-${dayType}`}
-                    onPress={() => appendCycleStep(dayType)}
-                    activeOpacity={0.8}
-                    style={[
-                      styles.addStepPill,
-                      {
-                        borderColor: `${pillAccent}55`,
-                        backgroundColor: `${pillAccent}14`,
-                      },
-                    ]}
-                  >
-                    <Plus size={11} color={pillAccent} />
-                    <IconComp size={11} color={pillAccent} />
-                    <Text style={[styles.addStepPillText, { color: pillAccent }]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
         </View>
 
         {/* Automatic Rest Day Banner on past dates with no logged workout */}
@@ -396,6 +352,291 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           onAskCoach={() => handleAskCoachPlan()}
         />
       </ScrollView>
+
+      {/* ========================================================== */}
+      {/* UNIFIED WORKOUT SETTINGS MODAL (CYCLE, EQUIPMENT, LEVEL, GOAL) */}
+      {/* ========================================================== */}
+      <Modal
+        visible={isSettingsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsSettingsModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <GlassCard
+            glowColor={`${modeColors.accent}30`}
+            borderColor={`${modeColors.accent}45`}
+            style={styles.modalCard}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderLeft}>
+                <View
+                  style={[
+                    styles.modalIconCircle,
+                    { backgroundColor: `${modeColors.accent}20` },
+                  ]}
+                >
+                  <Sliders size={16} color={modeColors.accent} />
+                </View>
+                <View>
+                  <Text style={styles.modalSuperTitle}>WORKOUT PREFERENCES</Text>
+                  <Text style={styles.modalTitle}>Customize Cycle & Training</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsSettingsModalVisible(false)}
+                style={styles.modalCloseBtn}
+                activeOpacity={0.75}
+              >
+                <X size={16} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              {/* 1. Workout Sequence Builder */}
+              <View style={styles.modalSection}>
+                <View style={styles.selectorTitleRow}>
+                  <Calendar size={13} color={modeColors.accent} />
+                  <Text style={styles.modalSectionTitle}>{t.workout.cycleSection}</Text>
+                </View>
+                <Text style={styles.modalSectionHint}>
+                  Tap any step in your sequence to remove it, or tap + buttons below to append splits in any order. Any day without a logged workout is automatically a Rest Day.
+                </Text>
+
+                {/* Active Sequence Pills with Remove (×) */}
+                <View style={styles.modalSequenceWrap}>
+                  {displayCycle.map((dayType, idx) => {
+                    const meta = CYCLE_PILL_META[dayType] || CYCLE_PILL_META.push;
+                    const IconComp = meta.icon;
+                    const label = (t.workout.splits as any)[dayType] || meta.defaultLabel;
+                    const pillAccent = meta.accentColor || modeColors.accent;
+                    return (
+                      <React.Fragment key={`modal-seq-${dayType}-${idx}`}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (displayCycle.length > 1) {
+                              removeCycleStepAt(idx);
+                            }
+                          }}
+                          activeOpacity={0.8}
+                          style={[
+                            styles.cyclePill,
+                            {
+                              borderColor: `${pillAccent}55`,
+                              backgroundColor: `${pillAccent}16`,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.cycleStepNumText, { color: pillAccent }]}>
+                            {idx + 1}.
+                          </Text>
+                          <IconComp size={12} color={pillAccent} />
+                          <Text
+                            style={[
+                              styles.cyclePillText,
+                              { color: pillAccent, fontWeight: '700' },
+                            ]}
+                          >
+                            {label}
+                          </Text>
+                          {displayCycle.length > 1 && (
+                            <View
+                              style={[
+                                styles.cycleEditBadge,
+                                { backgroundColor: 'rgba(239, 68, 68, 0.22)' },
+                              ]}
+                            >
+                              <X size={9} color={COLORS.danger} />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                        {idx < displayCycle.length - 1 && (
+                          <Text style={styles.sequenceArrowText}>→</Text>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </View>
+
+                {/* + Append Split Buttons */}
+                <View style={[styles.modalSequenceWrap, { marginTop: 6 }]}>
+                  {ALL_CYCLE_DAY_TYPES.map((dayType) => {
+                    const meta = CYCLE_PILL_META[dayType];
+                    const IconComp = meta.icon;
+                    const label = (t.workout.splits as any)[dayType] || meta.defaultLabel;
+                    const pillAccent = meta.accentColor || modeColors.accent;
+                    return (
+                      <TouchableOpacity
+                        key={`modal-add-${dayType}`}
+                        onPress={() => appendCycleStep(dayType)}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.addStepPill,
+                          {
+                            borderColor: `${pillAccent}55`,
+                            backgroundColor: `${pillAccent}14`,
+                          },
+                        ]}
+                      >
+                        <Plus size={11} color={pillAccent} />
+                        <IconComp size={11} color={pillAccent} />
+                        <Text style={[styles.addStepPillText, { color: pillAccent }]}>
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 2. Training Environment (Full Gym vs Bodyweight) */}
+              <View style={styles.modalSection}>
+                <View style={styles.selectorTitleRow}>
+                  <Dumbbell size={13} color={modeColors.accent} />
+                  <Text style={styles.modalSectionTitle}>{t.settings.defaultEnvironment}</Text>
+                </View>
+                <View style={styles.modalPillRow}>
+                  {(
+                    [
+                      { id: 'both', label: t.onboarding.fullGym, icon: Dumbbell },
+                      { id: 'home', label: t.onboarding.homeEquipment, icon: Activity },
+                    ] as const
+                  ).map((eq) => {
+                    const isSelected =
+                      eq.id === 'home'
+                        ? equipmentMode === 'bodyweight'
+                        : equipmentMode === 'all';
+                    const IconComp = eq.icon;
+                    return (
+                      <TouchableOpacity
+                        key={eq.id}
+                        onPress={() =>
+                          updateProfile({
+                            equipmentPreference: eq.id === 'home' ? 'home' : 'both',
+                          })
+                        }
+                        style={[
+                          styles.modalOptionBtn,
+                          isSelected && {
+                            borderColor: modeColors.accent,
+                            backgroundColor: `${modeColors.accent}20`,
+                          },
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <IconComp
+                          size={13}
+                          color={isSelected ? modeColors.accent : COLORS.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            styles.modalOptionText,
+                            isSelected && { color: modeColors.accent, fontWeight: '700' },
+                          ]}
+                        >
+                          {eq.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 3. Athlete Skill Level */}
+              <View style={styles.modalSection}>
+                <View style={styles.selectorTitleRow}>
+                  <Zap size={13} color={modeColors.accent} />
+                  <Text style={styles.modalSectionTitle}>{t.workout.skillLevelSection}</Text>
+                </View>
+                <View style={styles.modalPillRow}>
+                  {SKILL_LEVEL_IDS.map((lvl) => {
+                    const isSelected = activeSkillLevel === lvl;
+                    const label = (t.workout.skillLevels as any)[lvl] || lvl.toUpperCase();
+                    return (
+                      <TouchableOpacity
+                        key={lvl}
+                        onPress={() => setSkillLevel(lvl)}
+                        style={[
+                          styles.modalOptionBtn,
+                          isSelected && {
+                            borderColor: modeColors.accent,
+                            backgroundColor: `${modeColors.accent}20`,
+                          },
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.modalOptionText,
+                            isSelected && { color: modeColors.accent, fontWeight: '700' },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 4. Primary Training Goal */}
+              <View style={styles.modalSection}>
+                <View style={styles.selectorTitleRow}>
+                  <Target size={13} color={modeColors.accent} />
+                  <Text style={styles.modalSectionTitle}>{t.workout.trainingGoalSection}</Text>
+                </View>
+                <View style={styles.modalGoalWrap}>
+                  {TRAINING_GOAL_IDS.map((goalId) => {
+                    const isSelected = activeGoal === goalId;
+                    const label = (t.workout.goals as any)[goalId] || goalId;
+                    return (
+                      <TouchableOpacity
+                        key={goalId}
+                        onPress={() => {
+                          const existing = userProfile.primaryGoals || [];
+                          updateProfile({
+                            primaryGoals: [goalId, ...existing.filter((g) => g !== goalId)],
+                          });
+                        }}
+                        style={[
+                          styles.modalGoalPill,
+                          isSelected && {
+                            borderColor: modeColors.accent,
+                            backgroundColor: `${modeColors.accent}20`,
+                          },
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.modalOptionText,
+                            isSelected && { color: modeColors.accent, fontWeight: '700' },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Done CTA */}
+            <TouchableOpacity
+              onPress={() => setIsSettingsModalVisible(false)}
+              style={[styles.modalDoneBtn, { backgroundColor: modeColors.accent }]}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalDoneBtnText}>{t.workout.doneCycleBtn}</Text>
+            </TouchableOpacity>
+          </GlassCard>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -413,25 +654,28 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: SPACING.sm,
   },
-  dateNavBar: {
-    marginBottom: SPACING.md,
-  },
-  pastDateBanner: {
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    marginBottom: SPACING.md,
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
   },
-  pastDateBannerText: {
+  headerSettingsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+  },
+  headerSettingsPillText: {
     ...TYPOGRAPHY.captionBold,
-    fontSize: 12,
-    color: COLORS.success,
+    fontSize: 10.5,
+    color: COLORS.textPrimary,
+  },
+  dateNavBar: {
+    marginBottom: SPACING.md,
   },
   titleRow: {
     flexDirection: 'row',
@@ -450,7 +694,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Smart 5-Pill Cycle Bar
+  // Dynamic Workout Sequence Bar
   cycleSection: {
     marginBottom: SPACING.md,
     gap: 6,
@@ -488,12 +732,6 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: COLORS.textSecondary,
   },
-  editCycleHint: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    paddingHorizontal: 2,
-  },
   cyclePillScroll: {
     marginHorizontal: -SPACING.lg,
   },
@@ -514,18 +752,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderSubtle,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
-  cyclePillDisabled: {
-    opacity: 0.45,
-    borderStyle: 'dashed',
-  },
   cyclePillText: {
     ...TYPOGRAPHY.captionBold,
     fontSize: 12,
     color: COLORS.textSecondary,
-  },
-  cyclePillTextDisabled: {
-    color: COLORS.textMuted,
-    textDecorationLine: 'line-through',
   },
   cycleEditBadge: {
     width: 15,
@@ -562,88 +792,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-
-  // Quick 1-Tap Skip Workout Bar
-  quickScheduleBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: SPACING.md,
-  },
-  skipWorkoutBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.35)',
-    backgroundColor: 'rgba(245, 158, 11, 0.09)',
-  },
-  skipWorkoutBtnText: {
-    ...TYPOGRAPHY.captionBold,
-    fontSize: 11.5,
-    color: COLORS.warning,
-  },
-  askCoachPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  },
-  askCoachPillText: {
-    ...TYPOGRAPHY.captionBold,
-    fontSize: 11.5,
-  },
-
-  // Rest & Muscle Recovery Card
-  restDayCard: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    gap: SPACING.md,
-  },
-  restHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  restIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  restSuperLabel: {
-    ...TYPOGRAPHY.badge,
-    fontSize: 9,
-    color: '#38BDF8',
-    letterSpacing: 1,
-  },
-  restTitle: {
-    ...TYPOGRAPHY.h3,
-    fontSize: 17,
-    color: COLORS.textPrimary,
-    marginTop: 2,
-  },
-  restDesc: {
-    ...TYPOGRAPHY.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 19,
-  },
   upNextBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -661,40 +809,129 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#E0F2FE',
   },
-  restActionsRow: {
+
+  // Unified Workout Settings Modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  modalCard: {
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    maxHeight: '86%',
+    gap: SPACING.sm,
+  },
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 2,
+    justifyContent: 'space-between',
+    paddingBottom: SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderSubtle,
   },
-  skipRestBtn: {
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  modalIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSuperTitle: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 8.5,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+  },
+  modalTitle: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+  },
+  modalCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScrollContent: {
+    gap: SPACING.md,
+    paddingVertical: SPACING.xs,
+  },
+  modalSection: {
+    gap: 6,
+  },
+  modalSectionTitle: {
+    ...TYPOGRAPHY.badge,
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    letterSpacing: 0.8,
+  },
+  modalSectionHint: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    lineHeight: 15,
+  },
+  modalSequenceWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  modalPillRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  modalOptionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: RADIUS.md,
-  },
-  skipRestBtnText: {
-    ...TYPOGRAPHY.bodyBold,
-    fontSize: 12.5,
-    color: COLORS.textDark,
-  },
-  askCoachCompactBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    borderRadius: RADIUS.md,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
-  askCoachCompactText: {
+  modalOptionText: {
     ...TYPOGRAPHY.captionBold,
-    fontSize: 12,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  modalGoalWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  modalGoalPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 11,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  modalDoneBtn: {
+    paddingVertical: 11,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  modalDoneBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
+    color: COLORS.textDark,
   },
 });

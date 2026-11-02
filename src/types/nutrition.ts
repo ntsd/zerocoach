@@ -69,6 +69,8 @@ export interface LoggedFood {
   servings: number;
   consumedGrams: number;
   nutrients: NutrientProfile;
+  nutrientsPer100g?: NutrientProfile;
+  imageUrl?: string;
   source: FoodSource;
   barcode?: string;
   packageQuantityGrams?: number;

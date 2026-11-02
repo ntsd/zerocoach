@@ -55,6 +55,11 @@ export interface NutritionState {
     consumedGrams: number,
     date?: string
   ) => void;
+  updateLoggedFoodGrams: (
+    loggedFoodId: string,
+    newGrams: number,
+    date?: string
+  ) => void;
   removeLoggedFood: (loggedFoodId: string, date?: string) => void;
   updateDailyTargets: (
     targets: {
@@ -157,6 +162,8 @@ export const useNutritionStore = create<NutritionState>()(
           servings,
           consumedGrams,
           nutrients: calculatedNutrients,
+          nutrientsPer100g: food.nutrientsPer100g,
+          imageUrl: food.imageUrl,
           source: food.source,
           barcode: food.barcode,
           packageQuantityGrams: food.packageQuantityGrams,
@@ -166,6 +173,59 @@ export const useNutritionStore = create<NutritionState>()(
         };
 
         const updatedFoods = [...currentLog.foods, newLoggedFood];
+
+        set((state) => ({
+          logsByDate: {
+            ...state.logsByDate,
+            [targetDate]: {
+              ...currentLog,
+              foods: updatedFoods,
+            },
+          },
+        }));
+      },
+
+      updateLoggedFoodGrams: (loggedFoodId, newGrams, date) => {
+        const targetDate = date || get().selectedDate || getTodayString();
+        const currentLog = get().getDailyLog(targetDate);
+        const clampedGrams = Math.max(5, Math.min(3000, Math.round(newGrams)));
+
+        const updatedFoods = currentLog.foods.map((item) => {
+          if (item.id !== loggedFoodId) return item;
+
+          // Derive baseline nutrientsPer100g if not already stored on legacy logged items
+          const baseGrams = Math.max(1, item.consumedGrams || 100);
+          const per100g: NutrientProfile = item.nutrientsPer100g || {
+            calories: (item.nutrients.calories * 100) / baseGrams,
+            proteinGrams: (item.nutrients.proteinGrams * 100) / baseGrams,
+            carbsGrams: (item.nutrients.carbsGrams * 100) / baseGrams,
+            fatGrams: (item.nutrients.fatGrams * 100) / baseGrams,
+            fiberGrams: (item.nutrients.fiberGrams * 100) / baseGrams,
+            vitaminA_mcg: (item.nutrients.vitaminA_mcg * 100) / baseGrams,
+            vitaminC_mg: (item.nutrients.vitaminC_mg * 100) / baseGrams,
+            vitaminD_mcg: (item.nutrients.vitaminD_mcg * 100) / baseGrams,
+            vitaminB12_mcg: (item.nutrients.vitaminB12_mcg * 100) / baseGrams,
+            vitaminE_mg: ((item.nutrients.vitaminE_mg || 0) * 100) / baseGrams,
+            iron_mg: (item.nutrients.iron_mg * 100) / baseGrams,
+            calcium_mg: (item.nutrients.calcium_mg * 100) / baseGrams,
+            magnesium_mg: (item.nutrients.magnesium_mg * 100) / baseGrams,
+            potassium_mg: (item.nutrients.potassium_mg * 100) / baseGrams,
+            sodium_mg: (item.nutrients.sodium_mg * 100) / baseGrams,
+            zinc_mg: (item.nutrients.zinc_mg * 100) / baseGrams,
+          };
+
+          const recalculated = calculateNutrientsForGrams(per100g, clampedGrams);
+          const servingBase = item.servingQuantityGrams || 100;
+          const nextServings = Math.round((clampedGrams / Math.max(1, servingBase)) * 10) / 10;
+
+          return {
+            ...item,
+            consumedGrams: clampedGrams,
+            servings: nextServings,
+            nutrients: recalculated,
+            nutrientsPer100g: per100g,
+          };
+        });
 
         set((state) => ({
           logsByDate: {

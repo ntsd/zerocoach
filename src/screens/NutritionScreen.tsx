@@ -12,6 +12,7 @@ import { MacroProgressHeader } from '../components/nutrition/MacroProgressHeader
 import { MicronutrientScorecard } from '../components/nutrition/MicronutrientScorecard';
 import { DailyFoodLedgerCard } from '../components/nutrition/DailyFoodLedgerCard';
 import { FoodSearchAndReviewModal } from '../components/nutrition/FoodSearchAndReviewModal';
+import { LoggedFoodDetailModal } from '../components/nutrition/LoggedFoodDetailModal';
 import { FoodItem, MealType } from '../types/nutrition';
 import { useTranslation } from '../i18n';
 import { COLORS } from '../theme/colors';
@@ -25,11 +26,13 @@ export const NutritionScreen: React.FC = () => {
     getDailyLog,
     getSummaryForDate,
     logFood,
+    updateLoggedFoodGrams,
     removeLoggedFood,
     clearDayLog,
   } = useNutritionStore();
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedLoggedFoodId, setSelectedLoggedFoodId] = useState<string | null>(null);
 
   // Always ensure selectedDate is today on mount
   useEffect(() => {
@@ -146,6 +149,7 @@ export const NutritionScreen: React.FC = () => {
           foods={dailyLog.foods}
           onAddFood={handleOpenAddFood}
           onRemoveFood={(id) => removeLoggedFood(id, selectedDate)}
+          onSelectFood={(food) => setSelectedLoggedFoodId(food.id)}
         />
 
         {/* Reset / Clear Day helper */}
@@ -166,6 +170,17 @@ export const NutritionScreen: React.FC = () => {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onLogFood={handleLogFoodItem}
+      />
+
+      {/* Logged Food Detail & Live Portion Edit Modal */}
+      <LoggedFoodDetailModal
+        visible={Boolean(selectedLoggedFoodId)}
+        food={dailyLog.foods.find((f) => f.id === selectedLoggedFoodId) || null}
+        onClose={() => setSelectedLoggedFoodId(null)}
+        onUpdateGrams={(foodId, newGrams) =>
+          updateLoggedFoodGrams(foodId, newGrams, selectedDate)
+        }
+        onRemoveFood={(foodId) => removeLoggedFood(foodId, selectedDate)}
       />
     </SafeAreaView>
   );

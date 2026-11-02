@@ -17,12 +17,14 @@ interface DailyFoodLedgerCardProps {
   foods: LoggedFood[];
   onAddFood: () => void;
   onRemoveFood: (foodId: string) => void;
+  onSelectFood?: (food: LoggedFood) => void;
 }
 
 export const DailyFoodLedgerCard: React.FC<DailyFoodLedgerCardProps> = ({
   foods,
   onAddFood,
   onRemoveFood,
+  onSelectFood,
 }) => {
   const { t } = useTranslation();
 
@@ -116,7 +118,12 @@ export const DailyFoodLedgerCard: React.FC<DailyFoodLedgerCardProps> = ({
         <View style={styles.foodList}>
           {foods.map((food) => (
             <View key={food.id} style={styles.foodRow}>
-              <View style={styles.foodInfo}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.foodInfo}
+                onPress={() => onSelectFood?.(food)}
+                activeOpacity={0.75}
+              >
                 <View style={styles.foodNameRow}>
                   <Text style={styles.foodName} numberOfLines={1}>
                     {food.name}
@@ -139,7 +146,7 @@ export const DailyFoodLedgerCard: React.FC<DailyFoodLedgerCardProps> = ({
                     P: {food.nutrients.proteinGrams}g | C: {food.nutrients.carbsGrams}g | F: {food.nutrients.fatGrams}g
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 accessibilityRole="button"

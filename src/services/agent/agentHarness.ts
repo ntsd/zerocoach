@@ -23,32 +23,33 @@ export function buildAgentToolPrompt(): string {
 
   return `
 [AGENT MODE & ACTION HARNESS]
-You have real-time read and write tools to the athlete's fitness telemetry, nutrition logs, workout plans, exercise database, and settings:
+You have real-time read and write tools to the athlete's memory, fitness telemetry, nutrition logs, workout plans, exercise database, and settings:
 
 ${toolLines}
 
 TOOL CALLING PROTOCOL & RULES:
 1. ATHLETE CONTEXT IS ALREADY LOADED:
-   - Live telemetry (Readiness score, sleep, HRV), goals, and today's scheduled workout plan are ALREADY provided in the ATHLETE CONTEXT above.
-   - Do NOT call get_telemetry_metrics or get_workout_plan if the data is already present in the ATHLETE CONTEXT. Answer the athlete directly!
-2. ONLY call tools when:
-   - The athlete requests an ACTION (e.g. "log my food", "save/change this workout plan", "update my goal", "swap an exercise").
-   - The athlete shares personal preferences, personality traits, favorite/disliked foods, favorite workout skills/exercises, or injuries/limitations -> call save_memory (or remove_memory if a past preference/injury changed).
-   - Detailed external database search is needed (search_food_database, search_exercises) or reading past days history.
-3. PROTOCOL:
-   - When calling a tool, emit EXACTLY one tool call tag:
+   - Live telemetry (Readiness score, sleep, HRV), goals, stored memories, and today's scheduled workout plan are ALREADY provided in the ATHLETE CONTEXT above.
+   - Do NOT call get_telemetry_metrics, get_workout_plan, or get_memories if the data is already present in the ATHLETE CONTEXT.
+2. WHEN TO CALL A TOOL (MANDATORY):
+   - MEMORY (save_memory / remove_memory): Whenever the athlete asks you to remember/memorize something (e.g. "memorize it", "remember this") OR shares a lasting personal fact — such as workout equipment they own/lack (e.g. "I have a pull-up bar"), favorite or disliked exercises/skills, favorite or disliked foods/allergies, injuries/pain, or coaching style/personality preferences — you MUST call save_memory (or remove_memory if a past fact no longer applies).
+   - ACTIONS: When the athlete asks to log food (log_food_item), log a completed workout/set (log_completed_workout), skip/reschedule a workout or change their workout cycle (manage_workout_schedule), swap an exercise (swap_plan_exercise), or update settings (update_user_settings).
+   - DATABASE SEARCH: When detailed external lookup is needed (search_food_database, search_exercises) or reading past days' logs.
+3. STRICT OUTPUT FORMAT FOR TOOL CALLS:
+   - NEVER claim in plain text that you memorized, logged, or updated something without emitting the <tool_call> first!
+   - When calling a tool, your output MUST start immediately with <tool_call> on the first line (no text before <tool_call>):
 <tool_call>
 {"name": "tool_name", "arguments": { ... }}
+</tool_call>
+   - Example to memorize athlete equipment, skill, food, injury, or preference:
+<tool_call>
+{"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "equipment_pull_up_bar", "content": "Available equipment: Pull-up bar"}}
 </tool_call>
    - Example to log food:
 <tool_call>
 {"name": "log_food_item", "arguments": {"name": "Grilled Chicken", "calories": 250, "proteinGrams": 30, "carbsGrams": 0, "fatGrams": 3, "mealType": "lunch"}}
 </tool_call>
-   - Example to save athlete memory (favorite food, favorite workout skill, injury, personality):
-<tool_call>
-{"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "favorite_skill", "content": "Favorite workout skill: Muscle-Up"}}
-</tool_call>
-   - Example when athlete is busy or wants to skip today's workout / rest day:
+   - Example when athlete is busy or wants to skip today's workout / change cycle:
 <tool_call>
 {"name": "manage_workout_schedule", "arguments": {"action": "skip_workout"}}
 </tool_call>
@@ -56,8 +57,8 @@ TOOL CALLING PROTOCOL & RULES:
 <tool_call>
 {"name": "log_completed_workout", "arguments": {"title": "Pull-up Set", "exercises": [{"name": "Pull-up", "sets": 1, "reps": "10 reps"}]}}
 </tool_call>
-   - When tool results are provided, synthesize your full coaching answer directly.
-   - If no action or tool call is needed, respond normally to the athlete without any <tool_call> tags.
+   - After <tool_result> is returned to you, write your concise coaching confirmation to the athlete.
+   - If no tool call is needed, respond normally to the athlete without any <tool_call> tags.
 `;
 }
 
@@ -73,12 +74,30 @@ function tryExtractToolCall(jsonStr: string): ToolCall | null {
     const isKnownTool = AGENT_TOOLS.some((t) => t.name === normalizedName);
     if (!isKnownTool) return null;
 
-    const args = parsed.arguments || parsed.parameters || parsed.args || parsed.action_input || {};
+    let rawArgs = parsed.arguments ?? parsed.parameters ?? parsed.args ?? parsed.action_input;
+    if (typeof rawArgs === 'string') {
+      try {
+        rawArgs = JSON.parse(rawArgs);
+      } catch {
+        rawArgs = {};
+      }
+    }
+
+    // Support flat tool call objects where small models place parameters at the top level alongside "name"
+    if (!rawArgs || typeof rawArgs !== 'object') {
+      const topLevelArgs: Record<string, any> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (k !== 'name' && k !== 'tool' && k !== 'action') {
+          topLevelArgs[k] = v;
+        }
+      }
+      rawArgs = topLevelArgs;
+    }
 
     return {
       id: `call-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       name: normalizedName,
-      arguments: typeof args === 'object' && args !== null ? args : {},
+      arguments: rawArgs,
     };
   } catch {
     return null;

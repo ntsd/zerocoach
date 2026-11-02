@@ -17,42 +17,47 @@ const STOP_WORDS = new Set([
   'ฉัน', 'ผม', 'เรา', 'คือ', 'เป็น', 'ที่', 'ใน', 'ของ', 'และ', 'หรือ', 'มาก', 'เลย', 'ครับ', 'ค่ะ', 'นะ',
 ]);
 
-export function normalizeMemoryCategory(raw?: string): MemoryCategory {
-  if (!raw) return 'personality_style';
-  const lower = raw.toLowerCase().trim();
+export function inferCategoryFromContent(text: string): MemoryCategory {
+  const lower = (text || '').toLowerCase().trim();
   if (
-    lower.includes('food') ||
-    lower.includes('diet') ||
-    lower.includes('nutrition') ||
-    lower.includes('meal') ||
-    lower.includes('eat') ||
-    lower.includes('allerg')
+    /\b(injur\w*|limit\w*|pain|hurt\w*|sore\w*|impingement|tendonitis|strain|sprain|recover\w*|acl|meniscus|rotator\s+cuff|sciatica|surgery)\b/.test(
+      lower
+    ) ||
+    /เจ็บ|ปวด|บาดเจ็บ|ข้อต่อ|หัวเข่า|ไหล่|ข้อมือ|หลัง/.test(lower)
+  ) {
+    return 'injury_limitation';
+  }
+  if (
+    /\b(food|diet\w*|nutrition|meal|eat\w*|allerg\w*|intoleran\w*|vegan|vegetarian|keto|halal|protein|calorie\w*|macro\w*|breakfast|lunch|dinner|snack|chicken|beef|pork|salmon|fish|rice|egg\w*|milk|dairy|peanut\w*|seafood|coffee)\b/.test(
+      lower
+    ) ||
+    /อาหาร|กิน|ทาน|มื้อ|แพ้|มังสวิรัติ|คีโต|ฮาลาล|โปรตีน|แคลอรี่|ข้าว|ไก่|ปลา|ไข่/.test(lower)
   ) {
     return 'food_preference';
   }
   if (
-    lower.includes('workout') ||
-    lower.includes('skill') ||
-    lower.includes('exercise') ||
-    lower.includes('train') ||
-    lower.includes('calisthenics') ||
-    lower.includes('gym') ||
-    lower.includes('movement')
+    /\b(workout\w*|skill\w*|exercise\w*|train\w*|calisthenics|gym|movement\w*|equipment|pull[- ]?ups?|chin[- ]?ups?|push[- ]?ups?|dips?|muscle[- ]?ups?|planche|lever|handstand|l-sit|squats?|deadlifts?|bench|lunges?|burpees?|cardio|run\w*|bar|bars|dumbbell\w*|barbell\w*|kettlebell\w*|rings|parallettes|bands?|cable|weights?)\b/.test(
+      lower
+    ) ||
+    /ซ้อม|ออกกำลัง|ท่า|สกิล|ยิม|เวท|บาร์โหน|ดึงข้อ|วิดพื้น|ดัมเบล|บาร์เบล|คาร์ดิโอ|วิ่ง/.test(lower)
   ) {
     return 'workout_preference';
   }
-  if (
-    lower.includes('injur') ||
-    lower.includes('limit') ||
-    lower.includes('pain') ||
-    lower.includes('hurt') ||
-    lower.includes('joint') ||
-    lower.includes('medical') ||
-    lower.includes('recover')
-  ) {
-    return 'injury_limitation';
-  }
   return 'personality_style';
+}
+
+export function normalizeMemoryCategory(raw?: string): MemoryCategory {
+  if (!raw) return 'personality_style';
+  const lower = raw.toLowerCase().trim();
+  if (
+    lower === 'food_preference' ||
+    lower === 'workout_preference' ||
+    lower === 'injury_limitation' ||
+    lower === 'personality_style'
+  ) {
+    return lower;
+  }
+  return inferCategoryFromContent(lower);
 }
 
 export function tokenizeMemoryText(text: string): string[] {
@@ -363,199 +368,6 @@ export function deleteMemoryByQuery(
       summary: `No matching memory found for "${clean}".`,
     },
   };
-}
-
-/**
- * Fast, zero-latency bilingual (EN/TH) fact extractor so even compact on-device models
- * automatically capture explicit athlete preferences, favorite foods, favorite skills, and injuries.
- */
-export function extractMemoriesFromMessage(userMessage: string): MemoryCandidate[] {
-  if (!userMessage || userMessage.trim().length < 4) return [];
-  const text = userMessage.trim();
-  const candidates: MemoryCandidate[] = [];
-
-  // Split into clauses by sentence boundaries
-  const clauses = text
-    .split(/(?:[.!?\n]+|\b(?:and also|also)\b)/i)
-    .map((c) => c.trim())
-    .filter(Boolean);
-
-  for (const clause of clauses) {
-    if (clause.endsWith('?') || /^(what|how|why|when|can you|could you|should i|do you)\b/i.test(clause)) {
-      continue;
-    }
-
-    // -------------------------------------------------------------------------
-    // 1. FOOD PREFERENCES & DIETARY RESTRICTIONS (EN + TH)
-    // -------------------------------------------------------------------------
-    const favFoodMatch =
-      clause.match(
-        /\bmy\s+fav(?:ou?rite)?\s+(?:food|meal|dish|snack|protein|breakfast|lunch|dinner)s?\s+(?:is|are)\s+([^,.!]+)/i
-      ) ||
-      clause.match(
-        /\bi\s+(?:really\s+)?(?:love|like|enjoy)\s+(?:eating|having|to eat)\s+([^,.!]+)/i
-      ) ||
-      clause.match(/(?:อาหารที่ชอบ|ของโปรด|เมนูโปรด|ชอบกิน|ชอบทาน)\s*(?:คือ|ได้แก่)?\s*([^,.!\n]+)/);
-
-    if (favFoodMatch && favFoodMatch[1]) {
-      const item = favFoodMatch[1].trim();
-      if (item.length >= 2 && item.length <= 80) {
-        candidates.push({
-          category: 'food_preference',
-          topic: 'favorite_food',
-          content: `Favorite food: ${item}`,
-          source: 'extractor',
-        });
-        continue;
-      }
-    }
-
-    const dislikeFoodMatch =
-      clause.match(/\bi\s+(?:hate|dislike|don't eat|do not eat|never eat|avoid eating)\s+([^,.!]+)/i) ||
-      clause.match(/(?:ไม่ชอบกิน|ไม่กิน|เกลียดอาหาร|ห้ามกิน)\s*([^,.!\n]+)/);
-
-    if (dislikeFoodMatch && dislikeFoodMatch[1]) {
-      const item = dislikeFoodMatch[1].trim();
-      if (item.length >= 2 && item.length <= 80) {
-        candidates.push({
-          category: 'food_preference',
-          content: `Dislikes / avoids eating: ${item}`,
-          source: 'extractor',
-        });
-        continue;
-      }
-    }
-
-    const allergyMatch =
-      clause.match(/\bi(?:'m|\s+am)\s+(?:allergic\s+to|intolerant\s+to)\s+([^,.!]+)/i) ||
-      clause.match(/\bi\s+have\s+(?:a\s+)?([a-z\s]+?\s+(?:allergy|intolerance))\b/i) ||
-      clause.match(/\bi(?:'m|\s+am)\s+(lactose intolerant|vegan|vegetarian|pescatarian|keto|halal|gluten[- ]free)\b/i) ||
-      clause.match(/(?:แพ้อาหาร|แพ้)\s*([^,.!\n]+)/);
-
-    if (allergyMatch && allergyMatch[1]) {
-      const item = allergyMatch[1].trim();
-      if (item.length >= 2 && item.length <= 80) {
-        candidates.push({
-          category: 'food_preference',
-          topic: 'food_allergy',
-          content: `Dietary restriction / allergy: ${item}`,
-          source: 'extractor',
-        });
-        continue;
-      }
-    }
-
-    // -------------------------------------------------------------------------
-    // 2. WORKOUT & SKILL PREFERENCES (EN + TH)
-    // -------------------------------------------------------------------------
-    const favSkillMatch =
-      clause.match(
-        /\bmy\s+fav(?:ou?rite)?\s+(?:workout\s+skill|calisthenics\s+skill|skill|exercise|workout|movement|lift)s?\s+(?:is|are)\s+([^,.!]+)/i
-      ) ||
-      clause.match(
-        /\bi\s+(?:really\s+)?(?:love|enjoy)\s+(?:doing|training|practicing)\s+([^,.!]+)/i
-      ) ||
-      clause.match(
-        /\bmy\s+(?:dream|goal|target)\s+(?:skill|move|exercise)\s+is\s+([^,.!]+)/i
-      ) ||
-      clause.match(/(?:ท่าที่ชอบ|สกิลที่ชอบ|ชอบฝึกท่า|ชอบเล่นท่า|ท่าโปรด)\s*(?:คือ)?\s*([^,.!\n]+)/);
-
-    if (favSkillMatch && favSkillMatch[1]) {
-      const skill = favSkillMatch[1].trim();
-      if (skill.length >= 2 && skill.length <= 80) {
-        const isSkill = /skill|lever|planche|muscle[- ]?up|handstand|l-sit|human flag|สกิล/i.test(clause);
-        candidates.push({
-          category: 'workout_preference',
-          topic: isSkill ? 'favorite_skill' : 'favorite_exercise',
-          content: isSkill ? `Favorite workout skill: ${skill}` : `Favorite exercise/workout: ${skill}`,
-          source: 'extractor',
-        });
-        continue;
-      }
-    }
-
-    const dislikeWorkoutMatch =
-      clause.match(
-        /\bi\s+(?:hate|dislike|avoid)\s+(?:doing\s+)?(burpees|running|cardio|leg day|squats|deadlifts|lunges|pull-?ups|push-?ups|planks|[a-z\s-]{3,30}\s+exercises?)\b/i
-      ) || clause.match(/(?:เกลียดท่า|ไม่ชอบเล่นท่า|ไม่ชอบฝึก)\s*([^,.!\n]+)/);
-
-    if (dislikeWorkoutMatch && dislikeWorkoutMatch[1]) {
-      const ex = dislikeWorkoutMatch[1].trim();
-      if (ex.length >= 2 && ex.length <= 80) {
-        candidates.push({
-          category: 'workout_preference',
-          content: `Dislikes exercise: ${ex}`,
-          source: 'extractor',
-        });
-        continue;
-      }
-    }
-
-    // -------------------------------------------------------------------------
-    // 3. INJURIES & PHYSICAL LIMITATIONS (EN + TH)
-    // -------------------------------------------------------------------------
-    const injuryRecoveryMatch =
-      clause.match(
-        /\bmy\s+(shoulder|knee|wrist|back|lower back|elbow|ankle|neck|hip)\s+(?:no longer hurts|is healed|recovered|pain is gone)\b/i
-      ) || clause.match(/หาย(?:เจ็บ|ปวด)(ไหล่|เข่า|ข้อมือ|หลัง|ข้อศอก|ข้อเท้า|คอ|สะโพก)แล้ว/);
-
-    if (injuryRecoveryMatch && injuryRecoveryMatch[1]) {
-      candidates.push({
-        category: 'injury_limitation',
-        content: clause,
-        operationHint: 'DELETE',
-        source: 'extractor',
-      });
-      continue;
-    }
-
-    const injuryMatch =
-      clause.match(
-        /\bi\s+have\s+(?:a\s+|an\s+)?((?:left\s+|right\s+)?(?:shoulder|knee|wrist|lower back|back|elbow|ankle|neck|hip|rotator cuff|meniscus|acl|joint)[^,.!]{0,45}(?:injury|pain|impingement|issue|strain|sprain|tendonitis|problem)?)/i
-      ) ||
-      clause.match(
-        /\bmy\s+((?:left\s+|right\s+)?(?:shoulder|knee|wrist|lower back|back|elbow|ankle|neck|hip)s?\s+(?:hurts?|is\s+injured|is\s+sore|has\s+pain|is\s+recovering[^,.!]*))/i
-      ) ||
-      clause.match(/(?:เจ็บ|ปวด|บาดเจ็บที่)\s*(ไหล่|หัวเข่า|เข่า|ข้อมือ|หลัง|หลังส่วนล่าง|ข้อศอก|ข้อเท้า|คอ|สะโพก)([^,.!\n]{0,30})/);
-
-    if (injuryMatch && injuryMatch[1]) {
-      const detail = injuryMatch[2] ? `${injuryMatch[1]}${injuryMatch[2]}` : injuryMatch[1];
-      candidates.push({
-        category: 'injury_limitation',
-        content: `Physical limitation / injury: ${detail.trim()}`,
-        source: 'extractor',
-      });
-      continue;
-    }
-
-    // -------------------------------------------------------------------------
-    // 4. PERSONALITY, SCHEDULE & COACHING PREFERENCES (EN + TH)
-    // -------------------------------------------------------------------------
-    const personalityMatch =
-      clause.match(
-        /\bi\s+prefer\s+((?:morning|evening|night|short|quick|intense|strict|flexible|outdoor|home|gym)\s+(?:workouts?|training|sessions?|coaching)[^,.!]{0,30})/i
-      ) ||
-      clause.match(
-        /\bmy\s+personality\s+is\s+([^,.!]+)/i
-      ) ||
-      clause.match(
-        /\bplease\s+(?:be\s+more|talk\s+to\s+me)\s+(strict|direct|encouraging|supportive|concise|brief|humorous|motivating)\b/i
-      ) ||
-      clause.match(/(?:ชอบซ้อมตอน|ชอบออกกำลังกายตอน|นิสัยของฉันคือ|อยากให้โค้ชพูดแบบ)\s*([^,.!\n]+)/);
-
-    if (personalityMatch && personalityMatch[1]) {
-      const trait = personalityMatch[1].trim();
-      if (trait.length >= 2 && trait.length <= 80) {
-        candidates.push({
-          category: 'personality_style',
-          content: `Athlete preference / personality: ${trait}`,
-          source: 'extractor',
-        });
-      }
-    }
-  }
-
-  return candidates;
 }
 
 /**

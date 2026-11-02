@@ -25,6 +25,10 @@ import { ChatBubble } from '@/components/chat/ChatBubble';
 import { QuickPromptChips } from '@/components/chat/QuickPromptChips';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { ZeroCoachLogo } from '@/components/common/ZeroCoachLogo';
+import {
+  DomainMemoryPill,
+  DomainMemoryModal,
+} from '@/components/memory/DomainMemoryModal';
 import { useTranslation } from '@/i18n';
 import {
   Send,
@@ -59,6 +63,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
+  const [isPersonalizeMemoryOpen, setIsPersonalizeMemoryOpen] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null);
@@ -292,6 +297,17 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           </View>
 
           <View style={styles.headerRight}>
+            <DomainMemoryPill
+              categories={[
+                'workout_preference',
+                'food_preference',
+                'injury_limitation',
+                'personality_style',
+              ]}
+              label="Memory"
+              accentColor={modeColors.accent}
+              onPress={() => setIsPersonalizeMemoryOpen(true)}
+            />
             <TouchableOpacity
               onPress={clearHistory}
               style={styles.iconButton}
@@ -646,6 +662,22 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* Unified Coach Memory (Mem0 Layer) Modal */}
+        <DomainMemoryModal
+          visible={isPersonalizeMemoryOpen}
+          onClose={() => setIsPersonalizeMemoryOpen(false)}
+          categories={[
+            'workout_preference',
+            'food_preference',
+            'injury_limitation',
+            'personality_style',
+          ]}
+          title={t.settings.coachMemoryTitle}
+          subtitle={t.settings.coachMemoryDesc}
+          placeholder={t.settings.coachMemoryAddPlaceholder}
+          accentColor={modeColors.accent}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

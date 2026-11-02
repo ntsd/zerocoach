@@ -4,7 +4,10 @@ import { useNutritionStore } from '@/store/useNutritionStore';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useCoachStore } from '@/store/useCoachStore';
 import { useMemoryStore } from '@/store/useMemoryStore';
-import { normalizeMemoryCategory } from '@/services/memory/mem0Engine';
+import {
+  normalizeMemoryCategory,
+  inferCategoryFromContent,
+} from '@/services/memory/mem0Engine';
 import {
   searchUsdaFoods,
   searchOpenFoodFacts,
@@ -935,7 +938,15 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           };
         }
 
-        const category = normalizeMemoryCategory(args.category);
+        const rawCategory = args.category ? String(args.category).trim().toLowerCase() : '';
+        const isExactCategory =
+          rawCategory === 'food_preference' ||
+          rawCategory === 'workout_preference' ||
+          rawCategory === 'injury_limitation' ||
+          rawCategory === 'personality_style';
+        const category = isExactCategory
+          ? normalizeMemoryCategory(rawCategory)
+          : inferCategoryFromContent(`${rawCategory} ${content}`);
         const recResult = memoryStore.remember({
           category,
           content,

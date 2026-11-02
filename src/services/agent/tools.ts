@@ -531,7 +531,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: 'save_memory',
     description:
-      'Save or update a long-term memory about the athlete (e.g., favorite/disliked foods, allergies, favorite workout skills or exercises, injuries/limitations, or personality/coaching style preferences).',
+      'Save or update a long-term memory about the athlete whenever they ask you to memorize/remember something OR share personal facts: available workout equipment (e.g., pull-up bar, dumbbells, rings, home gym), favorite/disliked workout skills or exercises, favorite/disliked foods, allergies/diet, injuries/limitations, or personality/coaching style preferences.',
     domain: 'memory',
     access: 'write',
     parameters: {
@@ -546,17 +546,17 @@ export const AGENT_TOOLS: ToolDefinition[] = [
             'personality_style',
           ],
           description:
-            'Memory category: food_preference, workout_preference, injury_limitation, or personality_style.',
+            'Memory category: workout_preference (equipment, skills, exercises), food_preference (diet, favorite/disliked foods, allergies), injury_limitation (pain, injuries), or personality_style (tone, lifestyle, schedule).',
         },
         content: {
           type: 'string',
           description:
-            'Concise atomic fact to remember (e.g., "Favorite food: Grilled salmon & rice", "Favorite workout skill: Muscle-Up", "Left shoulder impingement").',
+            'Concise atomic fact to remember (e.g., "Available equipment: Pull-up bar", "Favorite workout skill: Muscle-Up", "Favorite food: Grilled salmon & rice", "Left shoulder impingement").',
         },
         topic: {
           type: 'string',
           description:
-            'Optional normalized subject key for deduplication (e.g. "favorite_food", "favorite_skill", "injury_shoulder").',
+            'Optional normalized subject key for deduplication (e.g. "equipment_pull_up_bar", "favorite_skill", "favorite_food", "injury_shoulder").',
         },
       },
       required: ['category', 'content'],

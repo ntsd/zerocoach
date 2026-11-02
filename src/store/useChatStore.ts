@@ -8,7 +8,6 @@ import { useTelemetryStore } from './useTelemetryStore';
 import { useNutritionStore } from './useNutritionStore';
 import { useWorkoutStore } from './useWorkoutStore';
 import { useMemoryStore } from './useMemoryStore';
-import { extractMemoriesFromMessage } from '@/services/memory/mem0Engine';
 import { buildSystemPrompt, buildCompactSystemPrompt } from '@/services/prompts/systemPromptBuilder';
 import { llmService } from '@/services/llm/llmService';
 import { useModelStore } from './useModelStore';
@@ -104,122 +103,8 @@ export const useChatStore = create<ChatState>()(
           loggedMealsCount: currentNutritionLog.foods.length,
         };
 
-        // Run fast local Mem0 fact extractor on user message so even compact on-device models capture explicit facts
-        const autoMemorySteps: AgentExecutionStep[] = [];
-        if (trimmed) {
-          const candidates = extractMemoriesFromMessage(trimmed);
-          const memStore = useMemoryStore.getState();
-          for (const candidate of candidates) {
-            const rec = memStore.remember(candidate);
-            if (rec.operation === 'ADD' || rec.operation === 'UPDATE' || rec.operation === 'DELETE') {
-              autoMemorySteps.push({
-                id: `step-mem-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                toolName: rec.operation === 'DELETE' ? 'remove_memory' : 'save_memory',
-                domain: 'memory',
-                access: 'write',
-                status: 'completed',
-                summary: `🧠 Memory (${rec.operation}): ${rec.summary}`,
-                timestamp: Date.now(),
-              });
-            }
-          }
-        }
-
         const latestMemories = useMemoryStore.getState().memories;
-
         const todayDate = new Date().toISOString().split('T')[0];
-        const workoutState = useWorkoutStore.getState();
-
-        // Fast natural-language workout scheduler handler (e.g. "today is a busy day I can't do workout", "skip rest day")
-        if (trimmed) {
-          const lowerMsg = trimmed.toLowerCase();
-          const isSkipRest =
-            /\b(skip\s+rest(\s+day)?|don'?t\s+want\s+to\s+rest|no\s+rest\s+today|train\s+instead\s+of\s+rest)\b/i.test(
-              lowerMsg
-            ) || /ข้ามวันพัก|ไม่อยากพักวันนี้/.test(lowerMsg);
-
-          const isSkipWorkout =
-            !isSkipRest &&
-            (/\b(busy\s+day|too\s+busy|can'?t\s+(?:do\s+)?(?:workout|train|exercise)|cannot\s+(?:do\s+)?(?:workout|train)|skip\s+(?:today'?s?\s+)?workout|take\s+a\s+rest\s+day\s+today|rest\s+today)\b/i.test(
-              lowerMsg
-            ) ||
-              /วันนี้ยุ่ง|ไม่ว่างออกกำลังกาย|ไม่ว่างซ้อม|ขอพักวันนี้|ข้ามวันซ้อม/.test(lowerMsg));
-
-          if (isSkipRest) {
-            const { newSplit } = workoutState.skipRestDay(todayDate);
-            autoMemorySteps.push({
-              id: `step-sched-${Date.now()}`,
-              toolName: 'manage_workout_schedule',
-              domain: 'workout_plan',
-              access: 'write',
-              status: 'completed',
-              summary: `📅 Skipped Rest Day — pulled ${newSplit.toUpperCase()} workout into today (${todayDate})`,
-              timestamp: Date.now(),
-            });
-          } else if (isSkipWorkout) {
-            const { skippedSplit, shiftedToDate } = workoutState.skipWorkoutDay(todayDate);
-            autoMemorySteps.push({
-              id: `step-sched-${Date.now()}`,
-              toolName: 'manage_workout_schedule',
-              domain: 'workout_plan',
-              access: 'write',
-              status: 'completed',
-              summary: `📅 Set today (${todayDate}) to Rest Day — shifted ${skippedSplit.toUpperCase()} workout to ${shiftedToDate}`,
-              timestamp: Date.now(),
-            });
-          } else {
-            // Check for explicit sequence definition (e.g. "set my cycle to pull, rest, rest, push, rest")
-            const mentionsCycleOrSequence =
-              /\b(cycle|sequence|rotation|schedule|split\s+order)\b/i.test(lowerMsg) ||
-              /ตารางซ้อม|ลำดับการซ้อม|รอบการซ้อม/.test(lowerMsg);
-            const dayMatches = lowerMsg.match(/\b(push|pull|legs|leg|cardio|rest)\b/gi);
-
-            if (mentionsCycleOrSequence && dayMatches && dayMatches.length >= 2) {
-              const normalizedSeq = dayMatches.map((tok) => {
-                const t = tok.toLowerCase();
-                return (t === 'leg' ? 'legs' : t) as any;
-              });
-              workoutState.setActiveCycle(normalizedSeq);
-              autoMemorySteps.push({
-                id: `step-sched-${Date.now()}`,
-                toolName: 'manage_workout_schedule',
-                domain: 'workout_plan',
-                access: 'write',
-                status: 'completed',
-                summary: `📅 Updated workout sequence: ${normalizedSeq.map((d) => d.toUpperCase()).join(' → ')}`,
-                timestamp: Date.now(),
-              });
-            } else {
-              const removeCycleMatch = lowerMsg.match(
-                /\bremove\s+(push|pull|legs|leg|cardio|rest)(?:\s+day)?(?:\s+from\s+(?:my\s+)?(?:cycle|schedule|split))?\b/i
-              );
-              if (removeCycleMatch && removeCycleMatch[1]) {
-                const rawDay = removeCycleMatch[1].toLowerCase();
-                const dayToRemove = (rawDay === 'leg' ? 'legs' : rawDay) as any;
-                const currentCycle = workoutState.activeCycle || [
-                  'push',
-                  'pull',
-                  'legs',
-                  'cardio',
-                  'rest',
-                ];
-                if (currentCycle.includes(dayToRemove) && currentCycle.length > 1) {
-                  const updated = workoutState.toggleCycleDayType(dayToRemove);
-                  autoMemorySteps.push({
-                    id: `step-sched-${Date.now()}`,
-                    toolName: 'manage_workout_schedule',
-                    domain: 'workout_plan',
-                    access: 'write',
-                    status: 'completed',
-                    summary: `📅 Removed ${dayToRemove.toUpperCase()} from cycle (${updated.map((d) => d.toUpperCase()).join(' → ')})`,
-                    timestamp: Date.now(),
-                  });
-                }
-              }
-            }
-          }
-        }
-
         const refreshedWorkoutState = useWorkoutStore.getState();
         const todayScheduledSplit = refreshedWorkoutState.getScheduledSplitForDate(todayDate);
         const todayPlan = refreshedWorkoutState.getPlanForDate(todayDate);
@@ -347,11 +232,6 @@ export const useChatStore = create<ChatState>()(
 
           console.log(`[useChatStore] Generation complete (${result.tokensGenerated} tokens, ${result.tokensPerSecond} t/s, ${result.steps.length} steps):\n${result.fullText}`);
 
-          const hasAgentMemoryStep = result.steps.some((s) => s.domain === 'memory');
-          const mergedSteps = hasAgentMemoryStep
-            ? result.steps
-            : [...autoMemorySteps, ...result.steps];
-
           const assistantMsg: ChatMessage = {
             id: `msg-asst-${Date.now()}`,
             role: 'assistant',
@@ -360,7 +240,7 @@ export const useChatStore = create<ChatState>()(
             readinessAtCreation: telemetryState.metrics.readinessScore,
             tokensGenerated: result.tokensGenerated,
             tokensPerSecond: result.tokensPerSecond,
-            executionSteps: mergedSteps.length > 0 ? mergedSteps : undefined,
+            executionSteps: result.steps.length > 0 ? result.steps : undefined,
           };
 
           set({

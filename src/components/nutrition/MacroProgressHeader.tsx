@@ -74,12 +74,12 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           />
         </View>
 
-        {/* 4 Macros Trackers */}
+        {/* 5 Macros Trackers */}
         <View style={styles.macroGrid}>
           {/* Protein */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>{t.nutrition.header.protein}</Text>
+              <Text style={styles.macroLabel} numberOfLines={1}>{t.nutrition.header.protein}</Text>
               <Text style={[styles.macroValue, { color: '#10B981' }]}>
                 {Math.round(summary.totalProtein)}g
               </Text>
@@ -98,7 +98,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           {/* Carbs */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>{t.nutrition.header.carbs}</Text>
+              <Text style={styles.macroLabel} numberOfLines={1}>{t.nutrition.header.carbs}</Text>
               <Text style={[styles.macroValue, { color: '#38BDF8' }]}>
                 {Math.round(summary.totalCarbs)}g
               </Text>
@@ -117,7 +117,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           {/* Fat */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>{t.nutrition.header.fat}</Text>
+              <Text style={styles.macroLabel} numberOfLines={1}>{t.nutrition.header.fat}</Text>
               <Text style={[styles.macroValue, { color: '#F59E0B' }]}>
                 {Math.round(summary.totalFat)}g
               </Text>
@@ -136,7 +136,7 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
           {/* Fiber */}
           <View style={styles.macroColumn}>
             <View style={styles.macroHeader}>
-              <Text style={styles.macroLabel}>{t.nutrition.scorecard.fiber}</Text>
+              <Text style={styles.macroLabel} numberOfLines={1}>{t.nutrition.scorecard.fiber}</Text>
               <Text style={[styles.macroValue, { color: '#A855F7' }]}>
                 {Math.round(summary.totalFiber)}g
               </Text>
@@ -151,6 +151,35 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
             </View>
             <Text style={styles.macroTargetSub}>/ {dailyLog.targetFiber}g</Text>
           </View>
+
+          {/* Sugar (Daily Max Ceiling — Less is Better) */}
+          {(() => {
+            const sugarColor =
+              summary.totalSugar > summary.sugarLimitGrams
+                ? '#EF4444'
+                : summary.totalSugar > summary.sugarLimitGrams * 0.65
+                ? '#F59E0B'
+                : '#10B981';
+            return (
+              <View style={styles.macroColumn}>
+                <View style={styles.macroHeader}>
+                  <Text style={styles.macroLabel} numberOfLines={1}>{t.nutrition.header.sugar}</Text>
+                  <Text style={[styles.macroValue, { color: sugarColor }]}>
+                    {Math.round(summary.totalSugar)}g
+                  </Text>
+                </View>
+                <View style={styles.miniBarTrack}>
+                  <View
+                    style={[
+                      styles.miniBarFill,
+                      { width: `${summary.sugarProgressPercent}%`, backgroundColor: sugarColor },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.macroTargetSub}>/ &lt;{summary.sugarLimitGrams}g</Text>
+              </View>
+            );
+          })()}
         </View>
       </GlassCard>
     </View>
@@ -257,28 +286,31 @@ const styles = StyleSheet.create({
   macroGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   macroColumn: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 10,
-    padding: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 7,
   },
   macroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 5,
+    gap: 2,
   },
   macroLabel: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    flexShrink: 1,
   },
   macroValue: {
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: '700',
   },
   miniBarTrack: {

@@ -385,6 +385,7 @@ export const TRANSLATIONS = {
         protein: 'PROTEIN',
         carbs: 'CARBS',
         fat: 'FAT',
+        sugar: 'SUGAR',
         calories: 'CALORIES',
       },
       scorecard: {
@@ -1203,6 +1204,7 @@ export const TRANSLATIONS = {
         protein: 'โปรตีน',
         carbs: 'คาร์บ',
         fat: 'ไขมัน',
+        sugar: 'น้ำตาล',
         calories: 'แคลอรี่',
       },
       scorecard: {

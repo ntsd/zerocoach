@@ -755,7 +755,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   <Text style={styles.calorieBigUnit}>kcal</Text>
                 </View>
 
-                {/* 4 Macros */}
+                {/* 5 Macros */}
                 <View style={styles.macrosFourRow}>
                   <View style={styles.macroMiniBox}>
                     <Text style={styles.macroMiniLabel}>{t.nutrition.header.protein}</Text>
@@ -779,6 +779,12 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     <Text style={styles.macroMiniLabel}>{t.nutrition.scorecard.fiber}</Text>
                     <Text style={[styles.macroMiniVal, { color: '#A855F7' }]}>
                       {dynamicNutrients.fiberGrams}g
+                    </Text>
+                  </View>
+                  <View style={styles.macroMiniBox}>
+                    <Text style={styles.macroMiniLabel}>{t.nutrition.header.sugar}</Text>
+                    <Text style={[styles.macroMiniVal, { color: '#FB7185' }]}>
+                      {dynamicNutrients.sugarGrams ?? 0}g
                     </Text>
                   </View>
                 </View>

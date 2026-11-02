@@ -240,10 +240,12 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
               carbsGrams: summary.totalCarbs,
               fatGrams: summary.totalFat,
               fiberGrams: summary.totalFiber,
+              sugarGrams: summary.totalSugar,
+              sugarLimitGrams: summary.sugarLimitGrams,
             },
             foods: compactFoods,
           },
-          summary: `Food history for ${targetDate}: ${summary.totalCalories} / ${dailyLog.targetCalories} kcal, ${summary.totalProtein}g protein logged (${compactFoods.length} items)`,
+          summary: `Food history for ${targetDate}: ${summary.totalCalories} / ${dailyLog.targetCalories} kcal, ${summary.totalProtein}g protein, ${summary.totalSugar}g sugar logged (${compactFoods.length} items)`,
         };
       }
 
@@ -261,6 +263,7 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
         const carbsGrams = Math.max(0, parseNumber(args.carbsGrams, 0));
         const fatGrams = Math.max(0, parseNumber(args.fatGrams, 0));
         const fiberGrams = Math.max(0, parseNumber(args.fiberGrams, 0));
+        const sugarGrams = Math.max(0, parseNumber(args.sugarGrams, 0));
         const foodName = args.name ? String(args.name).trim() : 'Logged Food';
 
         const foodItem: FoodItem = {
@@ -275,6 +278,7 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
             carbsGrams: Math.round((carbsGrams / consumedGrams) * 100 * 10) / 10,
             fatGrams: Math.round((fatGrams / consumedGrams) * 100 * 10) / 10,
             fiberGrams: Math.round((fiberGrams / consumedGrams) * 100 * 10) / 10,
+            sugarGrams: Math.round((sugarGrams / consumedGrams) * 100 * 10) / 10,
             vitaminA_mcg: 0,
             vitaminC_mg: 0,
             vitaminD_mcg: 0,

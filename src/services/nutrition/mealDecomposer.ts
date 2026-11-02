@@ -50,6 +50,7 @@ function scaleNutrients(nutrients100g: NutrientProfile, grams: number): Nutrient
     carbsGrams: Math.round(nutrients100g.carbsGrams * factor * 10) / 10,
     fatGrams: Math.round(nutrients100g.fatGrams * factor * 10) / 10,
     fiberGrams: Math.round(nutrients100g.fiberGrams * factor * 10) / 10,
+    sugarGrams: Math.round((nutrients100g.sugarGrams || 0) * factor * 10) / 10,
     vitaminA_mcg: Math.round(nutrients100g.vitaminA_mcg * factor),
     vitaminC_mg: Math.round(nutrients100g.vitaminC_mg * factor * 10) / 10,
     vitaminD_mcg: Math.round(nutrients100g.vitaminD_mcg * factor * 10) / 10,
@@ -72,6 +73,7 @@ function sumNutrients(profiles: NutrientProfile[]): NutrientProfile {
       carbsGrams: Math.round((acc.carbsGrams + curr.carbsGrams) * 10) / 10,
       fatGrams: Math.round((acc.fatGrams + curr.fatGrams) * 10) / 10,
       fiberGrams: Math.round((acc.fiberGrams + curr.fiberGrams) * 10) / 10,
+      sugarGrams: Math.round(((acc.sugarGrams || 0) + (curr.sugarGrams || 0)) * 10) / 10,
       vitaminA_mcg: acc.vitaminA_mcg + curr.vitaminA_mcg,
       vitaminC_mg: Math.round((acc.vitaminC_mg + curr.vitaminC_mg) * 10) / 10,
       vitaminD_mcg: Math.round((acc.vitaminD_mcg + curr.vitaminD_mcg) * 10) / 10,
@@ -90,6 +92,7 @@ function sumNutrients(profiles: NutrientProfile[]): NutrientProfile {
       carbsGrams: 0,
       fatGrams: 0,
       fiberGrams: 0,
+      sugarGrams: 0,
       vitaminA_mcg: 0,
       vitaminC_mg: 0,
       vitaminD_mcg: 0,
@@ -520,7 +523,8 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Fo
       "proteinGrams": <protein for this ingredient quantity>,
       "carbsGrams": <carbs for this ingredient quantity>,
       "fatGrams": <fat for this ingredient quantity>,
-      "fiberGrams": <fiber for this ingredient quantity>
+      "fiberGrams": <fiber for this ingredient quantity>,
+      "sugarGrams": <sugar for this ingredient quantity>
     }
   ]
 }`;
@@ -601,6 +605,7 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Fo
             carbsGrams: Math.round(((Number(ing.carbsGrams) || 0) * scale) * 10) / 10,
             fatGrams: Math.round(((Number(ing.fatGrams) || 0) * scale) * 10) / 10,
             fiberGrams: Math.round(((Number(ing.fiberGrams) || 0) * scale) * 10) / 10,
+            sugarGrams: Math.round(((Number(ing.sugarGrams) || 0) * scale) * 10) / 10,
             vitaminA_mcg: 0,
             vitaminC_mg: 0,
             vitaminD_mcg: 0,
@@ -638,6 +643,7 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Fo
                 carbsGrams: Math.round(ing.nutrients.carbsGrams * scale * 10) / 10,
                 fatGrams: Math.round(ing.nutrients.fatGrams * scale * 10) / 10,
                 fiberGrams: Math.round(ing.nutrients.fiberGrams * scale * 10) / 10,
+                sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * scale * 10) / 10,
                 vitaminA_mcg: 0,
                 vitaminC_mg: 0,
                 vitaminD_mcg: 0,

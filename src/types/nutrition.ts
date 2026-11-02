@@ -15,8 +15,9 @@ export type FoodCategory =
   | 'prepared_meal';
 
 export interface MicronutrientProfile {
-  // Fiber (grams)
+  // Fiber & Sugar (grams)
   fiberGrams: number;
+  sugarGrams?: number;
 
   // Key Vitamins
   vitaminA_mcg: number; // Retinol/Beta-Carotene (RDA ~900mcg)
@@ -86,6 +87,7 @@ export interface DailyNutritionLog {
   targetCarbs: number;
   targetFat: number;
   targetFiber: number;
+  targetSugar?: number;
   foods: LoggedFood[];
 }
 
@@ -95,6 +97,8 @@ export interface NutritionDailySummary {
   totalCarbs: number;
   totalFat: number;
   totalFiber: number;
+  totalSugar: number;
+  sugarLimitGrams: number;
   totalVitaminA_mcg: number;
   totalVitaminC_mg: number;
   totalVitaminD_mcg: number;
@@ -110,6 +114,7 @@ export interface NutritionDailySummary {
   carbsProgressPercent: number;
   fatProgressPercent: number;
   fiberProgressPercent: number;
+  sugarProgressPercent: number;
   remainingCalories: number;
   remainingProtein: number;
 }

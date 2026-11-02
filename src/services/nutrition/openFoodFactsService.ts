@@ -1,9 +1,74 @@
 import { FoodItem, NutrientProfile, FoodCategory } from '../../types/nutrition';
 import usdaWholeFoodsRaw from '../../data/usdaWholeFoods.json';
 
-// Cast USDA bundled items as FoodItem[]
+function estimateUsdaSugarPer100g(food: FoodItem): number {
+  const n = food.nutrientsPer100g;
+  if (typeof n.sugarGrams === 'number') return n.sugarGrams;
+
+  const carbs = n.carbsGrams || 0;
+  const fiber = n.fiberGrams || 0;
+  const netCarbs = Math.max(0, carbs - fiber);
+  if (netCarbs <= 0.5) return 0;
+
+  const id = (food.id || '').toLowerCase();
+  const name = (food.name || '').toLowerCase();
+  const cat = food.category;
+
+  // Exact staple whole food values (USDA FoodData Central per 100g)
+  if (id === 'usda-banana') return 12.2;
+  if (id === 'usda-apple') return 10.4;
+  if (id === 'usda-blueberries') return 10.0;
+  if (id === 'usda-avocado') return 0.7;
+  if (id === 'usda-sweet-potato-baked') return 4.2;
+  if (id === 'usda-bell-pepper-red') return 4.2;
+  if (id === 'usda-broccoli-steamed') return 1.4;
+  if (id === 'usda-spinach-raw') return 0.4;
+  if (id === 'usda-asparagus') return 1.3;
+  if (id === 'usda-marinara-sauce') return 5.0;
+  if (id === 'usda-milk-whole') return 5.0;
+  if (id === 'usda-greek-yogurt-0') return 3.2;
+  if (id === 'usda-cottage-cheese-lowfat') return 2.7;
+  if (id === 'usda-peanut-butter') return 3.2;
+  if (id === 'usda-almonds-raw') return 4.4;
+  if (id === 'usda-sourdough-bread') return 1.5;
+
+  if (cat === 'meat_poultry' || cat === 'fish_seafood') return 0;
+
+  if (cat === 'fruits') {
+    return Math.round(netCarbs * 0.72 * 10) / 10;
+  }
+
+  if (
+    /candy|candies|chocolate|caramel|icing|frosting|syrup|honey|jelly|jam|fruit leather|cookie|cake|pastry|sweet|sugar|soda|cola|juice/i.test(
+      name
+    )
+  ) {
+    return Math.round(netCarbs * 0.55 * 10) / 10;
+  }
+
+  if (/granola|cereal|muffin|waffle|pancake|yogurt|milk|sauce/i.test(name)) {
+    return Math.round(netCarbs * 0.25 * 10) / 10;
+  }
+
+  if (cat === 'vegetables') {
+    return Math.round(Math.min(netCarbs * 0.45, 5) * 10) / 10;
+  }
+
+  if (cat === 'eggs_dairy') {
+    return Math.round(Math.min(netCarbs * 0.8, 6) * 10) / 10;
+  }
+
+  // Plain grains, rice, pasta, oats, beans, savory crackers/chips
+  return Math.round(Math.min(netCarbs * 0.04, 2) * 10) / 10;
+}
+
+// Cast USDA bundled items as FoodItem[] with complete sugarGrams
 export const usdaWholeFoods: FoodItem[] = (usdaWholeFoodsRaw as unknown as FoodItem[]).map((f) => ({
   ...f,
+  nutrientsPer100g: {
+    ...f.nutrientsPer100g,
+    sugarGrams: estimateUsdaSugarPer100g(f),
+  },
   source: 'usda_bundled' as const,
   hasCompleteMicros: true,
 }));
@@ -39,6 +104,7 @@ function parseOffNutriments(nutriments: Record<string, any> = {}): NutrientProfi
   const carbsGrams = Number(nutriments['carbohydrates_100g'] ?? nutriments['carbohydrates'] ?? 0);
   const fatGrams = Number(nutriments['fat_100g'] ?? nutriments['fat'] ?? 0);
   const fiberGrams = Number(nutriments['fiber_100g'] ?? nutriments['fiber'] ?? 0);
+  const sugarGrams = Number(nutriments['sugars_100g'] ?? nutriments['sugars'] ?? 0);
 
   // Vitamins
   // Vitamin A (mcg)
@@ -90,6 +156,7 @@ function parseOffNutriments(nutriments: Record<string, any> = {}): NutrientProfi
     carbsGrams: Math.max(0, Math.round(carbsGrams * 10) / 10),
     fatGrams: Math.max(0, Math.round(fatGrams * 10) / 10),
     fiberGrams: Math.max(0, Math.round(fiberGrams * 10) / 10),
+    sugarGrams: Math.max(0, Math.round(sugarGrams * 10) / 10),
     vitaminA_mcg: Math.max(0, Math.round(vitaminA_mcg)),
     vitaminC_mg: Math.max(0, Math.round(vitaminC_mg * 10) / 10),
     vitaminD_mcg: Math.max(0, Math.round(vitaminD_mcg * 10) / 10),

@@ -27,6 +27,7 @@ export function calculateNutrientsForGrams(nutrientsPer100g: NutrientProfile, gr
     carbsGrams: Math.round(nutrientsPer100g.carbsGrams * ratio * 10) / 10,
     fatGrams: Math.round(nutrientsPer100g.fatGrams * ratio * 10) / 10,
     fiberGrams: Math.round(nutrientsPer100g.fiberGrams * ratio * 10) / 10,
+    sugarGrams: Math.round((nutrientsPer100g.sugarGrams || 0) * ratio * 10) / 10,
     vitaminA_mcg: Math.round(nutrientsPer100g.vitaminA_mcg * ratio),
     vitaminC_mg: Math.round(nutrientsPer100g.vitaminC_mg * ratio * 10) / 10,
     vitaminD_mcg: Math.round(nutrientsPer100g.vitaminD_mcg * ratio * 10) / 10,
@@ -201,6 +202,7 @@ export const useNutritionStore = create<NutritionState>()(
             carbsGrams: (item.nutrients.carbsGrams * 100) / baseGrams,
             fatGrams: (item.nutrients.fatGrams * 100) / baseGrams,
             fiberGrams: (item.nutrients.fiberGrams * 100) / baseGrams,
+            sugarGrams: ((item.nutrients.sugarGrams || 0) * 100) / baseGrams,
             vitaminA_mcg: (item.nutrients.vitaminA_mcg * 100) / baseGrams,
             vitaminC_mg: (item.nutrients.vitaminC_mg * 100) / baseGrams,
             vitaminD_mcg: (item.nutrients.vitaminD_mcg * 100) / baseGrams,
@@ -282,6 +284,7 @@ export const useNutritionStore = create<NutritionState>()(
         let totalCarbs = 0;
         let totalFat = 0;
         let totalFiber = 0;
+        let totalSugar = 0;
         let totalVitaminA_mcg = 0;
         let totalVitaminC_mg = 0;
         let totalVitaminD_mcg = 0;
@@ -299,6 +302,7 @@ export const useNutritionStore = create<NutritionState>()(
           totalCarbs += f.nutrients.carbsGrams;
           totalFat += f.nutrients.fatGrams;
           totalFiber += f.nutrients.fiberGrams;
+          totalSugar += f.nutrients.sugarGrams || 0;
           totalVitaminA_mcg += f.nutrients.vitaminA_mcg;
           totalVitaminC_mg += f.nutrients.vitaminC_mg;
           totalVitaminD_mcg += f.nutrients.vitaminD_mcg;
@@ -316,6 +320,7 @@ export const useNutritionStore = create<NutritionState>()(
         totalCarbs = Math.round(totalCarbs * 10) / 10;
         totalFat = Math.round(totalFat * 10) / 10;
         totalFiber = Math.round(totalFiber * 10) / 10;
+        totalSugar = Math.round(totalSugar * 10) / 10;
         totalVitaminA_mcg = Math.round(totalVitaminA_mcg);
         totalVitaminC_mg = Math.round(totalVitaminC_mg * 10) / 10;
         totalVitaminD_mcg = Math.round(totalVitaminD_mcg * 10) / 10;
@@ -327,11 +332,18 @@ export const useNutritionStore = create<NutritionState>()(
         totalSodium_mg = Math.round(totalSodium_mg);
         totalZinc_mg = Math.round(totalZinc_mg * 10) / 10;
 
+        // Dynamic daily sugar max ceiling scaled by body weight / calorie budget (~6% of daily calories, clamped 25g–50g)
+        const sugarLimitGrams =
+          log.targetSugar && log.targetSugar > 0
+            ? log.targetSugar
+            : Math.max(25, Math.min(50, Math.round((log.targetCalories * 0.06) / 4)));
+
         const calPct = log.targetCalories > 0 ? Math.min(100, Math.round((totalCalories / log.targetCalories) * 100)) : 0;
         const proPct = log.targetProtein > 0 ? Math.min(100, Math.round((totalProtein / log.targetProtein) * 100)) : 0;
         const carbPct = log.targetCarbs > 0 ? Math.min(100, Math.round((totalCarbs / log.targetCarbs) * 100)) : 0;
         const fatPct = log.targetFat > 0 ? Math.min(100, Math.round((totalFat / log.targetFat) * 100)) : 0;
         const fiberPct = log.targetFiber > 0 ? Math.min(100, Math.round((totalFiber / log.targetFiber) * 100)) : 0;
+        const sugarPct = sugarLimitGrams > 0 ? Math.min(100, Math.round((totalSugar / sugarLimitGrams) * 100)) : 0;
 
         return {
           totalCalories,
@@ -339,6 +351,8 @@ export const useNutritionStore = create<NutritionState>()(
           totalCarbs,
           totalFat,
           totalFiber,
+          totalSugar,
+          sugarLimitGrams,
           totalVitaminA_mcg,
           totalVitaminC_mg,
           totalVitaminD_mcg,
@@ -354,6 +368,7 @@ export const useNutritionStore = create<NutritionState>()(
           carbsProgressPercent: carbPct,
           fatProgressPercent: fatPct,
           fiberProgressPercent: fiberPct,
+          sugarProgressPercent: sugarPct,
           remainingCalories: Math.max(0, log.targetCalories - totalCalories),
           remainingProtein: Math.max(0, Math.round((log.targetProtein - totalProtein) * 10) / 10),
         };

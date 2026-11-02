@@ -58,6 +58,7 @@ export function buildFoodItemFromLabel(
     carbsGrams: Math.max(0, Math.round(data.carbsGrams * factor * 10) / 10),
     fatGrams: Math.max(0, Math.round(data.fatGrams * factor * 10) / 10),
     fiberGrams: Math.max(0, Math.round((data.fiberGrams || 0) * factor * 10) / 10),
+    sugarGrams: Math.max(0, Math.round((data.sugarsGrams || 0) * factor * 10) / 10),
     vitaminA_mcg: Math.round((data.vitaminAMcg || 0) * factor),
     vitaminC_mg: Math.round((data.vitaminCMg || 0) * factor * 10) / 10,
     vitaminD_mcg: Math.round((data.vitaminDMcg || 0) * factor * 10) / 10,

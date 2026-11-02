@@ -151,12 +151,9 @@ export const DomainMemoryModal: React.FC<DomainMemoryModalProps> = ({
               <View style={[styles.iconCircle, { backgroundColor: `${color}20` }]}>
                 <Brain size={16} color={color} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.superTitle}>MEM0 ATHLETE MEMORY</Text>
-                <Text style={styles.title} numberOfLines={1}>
-                  {title}
-                </Text>
-              </View>
+              <Text style={styles.title} numberOfLines={1}>
+                {title}
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -172,7 +169,12 @@ export const DomainMemoryModal: React.FC<DomainMemoryModalProps> = ({
 
           {/* Category Filter Chips (All + Categories) */}
           {categories.length > 1 && (
-            <View style={styles.catRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.catScroll}
+              contentContainerStyle={styles.catRow}
+            >
               <TouchableOpacity
                 onPress={() => setActiveFilter('all')}
                 activeOpacity={0.8}
@@ -185,6 +187,7 @@ export const DomainMemoryModal: React.FC<DomainMemoryModalProps> = ({
                 ]}
               >
                 <Text
+                  numberOfLines={1}
                   style={[
                     styles.catPillText,
                     activeFilter === 'all' && { color, fontWeight: '700' },
@@ -209,6 +212,7 @@ export const DomainMemoryModal: React.FC<DomainMemoryModalProps> = ({
                     ]}
                   >
                     <Text
+                      numberOfLines={1}
                       style={[
                         styles.catPillText,
                         isSelected && { color, fontWeight: '700' },
@@ -219,7 +223,7 @@ export const DomainMemoryModal: React.FC<DomainMemoryModalProps> = ({
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
           )}
 
           {/* Add New Memory Input Row */}
@@ -378,15 +382,19 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 16,
   },
+  catScroll: {
+    flexGrow: 0,
+  },
   catRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
+    paddingVertical: 2,
   },
   catPill: {
-    flex: 1,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    borderRadius: RADIUS.round,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',

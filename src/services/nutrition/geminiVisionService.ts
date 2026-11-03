@@ -50,7 +50,7 @@ export async function analyzeFoodWithGemini(
     'Analyze the food or beverage in this image. ' +
     hintClause +
     'Break down EVERY visible ingredient separately in the ingredients array (for composite dishes like sushi, rice bowls, burgers, pasta, or stir-fries, list each component separately, such as both the fish/meat topping AND the rice/noodles). ' +
-    'If a fork, spoon, chopsticks, or hand/thumb is visible next to the food, use it as a physical scale reference to calibrate the true portion size and gram weight of each ingredient. ' +
+    'If a fork, spoon, chopsticks, hand/thumb, or coin is visible next to the food, use it as a physical scale reference to calibrate the true portion size and gram weight of each ingredient. ' +
     'Estimate realistic COOKED/PREPARED portion weights in grams for each item. ' +
     'Return ONLY a valid JSON object with NO markdown backticks: ' +
     '{"dishTitle": "<Specific Dish Name>", "ingredients": [{"name": "<Component 1>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}, {"name": "<Component 2>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. ' +

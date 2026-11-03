@@ -351,7 +351,7 @@ export const TRANSLATIONS = {
       snapFoodDesc:
         'Take a photo of your meal. AI Vision will identify ingredients and portions.',
       snapScaleTip:
-        '💡 Tip: Place a fork/spoon or your hand next to the plate for more accurate weight estimation.',
+        '💡 Tip: Place a fork/spoon, hand, or coin next to the plate for more accurate weight estimation.',
       snapPlateBtn: 'Take Photo',
       uploadPhotoBtn: 'Upload Photo',
       retakeBtn: 'Retake',
@@ -1173,7 +1173,7 @@ export const TRANSLATIONS = {
       snapFoodDesc:
         'ถ่ายภาพอาหาร AI Vision จะระบุส่วนผสมและคำนวณสารอาหารหลักให้ทันที',
       snapScaleTip:
-        '💡 เคล็ดลับ: วางช้อน/ส้อม หรือเทียบมือข้างจานอาหาร เพื่อช่วยให้ AI กะน้ำหนักได้แม่นยำขึ้น',
+        '💡 เคล็ดลับ: วางช้อน/ส้อม เหรียญ หรือเทียบมือข้างจานอาหาร เพื่อช่วยให้ AI กะน้ำหนักได้แม่นยำขึ้น',
       snapPlateBtn: 'ถ่ายรูปอาหาร',
       uploadPhotoBtn: 'อัปโหลดรูป',
       retakeBtn: 'ถ่ายใหม่',

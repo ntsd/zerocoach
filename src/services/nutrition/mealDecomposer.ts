@@ -65,6 +65,34 @@ function scaleNutrients(nutrients100g: NutrientProfile, grams: number): Nutrient
   };
 }
 
+/**
+ * Normalizes total meal nutrients to a per-100g base with high precision on calories
+ * so that scaling back to `totalGrams` in the UI yields the exact `totalNutrients.calories`
+ * without integer rounding drift.
+ */
+function normalizeToPer100g(totalNutrients: NutrientProfile, totalGrams: number): NutrientProfile {
+  const factor = totalGrams > 0 ? 100 / totalGrams : 1;
+  return {
+    calories: Math.round(totalNutrients.calories * factor * 100) / 100,
+    proteinGrams: Math.round(totalNutrients.proteinGrams * factor * 100) / 100,
+    carbsGrams: Math.round(totalNutrients.carbsGrams * factor * 100) / 100,
+    fatGrams: Math.round(totalNutrients.fatGrams * factor * 100) / 100,
+    fiberGrams: Math.round(totalNutrients.fiberGrams * factor * 100) / 100,
+    sugarGrams: Math.round((totalNutrients.sugarGrams || 0) * factor * 100) / 100,
+    vitaminA_mcg: Math.round(totalNutrients.vitaminA_mcg * factor * 10) / 10,
+    vitaminC_mg: Math.round(totalNutrients.vitaminC_mg * factor * 10) / 10,
+    vitaminD_mcg: Math.round(totalNutrients.vitaminD_mcg * factor * 10) / 10,
+    vitaminB12_mcg: Math.round(totalNutrients.vitaminB12_mcg * factor * 100) / 100,
+    vitaminE_mg: Math.round(totalNutrients.vitaminE_mg * factor * 10) / 10,
+    iron_mg: Math.round(totalNutrients.iron_mg * factor * 10) / 10,
+    calcium_mg: Math.round(totalNutrients.calcium_mg * factor * 10) / 10,
+    magnesium_mg: Math.round(totalNutrients.magnesium_mg * factor * 10) / 10,
+    potassium_mg: Math.round(totalNutrients.potassium_mg * factor * 10) / 10,
+    sodium_mg: Math.round(totalNutrients.sodium_mg * factor * 10) / 10,
+    zinc_mg: Math.round(totalNutrients.zinc_mg * factor * 10) / 10,
+  };
+}
+
 function sumNutrients(profiles: NutrientProfile[]): NutrientProfile {
   return profiles.reduce(
     (acc, curr) => ({
@@ -451,7 +479,7 @@ export function decomposeMealText(inputText: string): MealDecompositionResult {
   const totalNutrients = sumNutrients(ingredients.map((i) => i.nutrients));
 
   // Compute nutrients normalized per 100g for FoodItem representation
-  const nutrientsPer100g = scaleNutrients(totalNutrients, totalGrams > 0 ? (100 / totalGrams) * 100 : 100);
+  const nutrientsPer100g = normalizeToPer100g(totalNutrients, totalGrams);
 
   const dishTitle =
     ingredients.length === 1 && ingredients[0].matchedFoodItem
@@ -481,8 +509,232 @@ export function decomposeMealText(inputText: string): MealDecompositionResult {
 }
 
 /**
- * Decomposes meal descriptions using Gemma 4 E2B on-device model,
- * with graceful fallback to USDA whole food heuristics.
+ * Extracts a single total meal weight ONLY when the text is a single dish with at most 1 weight mention
+ * (never when multiple ingredients each have their own weights like "180g chicken, 150g rice").
+ */
+function extractSingleTotalWeight(text: string): number | null {
+  if (!text) return null;
+  const chunks = text
+    .split(/,|\band\b|\bwith\b|\+|\&/gi)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (chunks.length > 1) {
+    return null;
+  }
+  const allWeightMatches = text.match(/\b\d+(?:\.\d+)?\s*(?:g|gm|gram|grams|kg|kilo|oz|ounce|ounces|lb|lbs|pound|pounds)\b/gi);
+  if (allWeightMatches && allWeightMatches.length > 1) {
+    return null;
+  }
+  return extractExplicitWeight(text);
+}
+
+/**
+ * Builds a verified `MealDecompositionResult` directly from Vision AI or Text AI JSON output.
+ * Trusts the AI's cooked portion weights and cooked calories/macros instead of overwriting
+ * them with fuzzy USDA keyword matches.
+ */
+export function buildDecompositionFromAiJson(
+  parsed: any,
+  fallbackTitle = 'Analyzed Meal',
+  userHintText?: string
+): MealDecompositionResult | null {
+  if (!parsed || !Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) {
+    return null;
+  }
+
+  const hintClean = (userHintText || '').trim();
+  const singleExplicitTotalWeight = extractSingleTotalWeight(hintClean);
+  const inputChunks = hintClean
+    ? hintClean
+        .split(/,|\band\b|\bwith\b|\+|\&/gi)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  const ingredients: DecomposedIngredient[] = parsed.ingredients.map((ing: any) => {
+    const rawAiGrams = Math.max(1, Number(ing.quantityGrams) || Number(ing.grams) || Number(ing.weightGrams) || 100);
+    let quantityGrams = rawAiGrams;
+    const rawIngName = String(ing.name || ing.ingredient || 'Food Item').trim();
+    // Clean redundant "(180g)" suffix from display name if AI included it
+    const cleanIngName = rawIngName.replace(/\s*\(\s*\d+(?:\.\d+)?\s*g\s*\)\s*$/i, '').trim() || rawIngName;
+
+    // If user hint explicitly specified a weight for this specific chunk, honor it
+    if (inputChunks.length > 0) {
+      const matchingChunk = inputChunks.find((c) => {
+        const cLower = c.toLowerCase();
+        const ingLower = cleanIngName.toLowerCase();
+        return (
+          cLower.includes(ingLower) ||
+          ingLower.includes(cLower) ||
+          ingLower.split(/\s+/).some((w) => w.length > 3 && cLower.includes(w))
+        );
+      });
+      if (matchingChunk) {
+        const chunkWeight = extractExplicitWeight(matchingChunk);
+        if (chunkWeight !== null && chunkWeight > 0) {
+          quantityGrams = chunkWeight;
+        }
+      }
+    }
+
+    const scale = rawAiGrams > 0 ? quantityGrams / rawAiGrams : 1;
+
+    const proteinGrams = Math.max(0, Math.round(((Number(ing.proteinGrams ?? ing.protein) || 0) * scale) * 10) / 10);
+    const carbsGrams = Math.max(0, Math.round(((Number(ing.carbsGrams ?? ing.carbs) || 0) * scale) * 10) / 10);
+    const fatGrams = Math.max(0, Math.round(((Number(ing.fatGrams ?? ing.fat) || 0) * scale) * 10) / 10);
+    const fiberGrams = Math.max(0, Math.round(((Number(ing.fiberGrams ?? ing.fiber) || 0) * scale) * 10) / 10);
+    const sugarGrams = Math.max(0, Math.round(((Number(ing.sugarGrams ?? ing.sugar) || 0) * scale) * 10) / 10);
+
+    let calories = Math.max(0, Math.round((Number(ing.calories ?? ing.kcal) || 0) * scale));
+    const macroDerivedCals = Math.round(proteinGrams * 4 + carbsGrams * 4 + fatGrams * 9);
+
+    // Sanity check: if AI returned 0 calories or a number wildly inconsistent with macros, derive from macros
+    if (macroDerivedCals > 0) {
+      if (calories <= 0 || calories > macroDerivedCals * 1.8 || calories < macroDerivedCals * 0.5) {
+        calories = macroDerivedCals;
+      }
+    }
+
+    const nutrients: NutrientProfile = {
+      calories,
+      proteinGrams,
+      carbsGrams,
+      fatGrams,
+      fiberGrams,
+      sugarGrams,
+      vitaminA_mcg: 0,
+      vitaminC_mg: 0,
+      vitaminD_mcg: 0,
+      vitaminB12_mcg: 0,
+      vitaminE_mg: 0,
+      iron_mg: 0,
+      calcium_mg: 0,
+      magnesium_mg: 0,
+      potassium_mg: 0,
+      sodium_mg: 0,
+      zinc_mg: 0,
+    };
+
+    return {
+      name: cleanIngName,
+      quantityGrams: Math.round(quantityGrams),
+      nutrients,
+    };
+  });
+
+  // If the user explicitly typed a single total weight for a single-ingredient meal (e.g. "steak 250g"), enforce it
+  if (singleExplicitTotalWeight !== null && ingredients.length === 1) {
+    const ing = ingredients[0];
+    if (ing.quantityGrams !== singleExplicitTotalWeight && ing.quantityGrams > 0) {
+      const scale = singleExplicitTotalWeight / ing.quantityGrams;
+      ing.quantityGrams = singleExplicitTotalWeight;
+      ing.nutrients = {
+        ...ing.nutrients,
+        calories: Math.round(ing.nutrients.calories * scale),
+        proteinGrams: Math.round(ing.nutrients.proteinGrams * scale * 10) / 10,
+        carbsGrams: Math.round(ing.nutrients.carbsGrams * scale * 10) / 10,
+        fatGrams: Math.round(ing.nutrients.fatGrams * scale * 10) / 10,
+        fiberGrams: Math.round(ing.nutrients.fiberGrams * scale * 10) / 10,
+        sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * scale * 10) / 10,
+      };
+    }
+  }
+
+  const calculatedGrams = Math.round(ingredients.reduce((sum, item) => sum + item.quantityGrams, 0));
+  const totalGrams = calculatedGrams > 0 ? calculatedGrams : Math.max(10, Number(parsed.totalGrams) || 100);
+  const totalNutrients = sumNutrients(ingredients.map((i) => i.nutrients));
+  const nutrientsPer100g = normalizeToPer100g(totalNutrients, totalGrams);
+
+  const rawDishTitle = String(parsed.dishTitle || fallbackTitle || 'Analyzed Meal').trim();
+  const dishTitle = rawDishTitle.length > 50 ? rawDishTitle.slice(0, 47) + '...' : rawDishTitle;
+
+  const asFoodItem: FoodItem = {
+    id: `ai_meal_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+    name: dishTitle,
+    category: 'prepared_meal',
+    servingSizeGrams: totalGrams,
+    servingUnitName: `1 meal (${totalGrams}g)`,
+    nutrientsPer100g,
+    source: 'ai_decomposed',
+    hasCompleteMicros: false,
+  };
+
+  return {
+    dishTitle,
+    ingredients,
+    totalGrams,
+    totalNutrients,
+    asFoodItem,
+  };
+}
+
+/**
+ * Recomputes a `MealDecompositionResult` when the user edits an individual ingredient's weight
+ * or removes an ingredient in the Review modal.
+ */
+export function recomputeDecompositionWithUpdatedIngredients(
+  prev: MealDecompositionResult,
+  updatedIngredients: DecomposedIngredient[]
+): MealDecompositionResult {
+  const totalGrams = Math.max(
+    1,
+    Math.round(updatedIngredients.reduce((sum, item) => sum + item.quantityGrams, 0))
+  );
+  const totalNutrients = sumNutrients(updatedIngredients.map((i) => i.nutrients));
+  const nutrientsPer100g = normalizeToPer100g(totalNutrients, totalGrams);
+
+  const asFoodItem: FoodItem = {
+    ...prev.asFoodItem,
+    servingSizeGrams: totalGrams,
+    servingUnitName: `1 meal (${totalGrams}g)`,
+    nutrientsPer100g,
+  };
+
+  return {
+    ...prev,
+    ingredients: updatedIngredients,
+    totalGrams,
+    totalNutrients,
+    asFoodItem,
+  };
+}
+
+/**
+ * Parses a raw Vision AI response (JSON or fallback text) into a `MealDecompositionResult`.
+ */
+export function parseVisionMealResponse(
+  rawVisionOutput: string,
+  userHintText?: string
+): MealDecompositionResult | null {
+  if (!rawVisionOutput) return null;
+  const cleaned = rawVisionOutput
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed && parsed.error === 'UNIDENTIFIED') {
+        return null;
+      }
+      const decomp = buildDecompositionFromAiJson(parsed, 'Scanned Meal', userHintText);
+      if (decomp) {
+        return decomp;
+      }
+    } catch (e) {
+      console.warn('[MealDecomposer] Failed to parse vision JSON directly:', e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Decomposes meal descriptions using on-device AI or active cloud LLM,
+ * trusting the AI's realistic cooked weights and calories/macros.
  */
 export async function decomposeMealWithGemma(
   inputText: string
@@ -492,39 +744,35 @@ export async function decomposeMealWithGemma(
     return decomposeMealText('Prepared Meal');
   }
 
-  // FAST-PATH: If all components directly match bundled USDA foods with complete confidence,
-  // return the USDA decomposition immediately (< 5ms, 0 battery, no hallucination, exact micros).
-  const directDecomp = decomposeMealText(clean);
-  const allMatched =
-    directDecomp.ingredients.length > 0 &&
-    directDecomp.ingredients.every((i) => !!i.matchedFoodItem);
-
-  if (allMatched) {
-    return directDecomp;
+  // If the input is already JSON from a vision model, parse it directly
+  const directVisionDecomp = parseVisionMealResponse(clean);
+  if (directVisionDecomp) {
+    return directVisionDecomp;
   }
 
   try {
-    const explicitWeight = extractExplicitWeight(clean);
-    const weightHint = explicitWeight
-      ? `CRITICAL INSTRUCTION: The user explicitly stated an exact portion weight of ${explicitWeight}g. You MUST set "totalGrams": ${explicitWeight} and ensure the sum of ingredient quantityGrams equals ${explicitWeight}g.`
-      : 'Estimate the weight in grams realistically based on standard portion sizes.';
+    const singleExplicitWeight = extractSingleTotalWeight(clean);
+    const weightHint = singleExplicitWeight
+      ? `The user specified a portion weight of ${singleExplicitWeight}g. Use ${singleExplicitWeight}g as the total meal weight.`
+      : 'Estimate realistic COOKED/PREPARED portion weights in grams for each item (do NOT use raw dry grain/pasta weights or raw dry calories).';
 
-    const prompt = `You are ZeroCoach, an on-device sports nutrition AI. Analyze this meal description: "${clean}".
+    const prompt = `You are ZeroCoach, an expert sports nutritionist. Analyze this meal description: "${clean}".
 ${weightHint}
-Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Follow this exact structure:
+Calculate accurate COOKED calories and macronutrients for the exact gram weight of each ingredient (verify that calories ≈ 4*proteinGrams + 4*carbsGrams + 9*fatGrams).
+Return ONLY a valid JSON object with NO markdown formatting and NO backticks:
 {
-  "dishTitle": "<Dish name>",
-  "totalGrams": <number representing total weight in grams>,
+  "dishTitle": "<Concise Dish Title>",
+  "totalGrams": <sum of all ingredient quantityGrams>,
   "ingredients": [
     {
       "name": "<Ingredient name>",
-      "quantityGrams": <weight of this ingredient in grams>,
-      "calories": <calories for this ingredient quantity>,
-      "proteinGrams": <protein for this ingredient quantity>,
-      "carbsGrams": <carbs for this ingredient quantity>,
-      "fatGrams": <fat for this ingredient quantity>,
-      "fiberGrams": <fiber for this ingredient quantity>,
-      "sugarGrams": <sugar for this ingredient quantity>
+      "quantityGrams": <cooked weight in grams>,
+      "calories": <calories for this quantityGrams>,
+      "proteinGrams": <protein in grams>,
+      "carbsGrams": <carbs in grams>,
+      "fatGrams": <fat in grams>,
+      "fiberGrams": <fiber in grams>,
+      "sugarGrams": <sugar in grams>
     }
   ]
 }`;
@@ -533,10 +781,10 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Fo
     const res = await llmService.streamCompletion(
       {
         systemPrompt:
-          'You are ZeroCoach, an athletic coach and nutritionist. Always output valid JSON strictly following the schema without markdown or conversational filler.',
+          'You are ZeroCoach, an athletic coach and clinical sports nutritionist. Always output valid JSON strictly following the schema without markdown or conversational filler.',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
-        maxTokens: 350,
+        maxTokens: 450,
       },
       (token) => {
         fullOutput += token;
@@ -544,163 +792,14 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks. Fo
     );
 
     const rawText = (fullOutput || res.fullText || '').trim();
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
-        // Split clean user text into chunks to cross-reference explicit weights per chunk
-        const inputChunks = clean
-          .split(/,|\band\b|\bwith\b|\+|\&/gi)
-          .map((s) => s.trim())
-          .filter(Boolean);
-
-        const ingredients: DecomposedIngredient[] = parsed.ingredients.map((ing: any) => {
-          let quantityGrams = Number(ing.quantityGrams) || 100;
-          const ingName = String(ing.name || 'Ingredient');
-
-          // Check if ingredient name contains explicit weight (e.g. "Steak 250g")
-          const ingExplicitWeight = extractExplicitWeight(ingName);
-          if (ingExplicitWeight !== null) {
-            quantityGrams = ingExplicitWeight;
-          } else {
-            // Check if one of the user's input chunks matches this ingredient and had an explicit weight
-            const matchingChunk = inputChunks.find((c) => {
-              const cLower = c.toLowerCase();
-              const ingLower = ingName.toLowerCase();
-              return (
-                cLower.includes(ingLower) ||
-                ingLower.includes(cLower) ||
-                ingLower.split(/\s+/).some((w) => w.length > 3 && cLower.includes(w))
-              );
-            });
-            if (matchingChunk) {
-              const chunkWeight = extractExplicitWeight(matchingChunk);
-              if (chunkWeight !== null) {
-                quantityGrams = chunkWeight;
-              }
-            }
-          }
-
-          // Check if we can match against USDA whole foods database for lab-verified micro/macronutrients
-          const usdaMatch = matchIngredientToUsda(ingName) || matchIngredientToUsda(clean);
-          let nutrients: NutrientProfile;
-
-          if (usdaMatch) {
-            nutrients = scaleNutrients(usdaMatch.food.nutrientsPer100g, quantityGrams);
-            return {
-              name: `${usdaMatch.food.name} (${Math.round(quantityGrams)}g)`,
-              matchedFoodItem: usdaMatch.food,
-              quantityGrams,
-              nutrients,
-            };
-          }
-
-          // Otherwise use model's estimated nutrients scaled to quantityGrams
-          const rawGrams = Number(ing.quantityGrams) || 100;
-          const scale = rawGrams > 0 ? quantityGrams / rawGrams : 1;
-
-          nutrients = {
-            calories: Math.round((Number(ing.calories) || 0) * scale),
-            proteinGrams: Math.round(((Number(ing.proteinGrams) || 0) * scale) * 10) / 10,
-            carbsGrams: Math.round(((Number(ing.carbsGrams) || 0) * scale) * 10) / 10,
-            fatGrams: Math.round(((Number(ing.fatGrams) || 0) * scale) * 10) / 10,
-            fiberGrams: Math.round(((Number(ing.fiberGrams) || 0) * scale) * 10) / 10,
-            sugarGrams: Math.round(((Number(ing.sugarGrams) || 0) * scale) * 10) / 10,
-            vitaminA_mcg: 0,
-            vitaminC_mg: 0,
-            vitaminD_mcg: 0,
-            vitaminB12_mcg: 0,
-            vitaminE_mg: 0,
-            iron_mg: 0,
-            calcium_mg: 0,
-            magnesium_mg: 0,
-            potassium_mg: 0,
-            sodium_mg: 0,
-            zinc_mg: 0,
-          };
-
-          return {
-            name: ingName,
-            quantityGrams,
-            nutrients,
-          };
-        });
-
-        // If the user's input specified an explicit weight and there is only 1 ingredient (e.g. "steak 250g"),
-        // strictly enforce that user weight even if the model hallucinated a default portion.
-        if (explicitWeight !== null && ingredients.length === 1) {
-          const ing = ingredients[0];
-          if (ing.quantityGrams !== explicitWeight) {
-            const scale = ing.quantityGrams > 0 ? explicitWeight / ing.quantityGrams : 1;
-            ing.quantityGrams = explicitWeight;
-            if (ing.matchedFoodItem) {
-              ing.nutrients = scaleNutrients(ing.matchedFoodItem.nutrientsPer100g, explicitWeight);
-              ing.name = `${ing.matchedFoodItem.name} (${Math.round(explicitWeight)}g)`;
-            } else {
-              ing.nutrients = {
-                calories: Math.round(ing.nutrients.calories * scale),
-                proteinGrams: Math.round(ing.nutrients.proteinGrams * scale * 10) / 10,
-                carbsGrams: Math.round(ing.nutrients.carbsGrams * scale * 10) / 10,
-                fatGrams: Math.round(ing.nutrients.fatGrams * scale * 10) / 10,
-                fiberGrams: Math.round(ing.nutrients.fiberGrams * scale * 10) / 10,
-                sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * scale * 10) / 10,
-                vitaminA_mcg: 0,
-                vitaminC_mg: 0,
-                vitaminD_mcg: 0,
-                vitaminB12_mcg: 0,
-                vitaminE_mg: 0,
-                iron_mg: 0,
-                calcium_mg: 0,
-                magnesium_mg: 0,
-                potassium_mg: 0,
-                sodium_mg: 0,
-                zinc_mg: 0,
-              };
-            }
-          }
-        }
-
-        const calculatedGrams = Math.round(ingredients.reduce((sum, item) => sum + item.quantityGrams, 0));
-        const totalGrams =
-          explicitWeight !== null && ingredients.length === 1
-            ? explicitWeight
-            : (calculatedGrams > 0 ? calculatedGrams : (Number(parsed.totalGrams) || 100));
-
-        const totalNutrients = sumNutrients(ingredients.map((i) => i.nutrients));
-        const nutrientsPer100g = scaleNutrients(
-          totalNutrients,
-          totalGrams > 0 ? (100 / totalGrams) * 100 : 100
-        );
-
-        const dishTitle =
-          String(parsed.dishTitle || clean).slice(0, 45);
-
-        const hasCompleteMicros = ingredients.some((i) => !!i.matchedFoodItem);
-
-        const asFoodItem: FoodItem = {
-          id: `gemma_meal_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-          name: dishTitle,
-          category: 'prepared_meal',
-          servingSizeGrams: totalGrams,
-          servingUnitName: `1 meal (${totalGrams}g)`,
-          nutrientsPer100g,
-          source: 'ai_decomposed',
-          hasCompleteMicros,
-        };
-
-        return {
-          dishTitle,
-          ingredients,
-          totalGrams,
-          totalNutrients,
-          asFoodItem,
-        };
-      }
+    const aiDecomp = parseVisionMealResponse(rawText, clean);
+    if (aiDecomp) {
+      return aiDecomp;
     }
   } catch (err) {
-    console.warn('[GemmaMealDecomposer] Gemma inference error, falling back to USDA heuristics:', err);
+    console.warn('[GemmaMealDecomposer] AI inference error, falling back to USDA heuristics:', err);
   }
 
-  // Graceful fallback to bundled USDA database matcher
+  // Graceful fallback to bundled USDA database matcher only if LLM is offline/unavailable
   return decomposeMealText(clean);
 }

@@ -1,5 +1,10 @@
 import { Platform } from 'react-native';
-import { decomposeMealText, decomposeMealWithGemma, MealDecompositionResult } from './mealDecomposer';
+import {
+  decomposeMealText,
+  decomposeMealWithGemma,
+  parseVisionMealResponse,
+  MealDecompositionResult,
+} from './mealDecomposer';
 import { analyzeFoodWithGemini } from './geminiVisionService';
 import { OpenAICompatibleConfig } from '@/types/model';
 import { MealType } from '@/types/nutrition';
@@ -17,9 +22,15 @@ export interface PhotoAnalysisResponse {
   errorMessage?: string;
 }
 
+function formatIngredientsSummaryText(decomp: MealDecompositionResult): string {
+  return decomp.ingredients
+    .map((ing) => `${Math.round(ing.quantityGrams)}g ${ing.name}`)
+    .join(', ');
+}
+
 /**
  * Analyzes a meal photo using on-device Qwen 3 VL vision, Google Gemini Flash, or OpenAI vision.
- * Decomposes detected ingredients into macro nutrients.
+ * Uses single-pass Vision AI JSON estimation so cooked weights and calories come directly from the vision model.
  */
 export async function analyzeMealPhoto(
   photoUri: string,
@@ -29,18 +40,16 @@ export async function analyzeMealPhoto(
   userNotes?: string,
   explicitGeminiKey?: string
 ): Promise<PhotoAnalysisResponse> {
-  // If user already typed or selected notes, decompose their description directly
-  if (userNotes && userNotes.trim().length > 0) {
-    const decomposition = await decomposeMealWithGemma(userNotes.trim());
-    decomposition.asFoodItem.imageUrl = photoUri;
-    return {
-      canIdentify: true,
-      dishTitle: decomposition.dishTitle,
-      ingredientsText: userNotes.trim(),
-      decomposition,
-      source: 'user_prompt',
-    };
-  }
+  const hintClean = (userNotes || '').trim();
+  const visionPromptWithHint =
+    'Analyze the food or meal in this image. ' +
+    (hintClean
+      ? `USER CONTEXT / HINT: "${hintClean}". Honor any explicit portion weights, ingredients, or cooking details provided by the user. `
+      : '') +
+    'Estimate realistic COOKED portion weights in grams based on plate/bowl scale (standard dinner plate ~26cm; 1 cup cooked rice ~158g / ~205 kcal; 1 palm-sized cooked meat ~140-180g). ' +
+    'Return ONLY a valid JSON object with NO markdown formatting: ' +
+    '{"dishTitle": "<Dish Name>", "totalGrams": <total cooked grams>, "ingredients": [{"name": "<Ingredient>", "quantityGrams": <grams>, "calories": <kcal for this quantityGrams>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. ' +
+    'If no food is visible, return {"error": "UNIDENTIFIED"}.';
 
   // 1. Check for Local Multimodal Vision (Qwen 3 VL with mmproj)
   const isLocalVisionModel = Boolean(useModelStore.getState().currentModel?.mmprojDownloadUrl);
@@ -59,7 +68,11 @@ export async function analyzeMealPhoto(
   if (isLocalVisionModel && llmService.isMultimodalReady()) {
     try {
       console.log('[PhotoMealAnalyzer] Analyzing photo with on-device Qwen 3 VL vision...');
-      const visionOutput = await llmService.analyzeImageWithLocalVision(photoUri, undefined, base64Data);
+      const visionOutput = await llmService.analyzeImageWithLocalVision(
+        photoUri,
+        visionPromptWithHint,
+        base64Data
+      );
       console.log('[PhotoMealAnalyzer] Qwen 3 VL vision output:', visionOutput);
 
       if (
@@ -67,12 +80,13 @@ export async function analyzeMealPhoto(
         !visionOutput.toUpperCase().includes('UNIDENTIFIED') &&
         visionOutput.trim().length > 3
       ) {
-        const decomposition = await decomposeMealWithGemma(visionOutput.trim());
+        const directDecomp = parseVisionMealResponse(visionOutput.trim(), hintClean);
+        const decomposition = directDecomp || (await decomposeMealWithGemma(visionOutput.trim()));
         decomposition.asFoodItem.imageUrl = photoUri;
         return {
           canIdentify: true,
           dishTitle: decomposition.dishTitle,
-          ingredientsText: visionOutput.trim(),
+          ingredientsText: formatIngredientsSummaryText(decomposition),
           decomposition,
           source: 'local_vision',
         };
@@ -106,26 +120,33 @@ export async function analyzeMealPhoto(
       openAIConfig?.baseUrl?.includes('generativelanguage.googleapis.com') && openAIConfig.modelName
         ? openAIConfig.modelName.trim()
         : undefined;
-    const geminiResult = await analyzeFoodWithGemini(base64Data, geminiKey, preferredModel);
+    const geminiResult = await analyzeFoodWithGemini(
+      base64Data,
+      geminiKey,
+      preferredModel,
+      hintClean
+    );
     if (geminiResult.success && geminiResult.ingredientsText) {
       try {
-        const decomposition = await decomposeMealWithGemma(geminiResult.ingredientsText);
+        const directDecomp = parseVisionMealResponse(geminiResult.ingredientsText, hintClean);
+        const decomposition =
+          directDecomp || (await decomposeMealWithGemma(geminiResult.ingredientsText));
         decomposition.asFoodItem.imageUrl = photoUri;
         return {
           canIdentify: true,
           dishTitle: decomposition.dishTitle,
-          ingredientsText: geminiResult.ingredientsText,
+          ingredientsText: formatIngredientsSummaryText(decomposition),
           decomposition,
           source: 'gemini_vision',
         };
       } catch (decompErr) {
-        console.warn('[PhotoMealAnalyzer] Gemma decomposition fallback:', decompErr);
+        console.warn('[PhotoMealAnalyzer] Gemini decomposition fallback:', decompErr);
         const fallback = decomposeMealText(geminiResult.ingredientsText);
         fallback.asFoodItem.imageUrl = photoUri;
         return {
           canIdentify: true,
           dishTitle: fallback.dishTitle,
-          ingredientsText: geminiResult.ingredientsText,
+          ingredientsText: formatIngredientsSummaryText(fallback),
           decomposition: fallback,
           source: 'gemini_vision',
         };
@@ -175,14 +196,14 @@ export async function analyzeMealPhoto(
             {
               role: 'system',
               content:
-                'You are a clinical sports nutritionist. Identify the meal plate or food dish in the image. Return a single concise string listing the ingredients and realistic weights in grams, separated by commas (e.g., "180g grilled chicken breast, 150g jasmine rice, 80g steamed broccoli"). If no food is found, reply with "UNIDENTIFIED".',
+                'You are a clinical sports nutritionist and visual food portion estimator. Always output valid JSON with realistic cooked weights in grams and accurate cooked calories/macros (verify calories ≈ 4*proteinGrams + 4*carbsGrams + 9*fatGrams).',
             },
             {
               role: 'user',
               content: [
                 {
                   type: 'text',
-                  text: 'Identify this food plate and list ingredients with portion weights in grams:',
+                  text: visionPromptWithHint,
                 },
                 {
                   type: 'image_url',
@@ -191,7 +212,7 @@ export async function analyzeMealPhoto(
               ],
             },
           ],
-          max_tokens: 180,
+          max_tokens: 420,
         }),
       });
       clearTimeout(timeoutId);
@@ -200,12 +221,13 @@ export async function analyzeMealPhoto(
         const data = await response.json();
         const content = data.choices?.[0]?.message?.content?.trim();
         if (content && !content.toUpperCase().includes('UNIDENTIFIED') && content.length > 3) {
-          const decomposition = await decomposeMealWithGemma(content);
+          const directDecomp = parseVisionMealResponse(content, hintClean);
+          const decomposition = directDecomp || (await decomposeMealWithGemma(content));
           decomposition.asFoodItem.imageUrl = photoUri;
           return {
             canIdentify: true,
             dishTitle: decomposition.dishTitle,
-            ingredientsText: content,
+            ingredientsText: formatIngredientsSummaryText(decomposition),
             decomposition,
             source: 'openai_vision',
           };

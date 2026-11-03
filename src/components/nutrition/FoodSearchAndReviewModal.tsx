@@ -25,6 +25,7 @@ import {
 import {
   decomposeMealText,
   decomposeMealWithGemma,
+  recomputeDecompositionWithUpdatedIngredients,
   MealDecompositionResult,
 } from '../../services/nutrition/mealDecomposer';
 import { analyzeMealPhoto } from '../../services/nutrition/photoMealAnalyzer';
@@ -235,7 +236,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
         base64,
         openAIConfig,
         selectedMealType,
-        undefined,
+        nlpInput.trim() || undefined,
         geminiApiKey
       );
       if (analysis.canIdentify && analysis.decomposition) {
@@ -378,7 +379,31 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
     setPhotoAnalysisError(null);
 
     try {
-      // Text meal breakdown using on-device Gemma 2 AI
+      // If a photo is attached, re-analyze the photo with the user's text hint
+      if (capturedImageUri && capturedBase64) {
+        const openAIConfig = useModelStore.getState().openAIConfig;
+        const geminiApiKey = useModelStore.getState().geminiApiKey;
+        const photoResult = await analyzeMealPhoto(
+          capturedImageUri,
+          capturedBase64,
+          openAIConfig,
+          selectedMealType,
+          nlpInput.trim(),
+          geminiApiKey
+        );
+        if (photoResult.canIdentify && photoResult.decomposition) {
+          photoResult.decomposition.asFoodItem.imageUrl = capturedImageUri;
+          setDecompositionResult(photoResult.decomposition);
+          selectFoodForReview(
+            photoResult.decomposition.asFoodItem,
+            photoResult.decomposition.totalGrams,
+            photoResult.decomposition
+          );
+          return;
+        }
+      }
+
+      // Text meal breakdown using active AI
       const result = await decomposeMealWithGemma(nlpInput);
       if (capturedImageUri) {
         result.asFoodItem.imageUrl = capturedImageUri;
@@ -429,7 +454,46 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
   };
 
   const adjustGrams = (delta: number) => {
-    setConsumedGrams((prev) => Math.max(10, Math.min(1500, prev + delta)));
+    setConsumedGrams((prev) => Math.max(10, Math.min(2500, prev + delta)));
+  };
+
+  const adjustIngredientGrams = (ingIndex: number, deltaGrams: number) => {
+    if (!decompositionResult || !decompositionResult.ingredients[ingIndex]) return;
+
+    // First normalize current ingredients to the active `consumedGrams` scale if the user had scaled the total meal
+    const totalScale =
+      decompositionResult.totalGrams && decompositionResult.totalGrams > 0
+        ? consumedGrams / decompositionResult.totalGrams
+        : 1;
+
+    const updatedIngredients = decompositionResult.ingredients.map((ing, idx) => {
+      const currentIngGrams = Math.max(5, Math.round(ing.quantityGrams * totalScale));
+      const newGrams =
+        idx === ingIndex ? Math.max(5, Math.min(2000, currentIngGrams + deltaGrams)) : currentIngGrams;
+      const ratio = ing.quantityGrams > 0 ? newGrams / ing.quantityGrams : 1;
+
+      return {
+        ...ing,
+        quantityGrams: newGrams,
+        nutrients: {
+          ...ing.nutrients,
+          calories: Math.round(ing.nutrients.calories * ratio),
+          proteinGrams: Math.round(ing.nutrients.proteinGrams * ratio * 10) / 10,
+          carbsGrams: Math.round(ing.nutrients.carbsGrams * ratio * 10) / 10,
+          fatGrams: Math.round(ing.nutrients.fatGrams * ratio * 10) / 10,
+          fiberGrams: Math.round(ing.nutrients.fiberGrams * ratio * 10) / 10,
+          sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * ratio * 10) / 10,
+        },
+      };
+    });
+
+    const updatedDecomp = recomputeDecompositionWithUpdatedIngredients(
+      decompositionResult,
+      updatedIngredients
+    );
+    setDecompositionResult(updatedDecomp);
+    setReviewFood(updatedDecomp.asFoodItem);
+    setConsumedGrams(updatedDecomp.totalGrams);
   };
 
   const insets = useSafeAreaInsets();
@@ -522,7 +586,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                         {reviewFood.source === 'usda_bundled'
                           ? 'USDA Whole Food'
                           : reviewFood.source === 'ai_decomposed'
-                          ? 'AI Decomposed (USDA)'
+                          ? 'AI Nutrition Analysis'
                           : 'Open Food Facts'}
                       </Text>
                     </View>
@@ -549,8 +613,24 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   </TouchableOpacity>
 
                   <View style={styles.stepperDisplay}>
-                    <Text style={styles.stepperNumber}>{consumedGrams}</Text>
-                    <Text style={styles.stepperUnit}>g</Text>
+                    <TextInput
+                      style={styles.stepperNumberInput}
+                      value={String(consumedGrams)}
+                      keyboardType="numeric"
+                      selectTextOnFocus
+                      onChangeText={(txt) => {
+                        const cleanNum = parseInt(txt.replace(/[^0-9]/g, ''), 10);
+                        if (!isNaN(cleanNum) && cleanNum > 0) {
+                          setConsumedGrams(Math.min(3000, cleanNum));
+                        } else if (txt === '') {
+                          setConsumedGrams(0);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (consumedGrams < 5) setConsumedGrams(100);
+                      }}
+                    />
+                    <Text style={styles.stepperUnit}>g (tap to type)</Text>
                   </View>
 
                   <TouchableOpacity
@@ -726,7 +806,25 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                                     {isUsda ? t.nutrition.usdaVerifiedBadge : t.nutrition.aiEstimatedBadge}
                                   </Text>
                                 </View>
-                                <Text style={styles.ingredientGramsText}>{currentGrams}g</Text>
+
+                                {/* Editable Ingredient Gram Stepper */}
+                                <View style={styles.ingredientGramStepper}>
+                                  <TouchableOpacity
+                                    style={styles.ingredientStepBtn}
+                                    onPress={() => adjustIngredientGrams(idx, -20)}
+                                    activeOpacity={0.6}
+                                  >
+                                    <Minus size={11} color={COLORS.textPrimary} />
+                                  </TouchableOpacity>
+                                  <Text style={styles.ingredientGramsText}>{currentGrams}g</Text>
+                                  <TouchableOpacity
+                                    style={styles.ingredientStepBtn}
+                                    onPress={() => adjustIngredientGrams(idx, 20)}
+                                    activeOpacity={0.6}
+                                  >
+                                    <Plus size={11} color={COLORS.textPrimary} />
+                                  </TouchableOpacity>
+                                </View>
                               </View>
                             </View>
 
@@ -1981,6 +2079,17 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
   },
+  stepperNumberInput: {
+    color: COLORS.textPrimary,
+    fontSize: 26,
+    fontWeight: '800',
+    textAlign: 'center',
+    minWidth: 80,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 240, 255, 0.35)',
+  },
   stepperUnit: {
     color: COLORS.textMuted,
     fontSize: 11,
@@ -2954,8 +3063,29 @@ const styles = StyleSheet.create({
   },
   ingredientGramsText: {
     color: '#00F0FF',
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
+    minWidth: 38,
+    textAlign: 'center',
+  },
+  ingredientGramStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+  },
+  ingredientStepBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ingredientNutrientCol: {
     alignItems: 'flex-end',

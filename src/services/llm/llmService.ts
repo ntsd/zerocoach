@@ -85,16 +85,16 @@ export class LLMService {
 
     const userPrompt =
       prompt ||
-      'Identify the meal plate or food dish in the image. Return a single concise string listing the ingredients and realistic weights in grams, separated by commas (e.g., "180g grilled chicken breast, 150g jasmine rice, 80g steamed broccoli").';
+      'Analyze the food or meal in this image. Estimate realistic COOKED portion weights in grams based on plate/bowl scale (a standard dinner plate is ~26cm; 1 cup cooked rice is ~158g / ~205 kcal; 1 palm-sized cooked meat is ~140-180g). Return ONLY a valid JSON object with NO markdown formatting: {"dishTitle": "<Dish Name>", "totalGrams": <total cooked grams>, "ingredients": [{"name": "<Ingredient>", "quantityGrams": <grams>, "calories": <kcal for this quantityGrams>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. If no food is visible, return {"error": "UNIDENTIFIED"}.';
 
     const result = await this.nativeEngine.streamCompletion(
       {
         systemPrompt:
-          'You are a clinical sports nutritionist. Identify the meal plate or food dish in the image. Return ingredients with portion weights in grams.',
+          'You are a clinical sports nutritionist and visual portion estimator. Always output valid JSON with realistic cooked weights in grams and accurate cooked calories/macros (verify calories ≈ 4*proteinGrams + 4*carbsGrams + 9*fatGrams).',
         messages: [{ role: 'user', content: userPrompt }],
         mediaPaths: [mediaTarget],
-        temperature: 0.6,
-        maxTokens: 250,
+        temperature: 0.2,
+        maxTokens: 420,
       },
       () => {}
     );

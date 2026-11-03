@@ -23,7 +23,8 @@ const FALLBACK_VISION_MODELS = [
 export async function analyzeFoodWithGemini(
   base64Data: string,
   apiKey: string,
-  preferredModel?: string
+  preferredModel?: string,
+  userNotes?: string
 ): Promise<GeminiVisionResult> {
   const cleanKey = apiKey.trim();
   if (!cleanKey) {
@@ -39,13 +40,21 @@ export async function analyzeFoodWithGemini(
     ...FALLBACK_VISION_MODELS.filter((m) => m !== primaryModel),
   ];
 
+  const hintClause =
+    userNotes && userNotes.trim().length > 0
+      ? `USER HINT / CONTEXT: "${userNotes.trim()}". Honor any explicit portion weights, cooking methods, or ingredients mentioned by the user. `
+      : '';
+
   const prompt =
-    'You are an expert sports nutritionist and computer vision meal analyzer. ' +
-    'Analyze the food or meal in this image. Identify all visible ingredients, cooked dishes, fruits, vegetables, meats, grains, snacks, desserts, or drinks. ' +
-    'Estimate their realistic portion weights in grams based on visual appearance. ' +
-    'Return ONLY a single concise comma-separated string listing the ingredients and weights (e.g., "180g grilled chicken breast, 150g jasmine rice, 80g steamed broccoli" or "100g chocolate lava cake, 30g fresh strawberries, 20g berry compote"). ' +
-    'Do NOT include any conversational filler, preamble, markdown asterisks, or bullet points. ' +
-    'If no food or beverage is visible in the image, reply ONLY with "UNIDENTIFIED".';
+    'You are an expert sports nutritionist and visual food portion analyzer. ' +
+    'Analyze the food or beverage in this image. ' +
+    hintClause +
+    'Estimate realistic COOKED/PREPARED portion weights in grams based on visual plate/container scale ' +
+    '(e.g., standard dinner plate ~26cm; 1 cup cooked rice ~158g & ~205 kcal, never use raw dry grain calories; 1 palm-sized cooked chicken breast ~150g & ~250 kcal). ' +
+    'Calculate accurate calories and macronutrients for the exact quantityGrams of each item (verify calories ≈ 4*proteinGrams + 4*carbsGrams + 9*fatGrams). ' +
+    'Return ONLY a valid JSON object with NO markdown backticks: ' +
+    '{"dishTitle": "<Dish Name>", "totalGrams": <sum of ingredient quantityGrams>, "ingredients": [{"name": "<Ingredient>", "quantityGrams": <grams>, "calories": <kcal for this quantity>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. ' +
+    'If no food or beverage is visible in the image, reply ONLY with {"error": "UNIDENTIFIED"}.';
 
   let lastErrorMsg = 'Failed to analyze food with Gemini';
 
@@ -77,7 +86,7 @@ export async function analyzeFoodWithGemini(
           ],
           generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 220,
+            maxOutputTokens: 450,
           },
         }),
       });

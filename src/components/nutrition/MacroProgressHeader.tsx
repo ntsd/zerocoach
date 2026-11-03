@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { GlassCard } from '../common/GlassCard';
 import { DateNavigationBar } from '../common/DateNavigationBar';
-import { DailyNutritionLog, NutritionDailySummary } from '../../types/nutrition';
+import { DailyNutritionLog, NutritionDailySummary, DAILY_RDA_TARGETS } from '../../types/nutrition';
 import { useTranslation } from '../../i18n';
 import { COLORS } from '../../theme/colors';
 import { Flame, Target } from 'lucide-react-native';
@@ -158,8 +158,8 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
               summary.totalSugar > summary.sugarLimitGrams
                 ? '#EF4444'
                 : summary.totalSugar > summary.sugarLimitGrams * 0.65
-                ? '#F59E0B'
-                : '#10B981';
+                  ? '#F59E0B'
+                  : '#10B981';
             return (
               <View style={styles.macroColumn}>
                 <View style={styles.macroHeader}>
@@ -177,6 +177,37 @@ export const MacroProgressHeader: React.FC<MacroProgressHeaderProps> = ({
                   />
                 </View>
                 <Text style={styles.macroTargetSub}>/ &lt;{summary.sugarLimitGrams}g</Text>
+              </View>
+            );
+          })()}
+
+          {/* Sodium (Daily Limit — Less is Better) */}
+          {(() => {
+            const sodiumLimit = DAILY_RDA_TARGETS.sodium_mg_limit;
+            const sodiumPct = Math.min(100, Math.round((summary.totalSodium_mg / sodiumLimit) * 100));
+            const sodiumColor =
+              summary.totalSodium_mg > sodiumLimit
+                ? '#EF4444'
+                : summary.totalSodium_mg > sodiumLimit * 0.65
+                  ? '#F59E0B'
+                  : '#10B981';
+            return (
+              <View style={styles.macroColumn}>
+                <View style={styles.macroHeader}>
+                  <Text style={styles.macroLabel} numberOfLines={1}>{t.nutrition.header.sodium}</Text>
+                  <Text style={[styles.macroValue, { color: sodiumColor }]}>
+                    {Math.round(summary.totalSodium_mg)}mg
+                  </Text>
+                </View>
+                <View style={styles.miniBarTrack}>
+                  <View
+                    style={[
+                      styles.miniBarFill,
+                      { width: `${sodiumPct}%`, backgroundColor: sodiumColor },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.macroTargetSub}>/ &lt;{sodiumLimit}mg</Text>
               </View>
             );
           })()}
@@ -285,33 +316,35 @@ const styles = StyleSheet.create({
   },
   macroGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 8,
   },
   macroColumn: {
-    flex: 1,
+    width: '31%',
+    flexGrow: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
   },
   macroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 5,
-    gap: 2,
+    marginBottom: 6,
+    gap: 4,
   },
   macroLabel: {
     color: COLORS.textMuted,
-    fontSize: 8.5,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
     flexShrink: 1,
   },
   macroValue: {
-    fontSize: 11.5,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
   },
   miniBarTrack: {
     height: 4,
@@ -326,6 +359,6 @@ const styles = StyleSheet.create({
   },
   macroTargetSub: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: 10.5,
   },
 });

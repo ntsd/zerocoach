@@ -386,6 +386,7 @@ export const TRANSLATIONS = {
         carbs: 'CARBS',
         fat: 'FAT',
         sugar: 'SUGAR',
+        sodium: 'SODIUM',
         calories: 'CALORIES',
       },
       scorecard: {
@@ -1205,6 +1206,7 @@ export const TRANSLATIONS = {
         carbs: 'คาร์บ',
         fat: 'ไขมัน',
         sugar: 'น้ำตาล',
+        sodium: 'โซเดียม',
         calories: 'แคลอรี่',
       },
       scorecard: {

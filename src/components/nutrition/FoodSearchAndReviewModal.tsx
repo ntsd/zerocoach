@@ -853,7 +853,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                   <Text style={styles.calorieBigUnit}>kcal</Text>
                 </View>
 
-                {/* 5 Macros */}
+                {/* 6 Macros (2x3 Grid: Protein, Carbs, Fat, Fiber, Sugar, Sodium) */}
                 <View style={styles.macrosFourRow}>
                   <View style={styles.macroMiniBox}>
                     <Text style={styles.macroMiniLabel}>{t.nutrition.header.protein}</Text>
@@ -883,6 +883,12 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                     <Text style={styles.macroMiniLabel}>{t.nutrition.header.sugar}</Text>
                     <Text style={[styles.macroMiniVal, { color: '#FB7185' }]}>
                       {dynamicNutrients.sugarGrams ?? 0}g
+                    </Text>
+                  </View>
+                  <View style={styles.macroMiniBox}>
+                    <Text style={styles.macroMiniLabel}>{t.nutrition.header.sodium}</Text>
+                    <Text style={[styles.macroMiniVal, { color: '#06B6D4' }]}>
+                      {dynamicNutrients.sodium_mg ?? 0}mg
                     </Text>
                   </View>
                 </View>
@@ -2145,14 +2151,17 @@ const styles = StyleSheet.create({
   },
   macrosFourRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 14,
   },
   macroMiniBox: {
-    flex: 1,
+    width: '31%',
+    flexGrow: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 8,
     padding: 8,
+    alignItems: 'center',
   },
   macroMiniLabel: {
     color: COLORS.textMuted,

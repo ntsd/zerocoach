@@ -1192,6 +1192,11 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           </View>
                         )}
 
+                        {/* Scale Reference Tip (Fork/Spoon or Hand) */}
+                        <View style={styles.snapScaleTipBox}>
+                          <Text style={styles.snapScaleTipText}>{t.nutrition.snapScaleTip}</Text>
+                        </View>
+
                         {/* Camera & Gallery Action Buttons */}
                         <View style={styles.photoActionsRow}>
                           <TouchableOpacity
@@ -2262,6 +2267,21 @@ const styles = StyleSheet.create({
     color: '#00F0FF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  snapScaleTipBox: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  snapScaleTipText: {
+    color: '#A7F3D0',
+    fontSize: 11.5,
+    fontWeight: '600',
+    lineHeight: 16,
   },
   capturedPhotoCard: {
     borderRadius: 14,

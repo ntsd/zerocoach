@@ -13,6 +13,8 @@ export interface CompletionResult {
   tokensGenerated: number;
   tokensPerSecond: number;
   durationMs: number;
+  contextTokensUsed?: number;
+  contextMaxTokens?: number;
 }
 
 export interface LLMEngine {

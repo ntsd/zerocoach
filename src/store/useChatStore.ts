@@ -240,6 +240,8 @@ export const useChatStore = create<ChatState>()(
             readinessAtCreation: telemetryState.metrics.readinessScore,
             tokensGenerated: result.tokensGenerated,
             tokensPerSecond: result.tokensPerSecond,
+            contextTokensUsed: result.contextTokensUsed,
+            contextMaxTokens: result.contextMaxTokens,
             executionSteps: result.steps.length > 0 ? result.steps : undefined,
           };
 

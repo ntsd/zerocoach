@@ -60,9 +60,16 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
               {coachBadgeText}
             </Text>
           </View>
-          {message.tokensPerSecond ? (
-            <Text style={styles.tokSec}>
-              {message.tokensPerSecond} {t.coach.tokSecOnDevice}
+          {message.tokensPerSecond || message.contextTokensUsed ? (
+            <Text style={styles.tokSec} numberOfLines={1}>
+              {message.tokensPerSecond ? `${message.tokensPerSecond} ${t.coach.tokSecOnDevice}` : ''}
+              {message.tokensPerSecond && message.contextTokensUsed ? ' • ' : ''}
+              {message.contextTokensUsed && message.contextMaxTokens
+                ? `${message.contextTokensUsed.toLocaleString()} / ${message.contextMaxTokens.toLocaleString()} ctx (${Math.min(
+                    100,
+                    Math.round((message.contextTokensUsed / message.contextMaxTokens) * 100)
+                  )}%)`
+                : ''}
             </Text>
           ) : null}
         </View>

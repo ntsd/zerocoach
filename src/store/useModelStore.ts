@@ -25,7 +25,7 @@ export const QWEN3_VL_2B_MODEL: ModelMetadata = {
   mmprojSizeBytes: 445053216,
   mmprojSizeFormatted: '445 MB',
   isFineTuned: false,
-  contextLength: 2048,
+  contextLength: 4096,
 };
 
 export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
@@ -39,7 +39,7 @@ export const ZEROCOACH_ATHLETIC_MODEL: ModelMetadata = {
   fallbackDownloadUrl:
     'https://zerocoach.tech/models/zerocoach-athletic-qwen3-1.7b-q4_k_m.gguf',
   isFineTuned: true,
-  contextLength: 2048,
+  contextLength: 4096,
 };
 
 export const QWEN_3_INSTRUCT_MODEL: ModelMetadata = {

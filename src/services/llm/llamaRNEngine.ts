@@ -315,12 +315,23 @@ export class LlamaRNEngine implements LLMEngine {
 
       const durationMs = Math.max(1, Date.now() - startTime);
       const tokensPerSecond = Number(((tokenCount / durationMs) * 1000).toFixed(1));
+      const estimatedPromptTokens = Math.max(1, Math.round(fullPrompt.length / 3.5));
+      const evaluatedOrCached =
+        Number(result?.tokens_cached) ||
+        (Number(result?.tokens_evaluated) || estimatedPromptTokens) + tokenCount;
+      const contextMaxTokens = 4096;
+      const contextTokensUsed = Math.min(
+        contextMaxTokens,
+        Math.max(tokenCount, evaluatedOrCached)
+      );
 
       return {
         fullText: result?.text || accumulatedText,
         tokensGenerated: tokenCount,
         tokensPerSecond,
         durationMs,
+        contextTokensUsed,
+        contextMaxTokens,
       };
     } finally {
       this.isInferring = false;

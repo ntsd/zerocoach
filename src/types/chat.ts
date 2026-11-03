@@ -10,6 +10,8 @@ export interface ChatMessage {
   readinessAtCreation?: number;
   tokensGenerated?: number;
   tokensPerSecond?: number;
+  contextTokensUsed?: number;
+  contextMaxTokens?: number;
   executionSteps?: AgentExecutionStep[];
   imageUri?: string;
 }

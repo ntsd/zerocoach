@@ -243,12 +243,18 @@ export class GeminiEngine implements LLMEngine {
           this.config.modelName = model;
           const durationMs = Math.max(1, Date.now() - startTime);
           const tokensPerSecond = Number(((tokenCount / durationMs) * 1000).toFixed(1));
+          const promptChars =
+            (request.systemPrompt?.length || 0) +
+            request.messages.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+          const contextTokensUsed = Math.max(1, Math.round((promptChars + fullText.length) / 3.5));
 
           return {
             fullText,
             tokensGenerated: tokenCount,
             tokensPerSecond,
             durationMs,
+            contextTokensUsed,
+            contextMaxTokens: 32768,
           };
         }
       } catch (modelErr: any) {

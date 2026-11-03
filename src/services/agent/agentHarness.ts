@@ -199,6 +199,8 @@ export interface AgentRunResult {
   steps: AgentExecutionStep[];
   tokensGenerated: number;
   tokensPerSecond: number;
+  contextTokensUsed?: number;
+  contextMaxTokens?: number;
 }
 
 function formatDeterministicWriteConfirmation(
@@ -248,6 +250,8 @@ export class AgentHarness {
     const steps: AgentExecutionStep[] = [];
     let totalTokens = 0;
     let finalTokensPerSecond = 0;
+    let lastContextTokensUsed: number | undefined;
+    let lastContextMaxTokens: number | undefined;
     let toolCallsCount = 0;
 
     while (toolCallsCount < MAX_TOOL_CALLS) {
@@ -283,6 +287,8 @@ export class AgentHarness {
 
       totalTokens += completionResult.tokensGenerated;
       finalTokensPerSecond = completionResult.tokensPerSecond || finalTokensPerSecond;
+      lastContextTokensUsed = completionResult.contextTokensUsed || lastContextTokensUsed;
+      lastContextMaxTokens = completionResult.contextMaxTokens || lastContextMaxTokens;
 
       const outputText = completionResult.fullText.trim();
       const detectedCall = parseToolCallFromText(outputText);
@@ -296,6 +302,8 @@ export class AgentHarness {
           steps,
           tokensGenerated: totalTokens,
           tokensPerSecond: finalTokensPerSecond,
+          contextTokensUsed: lastContextTokensUsed,
+          contextMaxTokens: lastContextMaxTokens,
         };
       }
 
@@ -340,6 +348,8 @@ export class AgentHarness {
           steps,
           tokensGenerated: totalTokens,
           tokensPerSecond: finalTokensPerSecond,
+          contextTokensUsed: lastContextTokensUsed,
+          contextMaxTokens: lastContextMaxTokens,
         };
       }
 
@@ -392,6 +402,8 @@ export class AgentHarness {
 
     totalTokens += synthesisResult.tokensGenerated;
     finalTokensPerSecond = synthesisResult.tokensPerSecond || finalTokensPerSecond;
+    lastContextTokensUsed = synthesisResult.contextTokensUsed || lastContextTokensUsed;
+    lastContextMaxTokens = synthesisResult.contextMaxTokens || lastContextMaxTokens;
 
     const cleanFinalText = cleanFinalResponseText(synthesisResult.fullText);
 
@@ -404,6 +416,8 @@ export class AgentHarness {
       steps,
       tokensGenerated: totalTokens,
       tokensPerSecond: finalTokensPerSecond,
+      contextTokensUsed: lastContextTokensUsed,
+      contextMaxTokens: lastContextMaxTokens,
     };
   }
 }

@@ -42,6 +42,13 @@ export interface NutrientProfile extends MicronutrientProfile {
   fatGrams: number;
 }
 
+export interface DecomposedIngredientItem {
+  name: string;
+  matchedFoodItem?: FoodItem;
+  quantityGrams: number;
+  nutrients: NutrientProfile;
+}
+
 export interface FoodItem {
   id: string;
   name: string;
@@ -58,6 +65,7 @@ export interface FoodItem {
   packageQuantityUnitName?: string;
   servingQuantityGrams?: number;
   offQuantity?: string;
+  decomposedIngredients?: DecomposedIngredientItem[];
 }
 
 export interface LoggedFood {
@@ -78,6 +86,7 @@ export interface LoggedFood {
   packageQuantityUnitName?: string;
   servingQuantityGrams?: number;
   offQuantity?: string;
+  decomposedIngredients?: DecomposedIngredientItem[];
 }
 
 export interface DailyNutritionLog {

@@ -61,6 +61,12 @@ export interface NutritionState {
     newGrams: number,
     date?: string
   ) => void;
+  updateLoggedFoodIngredientGrams: (
+    loggedFoodId: string,
+    ingredientIndex: number,
+    deltaGrams: number,
+    date?: string
+  ) => void;
   removeLoggedFood: (loggedFoodId: string, date?: string) => void;
   updateDailyTargets: (
     targets: {
@@ -152,6 +158,39 @@ export const useNutritionStore = create<NutritionState>()(
         const currentLog = get().getDailyLog(targetDate);
 
         const calculatedNutrients = calculateNutrientsForGrams(food.nutrientsPer100g, consumedGrams);
+        const baseServingGrams = Math.max(1, food.servingSizeGrams || 100);
+        const ingredientScale = consumedGrams / baseServingGrams;
+
+        const scaledDecomposedIngredients = food.decomposedIngredients
+          ? food.decomposedIngredients.map((ing) => {
+              const oldGrams = Math.max(1, ing.quantityGrams);
+              const nextGrams = Math.max(1, Math.round(ing.quantityGrams * ingredientScale));
+              const ratio = nextGrams / oldGrams;
+              return {
+                ...ing,
+                quantityGrams: nextGrams,
+                nutrients: {
+                  calories: Math.round(ing.nutrients.calories * ratio),
+                  proteinGrams: Math.round(ing.nutrients.proteinGrams * ratio * 10) / 10,
+                  carbsGrams: Math.round(ing.nutrients.carbsGrams * ratio * 10) / 10,
+                  fatGrams: Math.round(ing.nutrients.fatGrams * ratio * 10) / 10,
+                  fiberGrams: Math.round(ing.nutrients.fiberGrams * ratio * 10) / 10,
+                  sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * ratio * 10) / 10,
+                  vitaminA_mcg: Math.round(ing.nutrients.vitaminA_mcg * ratio),
+                  vitaminC_mg: Math.round(ing.nutrients.vitaminC_mg * ratio * 10) / 10,
+                  vitaminD_mcg: Math.round(ing.nutrients.vitaminD_mcg * ratio * 10) / 10,
+                  vitaminB12_mcg: Math.round(ing.nutrients.vitaminB12_mcg * ratio * 100) / 100,
+                  vitaminE_mg: Math.round((ing.nutrients.vitaminE_mg || 0) * ratio * 10) / 10,
+                  iron_mg: Math.round(ing.nutrients.iron_mg * ratio * 10) / 10,
+                  calcium_mg: Math.round(ing.nutrients.calcium_mg * ratio),
+                  magnesium_mg: Math.round(ing.nutrients.magnesium_mg * ratio),
+                  potassium_mg: Math.round(ing.nutrients.potassium_mg * ratio),
+                  sodium_mg: Math.round(ing.nutrients.sodium_mg * ratio),
+                  zinc_mg: Math.round(ing.nutrients.zinc_mg * ratio * 10) / 10,
+                },
+              };
+            })
+          : undefined;
 
         const newLoggedFood: LoggedFood = {
           id: `log_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -171,6 +210,7 @@ export const useNutritionStore = create<NutritionState>()(
           packageQuantityUnitName: food.packageQuantityUnitName,
           servingQuantityGrams: food.servingQuantityGrams,
           offQuantity: food.offQuantity,
+          decomposedIngredients: scaledDecomposedIngredients,
         };
 
         const updatedFoods = [...currentLog.foods, newLoggedFood];
@@ -220,12 +260,176 @@ export const useNutritionStore = create<NutritionState>()(
           const servingBase = item.servingQuantityGrams || 100;
           const nextServings = Math.round((clampedGrams / Math.max(1, servingBase)) * 10) / 10;
 
+          const scaleRatio = clampedGrams / baseGrams;
+          const updatedIngredients = item.decomposedIngredients
+            ? item.decomposedIngredients.map((ing) => {
+                const oldGrams = Math.max(1, ing.quantityGrams);
+                const nextIngGrams = Math.max(1, Math.round(oldGrams * scaleRatio));
+                const ingRatio = nextIngGrams / oldGrams;
+                return {
+                  ...ing,
+                  quantityGrams: nextIngGrams,
+                  nutrients: {
+                    calories: Math.round(ing.nutrients.calories * ingRatio),
+                    proteinGrams: Math.round(ing.nutrients.proteinGrams * ingRatio * 10) / 10,
+                    carbsGrams: Math.round(ing.nutrients.carbsGrams * ingRatio * 10) / 10,
+                    fatGrams: Math.round(ing.nutrients.fatGrams * ingRatio * 10) / 10,
+                    fiberGrams: Math.round(ing.nutrients.fiberGrams * ingRatio * 10) / 10,
+                    sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * ingRatio * 10) / 10,
+                    vitaminA_mcg: Math.round(ing.nutrients.vitaminA_mcg * ingRatio),
+                    vitaminC_mg: Math.round(ing.nutrients.vitaminC_mg * ingRatio * 10) / 10,
+                    vitaminD_mcg: Math.round(ing.nutrients.vitaminD_mcg * ingRatio * 10) / 10,
+                    vitaminB12_mcg: Math.round(ing.nutrients.vitaminB12_mcg * ingRatio * 100) / 100,
+                    vitaminE_mg: Math.round((ing.nutrients.vitaminE_mg || 0) * ingRatio * 10) / 10,
+                    iron_mg: Math.round(ing.nutrients.iron_mg * ingRatio * 10) / 10,
+                    calcium_mg: Math.round(ing.nutrients.calcium_mg * ingRatio),
+                    magnesium_mg: Math.round(ing.nutrients.magnesium_mg * ingRatio),
+                    potassium_mg: Math.round(ing.nutrients.potassium_mg * ingRatio),
+                    sodium_mg: Math.round(ing.nutrients.sodium_mg * ingRatio),
+                    zinc_mg: Math.round(ing.nutrients.zinc_mg * ingRatio * 10) / 10,
+                  },
+                };
+              })
+            : undefined;
+
           return {
             ...item,
             consumedGrams: clampedGrams,
             servings: nextServings,
             nutrients: recalculated,
             nutrientsPer100g: per100g,
+            decomposedIngredients: updatedIngredients,
+          };
+        });
+
+        set((state) => ({
+          logsByDate: {
+            ...state.logsByDate,
+            [targetDate]: {
+              ...currentLog,
+              foods: updatedFoods,
+            },
+          },
+        }));
+      },
+
+      updateLoggedFoodIngredientGrams: (loggedFoodId, ingredientIndex, deltaGrams, date) => {
+        const targetDate = date || get().selectedDate || getTodayString();
+        const currentLog = get().getDailyLog(targetDate);
+
+        const updatedFoods = currentLog.foods.map((item) => {
+          if (item.id !== loggedFoodId || !item.decomposedIngredients) return item;
+
+          const updatedIngredients = item.decomposedIngredients.map((ing, idx) => {
+            if (idx !== ingredientIndex) return ing;
+            const oldGrams = Math.max(1, ing.quantityGrams);
+            const nextGrams = Math.max(5, Math.min(2000, Math.round(oldGrams + deltaGrams)));
+            if (ing.matchedFoodItem) {
+              return {
+                ...ing,
+                quantityGrams: nextGrams,
+                nutrients: calculateNutrientsForGrams(ing.matchedFoodItem.nutrientsPer100g, nextGrams),
+              };
+            }
+            const ratio = nextGrams / oldGrams;
+            return {
+              ...ing,
+              quantityGrams: nextGrams,
+              nutrients: {
+                calories: Math.round(ing.nutrients.calories * ratio),
+                proteinGrams: Math.round(ing.nutrients.proteinGrams * ratio * 10) / 10,
+                carbsGrams: Math.round(ing.nutrients.carbsGrams * ratio * 10) / 10,
+                fatGrams: Math.round(ing.nutrients.fatGrams * ratio * 10) / 10,
+                fiberGrams: Math.round(ing.nutrients.fiberGrams * ratio * 10) / 10,
+                sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * ratio * 10) / 10,
+                vitaminA_mcg: Math.round(ing.nutrients.vitaminA_mcg * ratio),
+                vitaminC_mg: Math.round(ing.nutrients.vitaminC_mg * ratio * 10) / 10,
+                vitaminD_mcg: Math.round(ing.nutrients.vitaminD_mcg * ratio * 10) / 10,
+                vitaminB12_mcg: Math.round(ing.nutrients.vitaminB12_mcg * ratio * 100) / 100,
+                vitaminE_mg: Math.round((ing.nutrients.vitaminE_mg || 0) * ratio * 10) / 10,
+                iron_mg: Math.round(ing.nutrients.iron_mg * ratio * 10) / 10,
+                calcium_mg: Math.round(ing.nutrients.calcium_mg * ratio),
+                magnesium_mg: Math.round(ing.nutrients.magnesium_mg * ratio),
+                potassium_mg: Math.round(ing.nutrients.potassium_mg * ratio),
+                sodium_mg: Math.round(ing.nutrients.sodium_mg * ratio),
+                zinc_mg: Math.round(ing.nutrients.zinc_mg * ratio * 10) / 10,
+              },
+            };
+          });
+
+          const totalGrams = Math.max(
+            5,
+            Math.round(updatedIngredients.reduce((acc, i) => acc + i.quantityGrams, 0))
+          );
+
+          const totalNutrients: NutrientProfile = updatedIngredients.reduce(
+            (acc, i) => ({
+              calories: Math.round(acc.calories + i.nutrients.calories),
+              proteinGrams: Math.round((acc.proteinGrams + i.nutrients.proteinGrams) * 10) / 10,
+              carbsGrams: Math.round((acc.carbsGrams + i.nutrients.carbsGrams) * 10) / 10,
+              fatGrams: Math.round((acc.fatGrams + i.nutrients.fatGrams) * 10) / 10,
+              fiberGrams: Math.round((acc.fiberGrams + i.nutrients.fiberGrams) * 10) / 10,
+              sugarGrams: Math.round(((acc.sugarGrams || 0) + (i.nutrients.sugarGrams || 0)) * 10) / 10,
+              vitaminA_mcg: Math.round(acc.vitaminA_mcg + i.nutrients.vitaminA_mcg),
+              vitaminC_mg: Math.round((acc.vitaminC_mg + i.nutrients.vitaminC_mg) * 10) / 10,
+              vitaminD_mcg: Math.round((acc.vitaminD_mcg + i.nutrients.vitaminD_mcg) * 10) / 10,
+              vitaminB12_mcg: Math.round((acc.vitaminB12_mcg + i.nutrients.vitaminB12_mcg) * 100) / 100,
+              vitaminE_mg: Math.round((acc.vitaminE_mg + (i.nutrients.vitaminE_mg || 0)) * 10) / 10,
+              iron_mg: Math.round((acc.iron_mg + i.nutrients.iron_mg) * 10) / 10,
+              calcium_mg: Math.round(acc.calcium_mg + i.nutrients.calcium_mg),
+              magnesium_mg: Math.round(acc.magnesium_mg + i.nutrients.magnesium_mg),
+              potassium_mg: Math.round(acc.potassium_mg + i.nutrients.potassium_mg),
+              sodium_mg: Math.round(acc.sodium_mg + i.nutrients.sodium_mg),
+              zinc_mg: Math.round((acc.zinc_mg + i.nutrients.zinc_mg) * 10) / 10,
+            }),
+            {
+              calories: 0,
+              proteinGrams: 0,
+              carbsGrams: 0,
+              fatGrams: 0,
+              fiberGrams: 0,
+              sugarGrams: 0,
+              vitaminA_mcg: 0,
+              vitaminC_mg: 0,
+              vitaminD_mcg: 0,
+              vitaminB12_mcg: 0,
+              vitaminE_mg: 0,
+              iron_mg: 0,
+              calcium_mg: 0,
+              magnesium_mg: 0,
+              potassium_mg: 0,
+              sodium_mg: 0,
+              zinc_mg: 0,
+            }
+          );
+
+          const scaleTo100g = 100 / Math.max(1, totalGrams);
+          const per100g: NutrientProfile = {
+            calories: Math.round(totalNutrients.calories * scaleTo100g),
+            proteinGrams: Math.round(totalNutrients.proteinGrams * scaleTo100g * 10) / 10,
+            carbsGrams: Math.round(totalNutrients.carbsGrams * scaleTo100g * 10) / 10,
+            fatGrams: Math.round(totalNutrients.fatGrams * scaleTo100g * 10) / 10,
+            fiberGrams: Math.round(totalNutrients.fiberGrams * scaleTo100g * 10) / 10,
+            sugarGrams: Math.round((totalNutrients.sugarGrams || 0) * scaleTo100g * 10) / 10,
+            vitaminA_mcg: Math.round(totalNutrients.vitaminA_mcg * scaleTo100g),
+            vitaminC_mg: Math.round(totalNutrients.vitaminC_mg * scaleTo100g * 10) / 10,
+            vitaminD_mcg: Math.round(totalNutrients.vitaminD_mcg * scaleTo100g * 10) / 10,
+            vitaminB12_mcg: Math.round(totalNutrients.vitaminB12_mcg * scaleTo100g * 100) / 100,
+            vitaminE_mg: Math.round(totalNutrients.vitaminE_mg * scaleTo100g * 10) / 10,
+            iron_mg: Math.round(totalNutrients.iron_mg * scaleTo100g * 10) / 10,
+            calcium_mg: Math.round(totalNutrients.calcium_mg * scaleTo100g),
+            magnesium_mg: Math.round(totalNutrients.magnesium_mg * scaleTo100g),
+            potassium_mg: Math.round(totalNutrients.potassium_mg * scaleTo100g),
+            sodium_mg: Math.round(totalNutrients.sodium_mg * scaleTo100g),
+            zinc_mg: Math.round(totalNutrients.zinc_mg * scaleTo100g * 10) / 10,
+          };
+
+          return {
+            ...item,
+            consumedGrams: totalGrams,
+            nutrients: totalNutrients,
+            nutrientsPer100g: per100g,
+            decomposedIngredients: updatedIngredients,
           };
         });
 

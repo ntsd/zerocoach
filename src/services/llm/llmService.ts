@@ -85,7 +85,7 @@ export class LLMService {
 
     const userPrompt =
       prompt ||
-      'Analyze the food or meal in this image. Estimate realistic COOKED portion weights in grams based on plate/bowl scale (a standard dinner plate is ~26cm; 1 cup cooked rice is ~158g / ~205 kcal; 1 palm-sized cooked meat is ~140-180g). Return ONLY a valid JSON object with NO markdown formatting: {"dishTitle": "<Dish Name>", "totalGrams": <total cooked grams>, "ingredients": [{"name": "<Ingredient>", "quantityGrams": <grams>, "calories": <kcal for this quantityGrams>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. If no food is visible, return {"error": "UNIDENTIFIED"}.';
+      'Analyze the food or meal in this image. Break down EVERY visible ingredient separately in the ingredients array (for composite dishes like sushi, rice bowls, burgers, pasta, or stir-fries, list both the protein/topping AND the rice/base as separate items). Estimate realistic cooked portion weights in grams. Return ONLY a valid JSON object with NO markdown formatting: {"dishTitle": "<Specific Dish Name>", "ingredients": [{"name": "<Component 1>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}, {"name": "<Component 2>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. If no food is visible, return {"error": "UNIDENTIFIED"}.';
 
     const result = await this.nativeEngine.streamCompletion(
       {

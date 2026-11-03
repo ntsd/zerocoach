@@ -304,9 +304,50 @@ const MATCH_STOP_WORDS = new Set([
   'gram', 'grams', 'g', 'kg', 'oz', 'lb', 'lbs', 'or', 'and', 'with', 'the', 'of', 'in', 'on', 'a', 'an'
 ]);
 
+const STAPLE_USDA_ALIAS_MAP: Array<{ pattern: RegExp; id: string }> = [
+  { pattern: /\b(salmon|sashimi|sake)\b/i, id: 'usda-salmon-atlantic' },
+  { pattern: /\b(tuna|maguro|ahi)\b/i, id: 'usda-canned-tuna' },
+  { pattern: /\b(shrimp|shrImps|prawn|prawns|ebi)\b/i, id: 'usda-shrimp' },
+  { pattern: /\b(cod|halibut|tilapia|white\s*fish)\b/i, id: 'usda-cod-filet' },
+  { pattern: /\b(sushi\s*rice|jasmine\s*rice|white\s*rice|steamed\s*rice|cooked\s*rice|^rice$)\b/i, id: 'usda-jasmine-rice-cooked' },
+  { pattern: /\b(chicken\s*thigh|dark\s*meat\s*chicken)\b/i, id: 'usda-chicken-thigh' },
+  { pattern: /\b(chicken|chicken\s*breast|grilled\s*chicken)\b/i, id: 'usda-chicken-breast' },
+  { pattern: /\b(ground\s*beef|minced\s*beef|beef\s*patty|burger\s*patty)\b/i, id: 'usda-ground-beef-90-10' },
+  { pattern: /\b(steak|sirloin|ribeye|beef|roast\s*beef)\b/i, id: 'usda-sirloin-steak' },
+  { pattern: /\b(turkey|turkey\s*breast)\b/i, id: 'usda-turkey-breast' },
+  { pattern: /\b(egg\s*white|egg\s*whites)\b/i, id: 'usda-egg-whites' },
+  { pattern: /\b(egg|eggs|boiled\s*egg|fried\s*egg|poached\s*egg|scrambled\s*egg|tamago)\b/i, id: 'usda-whole-egg' },
+  { pattern: /\b(greek\s*yogurt|yogurt)\b/i, id: 'usda-greek-yogurt-0' },
+  { pattern: /\b(cottage\s*cheese)\b/i, id: 'usda-cottage-cheese-lowfat' },
+  { pattern: /\b(whey|protein\s*powder|protein\s*shake)\b/i, id: 'usda-whey-isolate' },
+  { pattern: /\b(oat|oats|oatmeal|porridge)\b/i, id: 'usda-rolled-oats' },
+  { pattern: /\b(sweet\s*potato|yam)\b/i, id: 'usda-sweet-potato-baked' },
+  { pattern: /\b(quinoa)\b/i, id: 'usda-quinoa-cooked' },
+  { pattern: /\b(sourdough|bread|toast)\b/i, id: 'usda-sourdough-bread' },
+  { pattern: /\b(broccoli)\b/i, id: 'usda-broccoli-steamed' },
+  { pattern: /\b(spinach)\b/i, id: 'usda-spinach-raw' },
+  { pattern: /\b(bell\s*pepper|capsicum|peppers)\b/i, id: 'usda-bell-pepper-red' },
+  { pattern: /\b(asparagus)\b/i, id: 'usda-asparagus' },
+  { pattern: /\b(banana|bananas)\b/i, id: 'usda-banana' },
+  { pattern: /\b(blueberry|blueberries)\b/i, id: 'usda-blueberries' },
+  { pattern: /\b(avocado|avocados|guacamole)\b/i, id: 'usda-avocado' },
+  { pattern: /\b(apple|apples)\b/i, id: 'usda-apple' },
+  { pattern: /\b(olive\s*oil|cooking\s*oil|vegetable\s*oil)\b/i, id: 'usda-olive-oil' },
+  { pattern: /\b(peanut\s*butter)\b/i, id: 'usda-peanut-butter' },
+  { pattern: /\b(almond|almonds)\b/i, id: 'usda-almonds-raw' },
+  { pattern: /\b(black\s*beans|beans|edamame)\b/i, id: 'usda-black-beans-cooked' },
+  { pattern: /\b(pasta|spaghetti|noodle|noodles|ramen\s*noodles|udon)\b/i, id: 'usda-pasta-cooked' },
+  { pattern: /\b(marinara|tomato\s*sauce|pasta\s*sauce)\b/i, id: 'usda-marinara-sauce' },
+  { pattern: /\b(parmesan)\b/i, id: 'usda-parmesan-cheese' },
+  { pattern: /\b(cheddar|cheese|mozzarella)\b/i, id: 'usda-cheddar-cheese' },
+  { pattern: /\b(milk|whole\s*milk)\b/i, id: 'usda-milk-whole' },
+  { pattern: /\b(tofu|bean\s*curd)\b/i, id: 'usda-tofu-firm' },
+];
+
 // Find best matching USDA food for a single ingredient string
 export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGrams: number } | null {
   const lower = text.toLowerCase().trim();
+  if (!lower) return null;
 
   // 1. Explicit weight if specified (e.g. "250g", "0.25kg", "8oz", "1 lb")
   let parsedGrams = extractExplicitWeight(lower) || 0;
@@ -314,12 +355,50 @@ export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGr
   // 2. Unit quantity if specified (e.g. "steak 2 pirces", "2 eggs", "steak 1 piece")
   const unitInfo = !parsedGrams ? extractUnitAndQuantity(lower) : null;
 
+  const resolveGramsForFood = (food: FoodItem): number => {
+    if (parsedGrams > 0) return parsedGrams;
+    if (unitInfo) {
+      if (unitInfo.unit === 'piece' || unitInfo.unit === 'egg') {
+        const pieceWeight = extractPieceWeightFromServing(food.servingUnitName, food.servingSizeGrams || 100);
+        return unitInfo.qty * pieceWeight;
+      } else if (UNIT_WEIGHT_MAP[unitInfo.unit]) {
+        return unitInfo.qty * UNIT_WEIGHT_MAP[unitInfo.unit];
+      }
+    }
+    return food.servingSizeGrams || 100;
+  };
+
+  // Strip numbers and weights to check direct staple whole-food aliases first
+  const textWithoutNumbers = lower
+    .replace(/\b\d+(?:\.\d+)?\s*(?:g|gm|gram|grams|kg|oz|lb|lbs|piece|pieces|pcs|slice|slices|cup|cups)?\b/gi, ' ')
+    .replace(/[(),]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Do not match composite dishes (like "salmon sushi" or "chicken rice") to a single ingredient
+  const isCompositePhrase =
+    /\b(sushi|nigiri|maki|roll|burger|pizza|taco|burrito|sandwich|ramen|pad\s*thai|fried\s*rice|curry|cake|ice\s*cream|mochi)\b/i.test(
+      textWithoutNumbers
+    ) && !/\b(sushi\s*rice)\b/i.test(textWithoutNumbers);
+
+  if (!isCompositePhrase) {
+    for (const alias of STAPLE_USDA_ALIAS_MAP) {
+      if (alias.pattern.test(textWithoutNumbers)) {
+        const matchedFood = usdaWholeFoods.find((f) => f.id === alias.id);
+        if (matchedFood) {
+          return { food: matchedFood, matchedGrams: resolveGramsForFood(matchedFood) };
+        }
+      }
+    }
+  }
+
   // Clean numbers, punctuation, and unit stopwords from query
-  const queryTokens = lower
-    .replace(/[0-9.]+/g, ' ')
+  const queryTokens = textWithoutNumbers
     .split(/[\s,()]+/)
     .map((w) => w.trim())
     .filter((w) => w.length > 2 && !MATCH_STOP_WORDS.has(w));
+
+  if (queryTokens.length === 0 || isCompositePhrase) return null;
 
   let bestMatch: FoodItem | null = null;
   let maxScore = -1;
@@ -327,6 +406,20 @@ export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGr
   for (let i = 0; i < usdaWholeFoods.length; i++) {
     const food = usdaWholeFoods[i];
     const nameLower = food.name.toLowerCase();
+    const isStaple = Boolean(food.id && !food.id.startsWith('usda-sr-'));
+
+    // Skip processed snack/candy/dough/raw-dry items in usda-sr-* unless query specifically asks for them
+    if (!isStaple) {
+      if (
+        /\b(snacks|candies|crackers|biscuits|dough|unbaked|frozen|dry|coating|refrigerated|infant|baby)\b/i.test(
+          nameLower
+        ) &&
+        !/\b(snack|candy|cracker|biscuit|cookie|chips|popcorn|pretzel|granola)\b/i.test(lower)
+      ) {
+        continue;
+      }
+    }
+
     const nameTokens = new Set(nameLower.split(/[\s,()\/]+/).filter((w) => w.length > 2));
 
     let score = 0;
@@ -343,12 +436,6 @@ export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGr
           score += 15 + qToken.length * 2;
           matched = true;
           break;
-        } else if (nToken.startsWith(qToken) || qToken.startsWith(nToken)) {
-          if (Math.min(nToken.length, qToken.length) >= 4) {
-            score += 10;
-            matched = true;
-            break;
-          }
         }
       }
       if (matched) matchedTokensCount++;
@@ -356,9 +443,13 @@ export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGr
 
     if (matchedTokensCount > 0) {
       // Prioritize curated staple whole foods (IDs starting with 'usda-' and not 'usda-sr-')
-      if (food.id && !food.id.startsWith('usda-sr-')) {
-        score += 30;
+      if (isStaple) {
+        score += 35;
+      } else if (matchedTokensCount < queryTokens.length) {
+        // For non-staple SR items, require all query tokens to match
+        continue;
       }
+
       // Bonus if all query tokens matched
       if (matchedTokensCount === queryTokens.length) {
         score += 25;
@@ -377,18 +468,8 @@ export function matchIngredientToUsda(text: string): { food: FoodItem; matchedGr
     }
   }
 
-  if (bestMatch && maxScore >= 5) {
-    if (!parsedGrams && unitInfo) {
-      if (unitInfo.unit === 'piece' || unitInfo.unit === 'egg') {
-        const pieceWeight = extractPieceWeightFromServing(bestMatch.servingUnitName, bestMatch.servingSizeGrams || 100);
-        parsedGrams = unitInfo.qty * pieceWeight;
-      } else if (UNIT_WEIGHT_MAP[unitInfo.unit]) {
-        parsedGrams = unitInfo.qty * UNIT_WEIGHT_MAP[unitInfo.unit];
-      }
-    }
-
-    const grams = parsedGrams > 0 ? parsedGrams : (bestMatch.servingSizeGrams || 100);
-    return { food: bestMatch, matchedGrams: grams };
+  if (bestMatch && maxScore >= 40) {
+    return { food: bestMatch, matchedGrams: resolveGramsForFood(bestMatch) };
   }
 
   return null;
@@ -497,6 +578,7 @@ export function decomposeMealText(inputText: string): MealDecompositionResult {
     nutrientsPer100g,
     source: 'ai_decomposed',
     hasCompleteMicros: true,
+    decomposedIngredients: ingredients,
   };
 
   return {
@@ -529,9 +611,67 @@ function extractSingleTotalWeight(text: string): number | null {
 }
 
 /**
- * Builds a verified `MealDecompositionResult` directly from Vision AI or Text AI JSON output.
- * Trusts the AI's cooked portion weights and cooked calories/macros instead of overwriting
- * them with fuzzy USDA keyword matches.
+ * Ensures composite dishes (like Sushi / Nigiri / Rolls) where a small vision model
+ * only listed "Rice" (or only listed "Sushi") include both the protein topping and sushi rice.
+ */
+function expandCompositeIngredientsIfIncomplete(
+  rawIngredients: any[],
+  dishTitle: string,
+  userHintText?: string
+): any[] {
+  const combinedContext = `${dishTitle} ${userHintText || ''} ${rawIngredients.map((i) => i?.name || '').join(' ')}`.toLowerCase();
+
+  // Check if this is a sushi / nigiri / maki dish
+  if (/\b(sushi|nigiri|maki)\b/i.test(combinedContext)) {
+    const hasRice = rawIngredients.some((i) => /\b(rice)\b/i.test(String(i?.name || '')));
+    const hasProteinOrTopping = rawIngredients.some((i) =>
+      /\b(salmon|tuna|shrimp|prawn|fish|eel|unagi|crab|egg|tamago|avocado|tofu|roe|ikura)\b/i.test(
+        String(i?.name || '')
+      )
+    );
+
+    const fishName = /\b(tuna|maguro)\b/i.test(combinedContext)
+      ? 'Tuna'
+      : /\b(shrimp|prawn|ebi)\b/i.test(combinedContext)
+      ? 'Steamed Shrimp'
+      : 'Atlantic Salmon';
+
+    // Case 1: Model returned a single ingredient named "Sushi" or "Salmon Sushi"
+    if (rawIngredients.length === 1 && !hasRice && !hasProteinOrTopping) {
+      const totalG = Math.max(80, Number(rawIngredients[0]?.quantityGrams) || 200);
+      const fishG = Math.round(totalG * 0.4);
+      const riceG = Math.round(totalG * 0.6);
+      return [
+        { name: fishName, quantityGrams: fishG },
+        { name: 'Sushi Rice', quantityGrams: riceG },
+      ];
+    }
+
+    // Case 2: Model returned only "Rice" for a Sushi dish (forgot the fish topping!)
+    if (hasRice && !hasProteinOrTopping) {
+      const riceIng = rawIngredients.find((i) => /\b(rice)\b/i.test(String(i?.name || '')));
+      const riceG = Math.max(60, Math.min(180, Number(riceIng?.quantityGrams) || 120));
+      if (riceIng) riceIng.quantityGrams = riceG;
+      const fishG = Math.round(riceG * 0.65); // e.g. ~80g salmon for 120g sushi rice
+      return [{ name: fishName, quantityGrams: fishG }, ...rawIngredients];
+    }
+
+    // Case 3: Model returned only the fish for a Sushi dish (forgot the sushi rice!)
+    if (hasProteinOrTopping && !hasRice) {
+      const fishIng = rawIngredients[0];
+      const fishG = Math.max(40, Number(fishIng?.quantityGrams) || 80);
+      const riceG = Math.round(fishG * 1.4);
+      return [...rawIngredients, { name: 'Sushi Rice', quantityGrams: riceG }];
+    }
+  }
+
+  return rawIngredients;
+}
+
+/**
+ * Builds a verified `MealDecompositionResult` from Vision AI or Text AI JSON output.
+ * Matches whole-food ingredients against curated cooked USDA staples for lab-verified
+ * calories, macros, and micronutrients, while falling back to sanity-checked AI macros for custom items.
  */
 export function buildDecompositionFromAiJson(
   parsed: any,
@@ -542,6 +682,13 @@ export function buildDecompositionFromAiJson(
     return null;
   }
 
+  const rawDishTitle = String(parsed.dishTitle || fallbackTitle || 'Analyzed Meal').trim();
+  const expandedRawIngredients = expandCompositeIngredientsIfIncomplete(
+    parsed.ingredients,
+    rawDishTitle,
+    userHintText
+  );
+
   const hintClean = (userHintText || '').trim();
   const singleExplicitTotalWeight = extractSingleTotalWeight(hintClean);
   const inputChunks = hintClean
@@ -551,11 +698,10 @@ export function buildDecompositionFromAiJson(
         .filter(Boolean)
     : [];
 
-  const ingredients: DecomposedIngredient[] = parsed.ingredients.map((ing: any) => {
+  const ingredients: DecomposedIngredient[] = expandedRawIngredients.map((ing: any) => {
     const rawAiGrams = Math.max(1, Number(ing.quantityGrams) || Number(ing.grams) || Number(ing.weightGrams) || 100);
     let quantityGrams = rawAiGrams;
     const rawIngName = String(ing.name || ing.ingredient || 'Food Item').trim();
-    // Clean redundant "(180g)" suffix from display name if AI included it
     const cleanIngName = rawIngName.replace(/\s*\(\s*\d+(?:\.\d+)?\s*g\s*\)\s*$/i, '').trim() || rawIngName;
 
     // If user hint explicitly specified a weight for this specific chunk, honor it
@@ -577,20 +723,47 @@ export function buildDecompositionFromAiJson(
       }
     }
 
+    // 1. Check if this ingredient matches a curated cooked USDA whole food for exact lab-verified macros & micronutrients
+    const usdaMatch = matchIngredientToUsda(cleanIngName);
+    if (usdaMatch) {
+      const nutrients = scaleNutrients(usdaMatch.food.nutrientsPer100g, quantityGrams);
+      return {
+        name: usdaMatch.food.name,
+        matchedFoodItem: usdaMatch.food,
+        quantityGrams: Math.round(quantityGrams),
+        nutrients,
+      };
+    }
+
+    // 2. Otherwise use AI macros with physical density bounds so 2B models can never hallucinate impossible numbers
     const scale = rawAiGrams > 0 ? quantityGrams / rawAiGrams : 1;
 
-    const proteinGrams = Math.max(0, Math.round(((Number(ing.proteinGrams ?? ing.protein) || 0) * scale) * 10) / 10);
-    const carbsGrams = Math.max(0, Math.round(((Number(ing.carbsGrams ?? ing.carbs) || 0) * scale) * 10) / 10);
-    const fatGrams = Math.max(0, Math.round(((Number(ing.fatGrams ?? ing.fat) || 0) * scale) * 10) / 10);
-    const fiberGrams = Math.max(0, Math.round(((Number(ing.fiberGrams ?? ing.fiber) || 0) * scale) * 10) / 10);
-    const sugarGrams = Math.max(0, Math.round(((Number(ing.sugarGrams ?? ing.sugar) || 0) * scale) * 10) / 10);
+    const proteinGrams = Math.min(
+      Math.round(quantityGrams * 0.4 * 10) / 10,
+      Math.max(0, Math.round(((Number(ing.proteinGrams ?? ing.protein) || 0) * scale) * 10) / 10)
+    );
+    const carbsGrams = Math.min(
+      Math.round(quantityGrams * 0.85 * 10) / 10,
+      Math.max(0, Math.round(((Number(ing.carbsGrams ?? ing.carbs) || 0) * scale) * 10) / 10)
+    );
+    const fatGrams = Math.min(
+      Math.round(quantityGrams * 1.0 * 10) / 10,
+      Math.max(0, Math.round(((Number(ing.fatGrams ?? ing.fat) || 0) * scale) * 10) / 10)
+    );
+    const fiberGrams = Math.min(
+      carbsGrams,
+      Math.max(0, Math.round(((Number(ing.fiberGrams ?? ing.fiber) || 0) * scale) * 10) / 10)
+    );
+    const sugarGrams = Math.min(
+      carbsGrams,
+      Math.max(0, Math.round(((Number(ing.sugarGrams ?? ing.sugar) || 0) * scale) * 10) / 10)
+    );
 
     let calories = Math.max(0, Math.round((Number(ing.calories ?? ing.kcal) || 0) * scale));
     const macroDerivedCals = Math.round(proteinGrams * 4 + carbsGrams * 4 + fatGrams * 9);
 
-    // Sanity check: if AI returned 0 calories or a number wildly inconsistent with macros, derive from macros
     if (macroDerivedCals > 0) {
-      if (calories <= 0 || calories > macroDerivedCals * 1.8 || calories < macroDerivedCals * 0.5) {
+      if (calories <= 0 || calories > macroDerivedCals * 1.5 || calories < macroDerivedCals * 0.65) {
         calories = macroDerivedCals;
       }
     }
@@ -628,15 +801,19 @@ export function buildDecompositionFromAiJson(
     if (ing.quantityGrams !== singleExplicitTotalWeight && ing.quantityGrams > 0) {
       const scale = singleExplicitTotalWeight / ing.quantityGrams;
       ing.quantityGrams = singleExplicitTotalWeight;
-      ing.nutrients = {
-        ...ing.nutrients,
-        calories: Math.round(ing.nutrients.calories * scale),
-        proteinGrams: Math.round(ing.nutrients.proteinGrams * scale * 10) / 10,
-        carbsGrams: Math.round(ing.nutrients.carbsGrams * scale * 10) / 10,
-        fatGrams: Math.round(ing.nutrients.fatGrams * scale * 10) / 10,
-        fiberGrams: Math.round(ing.nutrients.fiberGrams * scale * 10) / 10,
-        sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * scale * 10) / 10,
-      };
+      if (ing.matchedFoodItem) {
+        ing.nutrients = scaleNutrients(ing.matchedFoodItem.nutrientsPer100g, singleExplicitTotalWeight);
+      } else {
+        ing.nutrients = {
+          ...ing.nutrients,
+          calories: Math.round(ing.nutrients.calories * scale),
+          proteinGrams: Math.round(ing.nutrients.proteinGrams * scale * 10) / 10,
+          carbsGrams: Math.round(ing.nutrients.carbsGrams * scale * 10) / 10,
+          fatGrams: Math.round(ing.nutrients.fatGrams * scale * 10) / 10,
+          fiberGrams: Math.round(ing.nutrients.fiberGrams * scale * 10) / 10,
+          sugarGrams: Math.round((ing.nutrients.sugarGrams || 0) * scale * 10) / 10,
+        };
+      }
     }
   }
 
@@ -645,8 +822,8 @@ export function buildDecompositionFromAiJson(
   const totalNutrients = sumNutrients(ingredients.map((i) => i.nutrients));
   const nutrientsPer100g = normalizeToPer100g(totalNutrients, totalGrams);
 
-  const rawDishTitle = String(parsed.dishTitle || fallbackTitle || 'Analyzed Meal').trim();
   const dishTitle = rawDishTitle.length > 50 ? rawDishTitle.slice(0, 47) + '...' : rawDishTitle;
+  const hasCompleteMicros = ingredients.some((i) => !!i.matchedFoodItem);
 
   const asFoodItem: FoodItem = {
     id: `ai_meal_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -656,7 +833,8 @@ export function buildDecompositionFromAiJson(
     servingUnitName: `1 meal (${totalGrams}g)`,
     nutrientsPer100g,
     source: 'ai_decomposed',
-    hasCompleteMicros: false,
+    hasCompleteMicros,
+    decomposedIngredients: ingredients,
   };
 
   return {
@@ -688,6 +866,7 @@ export function recomputeDecompositionWithUpdatedIngredients(
     servingSizeGrams: totalGrams,
     servingUnitName: `1 meal (${totalGrams}g)`,
     nutrientsPer100g,
+    decomposedIngredients: updatedIngredients,
   };
 
   return {
@@ -758,6 +937,7 @@ export async function decomposeMealWithGemma(
 
     const prompt = `You are ZeroCoach, an expert sports nutritionist. Analyze this meal description: "${clean}".
 ${weightHint}
+List EVERY distinct ingredient in the meal separately (e.g., for sushi list both the fish topping and sushi rice; for steak and eggs list both steak and eggs).
 Calculate accurate COOKED calories and macronutrients for the exact gram weight of each ingredient (verify that calories ≈ 4*proteinGrams + 4*carbsGrams + 9*fatGrams).
 Return ONLY a valid JSON object with NO markdown formatting and NO backticks:
 {
@@ -765,7 +945,17 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks:
   "totalGrams": <sum of all ingredient quantityGrams>,
   "ingredients": [
     {
-      "name": "<Ingredient name>",
+      "name": "<Primary protein or main component>",
+      "quantityGrams": <cooked weight in grams>,
+      "calories": <calories for this quantityGrams>,
+      "proteinGrams": <protein in grams>,
+      "carbsGrams": <carbs in grams>,
+      "fatGrams": <fat in grams>,
+      "fiberGrams": <fiber in grams>,
+      "sugarGrams": <sugar in grams>
+    },
+    {
+      "name": "<Carb, side, or secondary component>",
       "quantityGrams": <cooked weight in grams>,
       "calories": <calories for this quantityGrams>,
       "proteinGrams": <protein in grams>,
@@ -803,3 +993,38 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks:
   // Graceful fallback to bundled USDA database matcher only if LLM is offline/unavailable
   return decomposeMealText(clean);
 }
+
+/**
+ * Synchronous helper for `LoggedFoodDetailModal`:
+ * Returns `food.decomposedIngredients` if present (and expands single-item composite dishes),
+ * or derives USDA decomposed ingredients on-the-fly for legacy `ai_decomposed` logged meals.
+ */
+export function getDecomposedIngredientsForLoggedFood(food: {
+  name: string;
+  consumedGrams: number;
+  source?: string;
+  decomposedIngredients?: DecomposedIngredient[];
+}): DecomposedIngredient[] {
+  if (food.decomposedIngredients && food.decomposedIngredients.length > 0) {
+    return food.decomposedIngredients;
+  }
+  if (food.source !== 'ai_decomposed') {
+    return [];
+  }
+  const grams = Math.max(10, Math.round(food.consumedGrams || 100));
+  const syntheticDecomp = buildDecompositionFromAiJson(
+    {
+      dishTitle: food.name,
+      totalGrams: grams,
+      ingredients: [{ name: food.name, quantityGrams: grams }],
+    },
+    food.name,
+    food.name
+  );
+  if (syntheticDecomp && syntheticDecomp.ingredients.length > 0) {
+    return syntheticDecomp.ingredients;
+  }
+  const fallback = decomposeMealText(`${food.name} ${grams}g`);
+  return fallback.ingredients || [];
+}
+

@@ -49,11 +49,10 @@ export async function analyzeFoodWithGemini(
     'You are an expert sports nutritionist and visual food portion analyzer. ' +
     'Analyze the food or beverage in this image. ' +
     hintClause +
-    'Estimate realistic COOKED/PREPARED portion weights in grams based on visual plate/container scale ' +
-    '(e.g., standard dinner plate ~26cm; 1 cup cooked rice ~158g & ~205 kcal, never use raw dry grain calories; 1 palm-sized cooked chicken breast ~150g & ~250 kcal). ' +
-    'Calculate accurate calories and macronutrients for the exact quantityGrams of each item (verify calories ≈ 4*proteinGrams + 4*carbsGrams + 9*fatGrams). ' +
+    'Break down EVERY visible ingredient separately in the ingredients array (for composite dishes like sushi, rice bowls, burgers, pasta, or stir-fries, list each component separately, such as both the fish/meat topping AND the rice/noodles). ' +
+    'Estimate realistic COOKED/PREPARED portion weights in grams for each item. ' +
     'Return ONLY a valid JSON object with NO markdown backticks: ' +
-    '{"dishTitle": "<Dish Name>", "totalGrams": <sum of ingredient quantityGrams>, "ingredients": [{"name": "<Ingredient>", "quantityGrams": <grams>, "calories": <kcal for this quantity>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. ' +
+    '{"dishTitle": "<Specific Dish Name>", "ingredients": [{"name": "<Component 1>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}, {"name": "<Component 2>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. ' +
     'If no food or beverage is visible in the image, reply ONLY with {"error": "UNIDENTIFIED"}.';
 
   let lastErrorMsg = 'Failed to analyze food with Gemini';

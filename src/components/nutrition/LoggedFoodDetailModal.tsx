@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoggedFood } from '../../types/nutrition';
+import { getDecomposedIngredientsForLoggedFood } from '../../services/nutrition/mealDecomposer';
+import { useNutritionStore } from '../../store/useNutritionStore';
 import { useTranslation } from '../../i18n';
 import { COLORS } from '../../theme/colors';
 import {
@@ -22,6 +24,8 @@ import {
   CheckCircle,
   Trash2,
   Camera,
+  Sparkles,
+  ShieldCheck,
 } from 'lucide-react-native';
 
 interface LoggedFoodDetailModalProps {
@@ -41,6 +45,9 @@ export const LoggedFoodDetailModal: React.FC<LoggedFoodDetailModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const updateLoggedFoodIngredientGrams = useNutritionStore(
+    (s) => s.updateLoggedFoodIngredientGrams
+  );
   const bottomSafePadding =
     Math.max(insets.bottom, Platform.OS === 'android' ? 48 : 20) + 12;
 
@@ -48,10 +55,24 @@ export const LoggedFoodDetailModal: React.FC<LoggedFoodDetailModalProps> = ({
 
   const consumedGrams = Math.round(food.consumedGrams || 100);
   const dynamicNutrients = food.nutrients;
+  const decomposedIngredients = getDecomposedIngredientsForLoggedFood(food);
+  const totalDecomposedGrams = decomposedIngredients.reduce(
+    (acc, ing) => acc + Math.max(1, ing.quantityGrams),
+    0
+  );
 
   const adjustGrams = (delta: number) => {
     const next = Math.max(10, Math.min(2000, consumedGrams + delta));
     onUpdateGrams(food.id, next);
+  };
+
+  const handleAdjustIngredientGrams = (idx: number, delta: number) => {
+    if (food.decomposedIngredients && food.decomposedIngredients.length > 0) {
+      updateLoggedFoodIngredientGrams(food.id, idx, delta);
+    } else {
+      // Fallback for legacy logged items before decomposedIngredients was persisted
+      onUpdateGrams(food.id, Math.max(10, consumedGrams + delta));
+    }
   };
 
   return (
@@ -259,6 +280,128 @@ export const LoggedFoodDetailModal: React.FC<LoggedFoodDetailModalProps> = ({
                   ))}
               </ScrollView>
             </View>
+
+            {/* USDA Decomposed Ingredients Breakdown Card */}
+            {decomposedIngredients.length > 0 && (
+              <View style={styles.decomposedIngredientsCard}>
+                <View style={styles.decomposedCardHeader}>
+                  <View style={styles.decomposedCardTitleLeft}>
+                    <View style={styles.decomposedIconWrap}>
+                      <Sparkles size={16} color="#00F0FF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.decomposedCardTitle}>
+                        {t.nutrition.decomposedIngredientsTitle}
+                      </Text>
+                      <Text style={styles.decomposedCardSub}>
+                        {t.nutrition.decomposedIngredientsSub}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.decomposedCountBadge}>
+                    <Text style={styles.decomposedCountBadgeText}>
+                      {decomposedIngredients.length} {t.nutrition.meals.itemsCount || 'ITEMS'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.decomposedList}>
+                  {decomposedIngredients.map((ing, idx) => {
+                    const scale =
+                      totalDecomposedGrams > 0 ? consumedGrams / totalDecomposedGrams : 1;
+                    const currentGrams = Math.max(1, Math.round(ing.quantityGrams * scale));
+                    const currentCals = Math.round(ing.nutrients.calories * scale);
+                    const currentProt = Math.round(ing.nutrients.proteinGrams * scale * 10) / 10;
+                    const currentCarbs = Math.round(ing.nutrients.carbsGrams * scale * 10) / 10;
+                    const currentFat = Math.round(ing.nutrients.fatGrams * scale * 10) / 10;
+
+                    const isUsda = !!ing.matchedFoodItem;
+                    const displayName = ing.matchedFoodItem ? ing.matchedFoodItem.name : ing.name;
+
+                    return (
+                      <View
+                        key={`logged_decomp_${idx}`}
+                        style={[
+                          styles.ingredientRow,
+                          idx === decomposedIngredients.length - 1 && styles.ingredientRowLast,
+                        ]}
+                      >
+                        <View style={styles.ingredientIconCol}>
+                          <View
+                            style={[
+                              styles.ingredientIconWrap,
+                              isUsda ? styles.ingredientIconWrapUsda : styles.ingredientIconWrapAi,
+                            ]}
+                          >
+                            {isUsda ? (
+                              <ShieldCheck size={14} color="#10B981" />
+                            ) : (
+                              <Sparkles size={14} color="#F59E0B" />
+                            )}
+                          </View>
+                        </View>
+
+                        <View style={styles.ingredientInfoCol}>
+                          <Text style={styles.ingredientNameText} numberOfLines={2}>
+                            {displayName}
+                          </Text>
+                          <View style={styles.ingredientMetaRow}>
+                            <View
+                              style={[
+                                styles.ingredientSourceBadge,
+                                isUsda
+                                  ? styles.ingredientSourceBadgeUsda
+                                  : styles.ingredientSourceBadgeAi,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.ingredientSourceBadgeText,
+                                  isUsda ? { color: '#10B981' } : { color: '#F59E0B' },
+                                ]}
+                              >
+                                {isUsda
+                                  ? t.nutrition.usdaVerifiedBadge
+                                  : t.nutrition.aiEstimatedBadge}
+                              </Text>
+                            </View>
+
+                            <View style={styles.ingredientGramStepper}>
+                              <TouchableOpacity
+                                style={styles.ingredientStepBtn}
+                                onPress={() => handleAdjustIngredientGrams(idx, -20)}
+                                activeOpacity={0.6}
+                              >
+                                <Minus size={11} color={COLORS.textPrimary} />
+                              </TouchableOpacity>
+                              <Text style={styles.ingredientGramsText}>{currentGrams}g</Text>
+                              <TouchableOpacity
+                                style={styles.ingredientStepBtn}
+                                onPress={() => handleAdjustIngredientGrams(idx, 20)}
+                                activeOpacity={0.6}
+                              >
+                                <Plus size={11} color={COLORS.textPrimary} />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        </View>
+
+                        <View style={styles.ingredientNutrientCol}>
+                          <Text style={styles.ingredientCalsText}>{currentCals} kcal</Text>
+                          <Text style={styles.ingredientMacrosText}>
+                            <Text style={{ color: '#10B981' }}>P:{currentProt}g</Text>
+                            {'  '}
+                            <Text style={{ color: '#38BDF8' }}>C:{currentCarbs}g</Text>
+                            {'  '}
+                            <Text style={{ color: '#F59E0B' }}>F:{currentFat}g</Text>
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             {/* Dynamic Macro & Micronutrient Summary */}
             <View style={styles.nutrientsSummaryCard}>
@@ -692,6 +835,165 @@ const styles = StyleSheet.create({
     color: '#080B10',
     fontSize: 14,
     fontWeight: '800',
+  },
+  decomposedIngredientsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+  },
+  decomposedCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  decomposedCardTitleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    paddingRight: 8,
+  },
+  decomposedIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  decomposedCardTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  decomposedCardSub: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  decomposedCountBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  decomposedCountBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
+  decomposedList: {
+    gap: 8,
+  },
+  ingredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    gap: 10,
+  },
+  ingredientRowLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 2,
+  },
+  ingredientIconCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ingredientIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ingredientIconWrapUsda: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+  },
+  ingredientIconWrapAi: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  ingredientInfoCol: {
+    flex: 1,
+  },
+  ingredientNameText: {
+    color: COLORS.textPrimary,
+    fontSize: 12.5,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  ingredientMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
+  },
+  ingredientSourceBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  ingredientSourceBadgeUsda: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  ingredientSourceBadgeAi: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  ingredientSourceBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  ingredientGramsText: {
+    color: '#00F0FF',
+    fontSize: 11,
+    fontWeight: '700',
+    minWidth: 38,
+    textAlign: 'center',
+  },
+  ingredientGramStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+  },
+  ingredientStepBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ingredientNutrientCol: {
+    alignItems: 'flex-end',
+  },
+  ingredientCalsText: {
+    color: '#FF6B35',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  ingredientMacrosText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });
 

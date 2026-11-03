@@ -16,7 +16,33 @@ const MAX_TOOL_CALLS = 4;
 /**
  * Builds compact tool declaration prompt block to save LLM tokens
  */
-export function buildAgentToolPrompt(): string {
+export function buildAgentToolPrompt(isCompactOnDevice = false): string {
+  if (isCompactOnDevice) {
+    return `
+[AGENT MODE & TOOLS]
+Available Tools:
+- save_memory(category, content, topic): Save lasting athlete fact. Categories: "workout_preference" (equipment, skills, exercises), "food_preference" (diet, favorite/disliked foods, allergies), "injury_limitation" (pain/injury), "personality_style" (tone/schedule).
+- remove_memory(idOrQuery): Forget outdated memory by ID, topic, or keyword.
+- get_memories(category, query): Search stored memories.
+- log_food_item(name, mealType, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, fiberGrams, sugarGrams, date): Log food to diary.
+- get_food_history(date) / delete_logged_food(loggedFoodId, date) / update_daily_macro_targets(targetCalories, targetProtein, targetCarbs, targetFat).
+- search_food_database(query, source) / get_food_details(barcode).
+- get_workout_plan(date) / update_workout_plan(title, split, exercises, date) / swap_plan_exercise(targetExerciseNameOrId, replacementExerciseNameOrId, date).
+- manage_workout_schedule(action, splitCycle, date): action="skip_workout" | "reschedule_next" | "set_cycle".
+- log_completed_workout(title, exercises, durationMinutes, rpe, notes, date).
+- search_exercises(query, category, equipment, difficulty) / get_exercise_progressions(skillChainName).
+- update_user_settings(weightKg, heightCm, dailyCalorieTarget, proteinGrams, equipmentPreference, skillLevel).
+
+TOOL RULES:
+1. Telemetry, goals, memories, and today's workout are ALREADY in ATHLETE CONTEXT above. Do NOT call get_telemetry_metrics, get_workout_plan, or get_memories unless needed.
+2. Whenever the athlete says "memorize", "remember", or states equipment they have (e.g. "I have a pull-up bar"), favorite foods/skills, injuries, or preferences, you MUST call save_memory.
+3. To call a tool, start your response immediately with <tool_call>:
+<tool_call>
+{"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "equipment_pull_up_bar", "content": "Available equipment: Pull-up bar"}}
+</tool_call>
+4. After <tool_result> is returned, reply with a concise coaching confirmation (no <tool_call> tags).`;
+  }
+
   const toolLines = AGENT_TOOLS.map(
     (t) => `- ${t.name}(${Object.keys(t.parameters.properties).join(', ')}): ${t.description}`
   ).join('\n');
@@ -227,8 +253,12 @@ export class AgentHarness {
   public static async run(params: AgentRunParams): Promise<AgentRunResult> {
     const { systemPrompt, messages, callbacks, temperature = 0.5, maxTokens = 600 } = params;
 
-    // Enhance system prompt with agent harness instructions
-    const augmentedSystemPrompt = `${systemPrompt}\n${buildAgentToolPrompt()}`;
+    const isOnDevice = llmService.getProvider() === 'on_device';
+    // Enhance system prompt with agent harness instructions (compact on-device version saves ~1,100 tokens)
+    const augmentedSystemPrompt = `${systemPrompt}\n${buildAgentToolPrompt(isOnDevice)}`;
+    const synthesisSystemPrompt = isOnDevice
+      ? `${systemPrompt}\n\n[TOOL EXECUTION COMPLETE: Confirm the <tool_result> concisely to the athlete. Do NOT output <tool_call> tags.]`
+      : augmentedSystemPrompt;
     const conversationHistory = [...messages];
     const steps: AgentExecutionStep[] = [];
     let totalTokens = 0;
@@ -238,12 +268,15 @@ export class AgentHarness {
     while (toolCallsCount < MAX_TOOL_CALLS) {
       let iterationStreamedText = '';
 
+      const activeSysPrompt =
+        isOnDevice && toolCallsCount > 0 ? synthesisSystemPrompt : augmentedSystemPrompt;
+
       const completionResult: CompletionResult = await llmService.streamCompletion(
         {
-          systemPrompt: augmentedSystemPrompt,
+          systemPrompt: activeSysPrompt,
           messages: conversationHistory,
           temperature,
-          maxTokens,
+          maxTokens: isOnDevice ? Math.min(maxTokens, 350) : maxTokens,
           mediaPaths: toolCallsCount === 0 ? params.mediaPaths : undefined,
         },
         (token: string) => {
@@ -315,11 +348,17 @@ export class AgentHarness {
         })}\n</tool_call>`,
       });
 
+      const rawResultStr = JSON.stringify(
+        toolResult.success ? toolResult.data : { error: toolResult.error }
+      );
+      const compactResultStr =
+        isOnDevice && rawResultStr.length > 800
+          ? `${rawResultStr.slice(0, 800)}... (summary: ${toolResult.summary})`
+          : rawResultStr;
+
       conversationHistory.push({
         role: 'user',
-        content: `<tool_result>\n${JSON.stringify(
-          toolResult.success ? toolResult.data : { error: toolResult.error }
-        )}\n</tool_result>\nTool execution completed. Now synthesize and write your complete coaching response for the athlete.`,
+        content: `<tool_result>\n${compactResultStr}\n</tool_result>\nTool execution completed (${toolResult.summary}). Now write your concise coaching response for the athlete.`,
       });
     }
 
@@ -333,10 +372,10 @@ export class AgentHarness {
     let synthesisStreamedText = '';
     const synthesisResult: CompletionResult = await llmService.streamCompletion(
       {
-        systemPrompt: augmentedSystemPrompt,
+        systemPrompt: synthesisSystemPrompt,
         messages: conversationHistory,
         temperature,
-        maxTokens: Math.max(maxTokens, 800),
+        maxTokens: isOnDevice ? 350 : Math.max(maxTokens, 800),
         mediaPaths: params.mediaPaths,
       },
       (token: string) => {

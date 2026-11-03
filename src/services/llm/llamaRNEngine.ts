@@ -27,7 +27,7 @@ export class LlamaRNEngine implements LLMEngine {
       try {
         this.llamaContext = await initLlama({
           model: modelPath,
-          n_ctx: 2048,
+          n_ctx: 4096,
           n_batch: 512,
           n_gpu_layers: Platform.OS === 'ios' ? 99 : 1,
           n_threads: 4,
@@ -37,7 +37,7 @@ export class LlamaRNEngine implements LLMEngine {
         console.warn('[LlamaRNEngine] GPU init failed, retrying on CPU:', gpuErr);
         this.llamaContext = await initLlama({
           model: modelPath,
-          n_ctx: 2048,
+          n_ctx: 4096,
           n_batch: 512,
           n_gpu_layers: 0,
           n_threads: 4,
@@ -241,45 +241,67 @@ export class LlamaRNEngine implements LLMEngine {
         console.log(`[LlamaRNEngine] Attaching ${completionParams.media_paths.length} sanitized image path(s) to completion:`, completionParams.media_paths);
       }
 
-      const result = await this.llamaContext.completion(
-        completionParams,
-        (data: { token: string }) => {
-          if (!this.abortRequested && data.token) {
-            // Filter special tokens or turn markers that might leak into user stream
-            if (
-              data.token.includes('<start_of_turn>') ||
-              data.token.includes('<end_of_turn>') ||
-              data.token.includes('<|im_end|>') ||
-              data.token.includes('<|endoftext|>') ||
-              data.token.includes('<|im_start|>')
-            ) {
-              return;
-            }
-
-            // Handle Qwen 3 thinking tags to prevent leaking internal chain-of-thought into UI
-            if (data.token.includes('<think>') || data.token.includes('[Start thinking]')) {
-              inThinkTag = true;
-              return;
-            }
-            if (data.token.includes('</think>') || data.token.includes('[End thinking]')) {
-              inThinkTag = false;
-              return;
-            }
-            if (inThinkTag) {
-              return;
-            }
-
-            // In Thai conversation mode, if Japanese kana somehow leaks, block it from user stream
-            if (isThaiConversation && /[\u3040-\u309F\u30A0-\u30FF]/.test(data.token)) {
-              return;
-            }
-
-            tokenCount++;
-            accumulatedText += data.token;
-            onToken(data.token);
+      const tokenHandler = (data: { token: string }) => {
+        if (!this.abortRequested && data.token) {
+          // Filter special tokens or turn markers that might leak into user stream
+          if (
+            data.token.includes('<start_of_turn>') ||
+            data.token.includes('<end_of_turn>') ||
+            data.token.includes('<|im_end|>') ||
+            data.token.includes('<|endoftext|>') ||
+            data.token.includes('<|im_start|>')
+          ) {
+            return;
           }
+
+          // Handle Qwen 3 thinking tags to prevent leaking internal chain-of-thought into UI
+          if (data.token.includes('<think>') || data.token.includes('[Start thinking]')) {
+            inThinkTag = true;
+            return;
+          }
+          if (data.token.includes('</think>') || data.token.includes('[End thinking]')) {
+            inThinkTag = false;
+            return;
+          }
+          if (inThinkTag) {
+            return;
+          }
+
+          // In Thai conversation mode, if Japanese kana somehow leaks, block it from user stream
+          if (isThaiConversation && /[\u3040-\u309F\u30A0-\u30FF]/.test(data.token)) {
+            return;
+          }
+
+          tokenCount++;
+          accumulatedText += data.token;
+          onToken(data.token);
         }
-      );
+      };
+
+      let result: any;
+      try {
+        result = await this.llamaContext.completion(completionParams, tokenHandler);
+      } catch (compErr: any) {
+        const errMsg = String(compErr?.message || compErr || '');
+        if (errMsg.toLowerCase().includes('context is full')) {
+          console.warn('[LlamaRNEngine] Context overflow detected; retrying with compacted prompt...');
+          const lastMsg = recentMessages[recentMessages.length - 1];
+          const shortSys = (request.systemPrompt || 'You are ZeroCoach, an elite athletic coach.').split('[AGENT MODE')[0].trim().slice(0, 1200);
+          const fallbackPrompt = isQwenOrChatML
+            ? `<|im_start|>system\n${shortSys}<|im_end|>\n<|im_start|>user\n${(lastMsg?.content || '').slice(-1500)}<|im_end|>\n<|im_start|>assistant\n`
+            : `<start_of_turn>user\n${shortSys}\n\n${(lastMsg?.content || '').slice(-1500)}<end_of_turn>\n<start_of_turn>model\n`;
+          result = await this.llamaContext.completion(
+            {
+              ...completionParams,
+              prompt: fallbackPrompt,
+              n_predict: Math.min(completionParams.n_predict || 256, 256),
+            },
+            tokenHandler
+          );
+        } else {
+          throw compErr;
+        }
+      }
 
       const durationMs = Math.max(1, Date.now() - startTime);
       const tokensPerSecond = Number(((tokenCount / durationMs) * 1000).toFixed(1));

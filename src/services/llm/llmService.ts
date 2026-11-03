@@ -93,7 +93,7 @@ export class LLMService {
           'You are a clinical sports nutritionist and visual portion estimator. Always output valid JSON with realistic cooked weights in grams and accurate cooked calories/macros (verify calories ≈ 4*proteinGrams + 4*carbsGrams + 9*fatGrams).',
         messages: [{ role: 'user', content: userPrompt }],
         mediaPaths: [mediaTarget],
-        temperature: 0.2,
+        temperature: 0.1,
         maxTokens: 420,
       },
       () => {}

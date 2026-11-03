@@ -145,8 +145,17 @@ export class LlamaRNEngine implements LLMEngine {
         this.loadedModelPath.toLowerCase().includes('qwen') ||
         this.loadedModelPath.toLowerCase().includes('zerocoach');
 
-      // Limit conversation history to latest 4 messages so prompt tokens stay well within context limit
-      const recentMessages = request.messages.slice(-4);
+      // Deterministic sliding-window context budget: keep at most last 3 messages, capped per message
+      const recentMessages = request.messages.slice(-3).map((m, idx, arr) => {
+        const isLast = idx === arr.length - 1;
+        const cleanContent = m.content
+          .replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/gi, '')
+          .trim();
+        return {
+          ...m,
+          content: isLast ? m.content.trim() : cleanContent.slice(0, 220),
+        };
+      });
 
       // Check if conversation involves Thai language
       const isThaiConversation =
@@ -199,7 +208,7 @@ export class LlamaRNEngine implements LLMEngine {
 
       let inThinkTag = false;
 
-      const temperature = request.temperature !== undefined ? request.temperature : 0.6;
+      const temperature = request.temperature !== undefined ? request.temperature : 0.1;
       const topP = 0.9;
       const topK = 40;
       const penaltyRepeat = 1.1;
@@ -208,7 +217,7 @@ export class LlamaRNEngine implements LLMEngine {
 
       const completionParams: any = {
         prompt: fullPrompt,
-        n_predict: request.maxTokens || 512,
+        n_predict: request.maxTokens || 384,
         temperature,
         top_p: topP,
         top_k: topK,
@@ -216,6 +225,7 @@ export class LlamaRNEngine implements LLMEngine {
         penalty_freq: 0.1,
         penalty_present: 0.1,
         stop: [
+          '</tool_call>',
           '<start_of_turn>',
           '<end_of_turn>',
           '<|im_start|>',

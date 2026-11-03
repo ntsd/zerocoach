@@ -210,7 +210,7 @@ export const useChatStore = create<ChatState>()(
           const result = await AgentHarness.run({
             systemPrompt,
             messages: contextMessages,
-            temperature: 0.65,
+            temperature: 0.1,
             mediaPaths: !visualContext && cleanMediaTarget ? [cleanMediaTarget] : undefined,
             callbacks: {
               onToken: (token: string) => {

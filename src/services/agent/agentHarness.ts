@@ -14,78 +14,33 @@ import { CompletionRequest, CompletionResult } from '@/services/llm/types';
 const MAX_TOOL_CALLS = 4;
 
 /**
- * Builds compact tool declaration prompt block to save LLM tokens
+ * Builds an ultra-compact (~220 tokens) deterministic tool declaration block
+ * containing the 10 core actionable tools. Redundant read tools whose data is
+ * already injected in ATHLETE CONTEXT are omitted so tool selection is fast and accurate.
  */
-export function buildAgentToolPrompt(isCompactOnDevice = false): string {
-  if (isCompactOnDevice) {
-    return `
-[AGENT MODE & TOOLS]
-Available Tools:
-- save_memory(category, content, topic): Save lasting athlete fact. Categories: "workout_preference" (equipment, skills, exercises), "food_preference" (diet, favorite/disliked foods, allergies), "injury_limitation" (pain/injury), "personality_style" (tone/schedule).
-- remove_memory(idOrQuery): Forget outdated memory by ID, topic, or keyword.
-- get_memories(category, query): Search stored memories.
-- log_food_item(name, mealType, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, fiberGrams, sugarGrams, date): Log food to diary.
-- get_food_history(date) / delete_logged_food(loggedFoodId, date) / update_daily_macro_targets(targetCalories, targetProtein, targetCarbs, targetFat).
-- search_food_database(query, source) / get_food_details(barcode).
-- get_workout_plan(date) / update_workout_plan(title, split, exercises, date) / swap_plan_exercise(targetExerciseNameOrId, replacementExerciseNameOrId, date).
-- manage_workout_schedule(action, splitCycle, date): action="skip_workout" | "reschedule_next" | "set_cycle".
-- log_completed_workout(title, exercises, durationMinutes, rpe, notes, date).
-- search_exercises(query, category, equipment, difficulty) / get_exercise_progressions(skillChainName).
-- update_user_settings(weightKg, heightCm, dailyCalorieTarget, proteinGrams, equipmentPreference, skillLevel).
-
-TOOL RULES:
-1. Telemetry, goals, memories, and today's workout are ALREADY in ATHLETE CONTEXT above. Do NOT call get_telemetry_metrics, get_workout_plan, or get_memories unless needed.
-2. Whenever the athlete says "memorize", "remember", or states equipment they have (e.g. "I have a pull-up bar"), favorite foods/skills, injuries, or preferences, you MUST call save_memory.
-3. To call a tool, start your response immediately with <tool_call>:
-<tool_call>
-{"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "equipment_pull_up_bar", "content": "Available equipment: Pull-up bar"}}
-</tool_call>
-4. After <tool_result> is returned, reply with a concise coaching confirmation (no <tool_call> tags).`;
-  }
-
-  const toolLines = AGENT_TOOLS.map(
-    (t) => `- ${t.name}(${Object.keys(t.parameters.properties).join(', ')}): ${t.description}`
-  ).join('\n');
-
+export function buildAgentToolPrompt(): string {
   return `
-[AGENT MODE & ACTION HARNESS]
-You have real-time read and write tools to the athlete's memory, fitness telemetry, nutrition logs, workout plans, exercise database, and settings:
+[AGENT TOOLS — 10 CORE TOOLS]
+1. save_memory(category, content, topic): Save lasting athlete fact. category="workout_preference" (equipment, skills, exercises) | "food_preference" (diet, favorite/disliked foods, allergies) | "injury_limitation" (pain/injury) | "personality_style" (coaching tone/schedule).
+2. remove_memory(idOrQuery): Forget outdated memory by ID, topic, or keyword.
+3. log_food_item(name, mealType, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, fiberGrams, sugarGrams, date): Log food/meal to diary.
+4. search_food_database(query, source): Search USDA / OpenFoodFacts when nutrition lookup is needed.
+5. get_food_history(date): Get logged meals & macro totals for a specific date (YYYY-MM-DD).
+6. update_daily_macro_targets(targetCalories, targetProtein, targetCarbs, targetFat, targetFiber): Update daily macro targets.
+7. update_workout_plan(title, split, exercises, date): Create or update workout routine.
+8. swap_plan_exercise(targetExerciseNameOrId, replacementExerciseNameOrId, date): Swap an exercise in the plan.
+9. manage_workout_schedule(action, splitCycle, date): action="skip_workout" | "reschedule_next" | "set_cycle".
+10. log_completed_workout(title, exercises, durationMinutes, rpe, notes, date): Log completed workout or set.
+11. update_user_settings(weightKg, heightCm, dailyCalorieTarget, proteinGrams, equipmentPreference, skillLevel): Update athlete profile settings.
 
-${toolLines}
-
-TOOL CALLING PROTOCOL & RULES:
-1. ATHLETE CONTEXT IS ALREADY LOADED:
-   - Live telemetry (Readiness score, sleep, HRV), goals, stored memories, and today's scheduled workout plan are ALREADY provided in the ATHLETE CONTEXT above.
-   - Do NOT call get_telemetry_metrics, get_workout_plan, or get_memories if the data is already present in the ATHLETE CONTEXT.
-2. WHEN TO CALL A TOOL (MANDATORY):
-   - MEMORY (save_memory / remove_memory): Whenever the athlete asks you to remember/memorize something (e.g. "memorize it", "remember this") OR shares a lasting personal fact — such as workout equipment they own/lack (e.g. "I have a pull-up bar"), favorite or disliked exercises/skills, favorite or disliked foods/allergies, injuries/pain, or coaching style/personality preferences — you MUST call save_memory (or remove_memory if a past fact no longer applies).
-   - ACTIONS: When the athlete asks to log food (log_food_item), log a completed workout/set (log_completed_workout), skip/reschedule a workout or change their workout cycle (manage_workout_schedule), swap an exercise (swap_plan_exercise), or update settings (update_user_settings).
-   - DATABASE SEARCH: When detailed external lookup is needed (search_food_database, search_exercises) or reading past days' logs.
-3. STRICT OUTPUT FORMAT FOR TOOL CALLS:
-   - NEVER claim in plain text that you memorized, logged, or updated something without emitting the <tool_call> first!
-   - When calling a tool, your output MUST start immediately with <tool_call> on the first line (no text before <tool_call>):
-<tool_call>
-{"name": "tool_name", "arguments": { ... }}
-</tool_call>
-   - Example to memorize athlete equipment, skill, food, injury, or preference:
+PROTOCOL:
+- Live telemetry, today's workout, and stored memories are ALREADY in ATHLETE CONTEXT above.
+- Whenever the athlete says "memorize"/"remember" OR states equipment they own (e.g. "I have a pull-up bar"), favorite skills/foods, injuries, or preferences, you MUST call save_memory.
+- To call a tool, start your response immediately with <tool_call> (no text before <tool_call>):
 <tool_call>
 {"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "equipment_pull_up_bar", "content": "Available equipment: Pull-up bar"}}
 </tool_call>
-   - Example to log food:
-<tool_call>
-{"name": "log_food_item", "arguments": {"name": "Grilled Chicken", "calories": 250, "proteinGrams": 30, "carbsGrams": 0, "fatGrams": 3, "mealType": "lunch"}}
-</tool_call>
-   - Example when athlete is busy or wants to skip today's workout / change cycle:
-<tool_call>
-{"name": "manage_workout_schedule", "arguments": {"action": "skip_workout"}}
-</tool_call>
-   - Example to log exercise set or workout:
-<tool_call>
-{"name": "log_completed_workout", "arguments": {"title": "Pull-up Set", "exercises": [{"name": "Pull-up", "sets": 1, "reps": "10 reps"}]}}
-</tool_call>
-   - After <tool_result> is returned to you, write your concise coaching confirmation to the athlete.
-   - If no tool call is needed, respond normally to the athlete without any <tool_call> tags.
-`;
+- If no tool is needed, reply normally without <tool_call> tags.`;
 }
 
 function tryExtractToolCall(jsonStr: string): ToolCall | null {
@@ -140,8 +95,8 @@ function tryExtractToolCall(jsonStr: string): ToolCall | null {
 export function parseToolCallFromText(text: string): ToolCall | null {
   if (!text) return null;
 
-  // 1. Try explicit <tool_call> tags
-  const xmlMatch = text.match(/<tool_call>([\s\S]*?)<\/tool_call>/i);
+  // 1. Try explicit <tool_call> tags (including when </tool_call> was consumed as a stop sequence)
+  const xmlMatch = text.match(/<tool_call>([\s\S]*?)(?:<\/tool_call>|$)/i);
   if (xmlMatch) {
     const call = tryExtractToolCall(xmlMatch[1].trim());
     if (call) return call;
@@ -246,19 +201,49 @@ export interface AgentRunResult {
   tokensPerSecond: number;
 }
 
+function formatDeterministicWriteConfirmation(
+  call: ToolCall,
+  result: ToolResult,
+  leadingText?: string
+): string {
+  const cleanLeading = leadingText ? cleanFinalResponseText(leadingText) : '';
+  if (cleanLeading && cleanLeading.length > 8) {
+    return `${cleanLeading}\n\n✅ **${result.summary}**`;
+  }
+
+  switch (call.name) {
+    case 'save_memory':
+      return `✅ **Saved to Coach Memory:** ${call.arguments?.content || result.summary}`;
+    case 'remove_memory':
+      return `✅ **Removed from Coach Memory:** ${result.summary}`;
+    case 'log_food_item':
+      return `✅ **${result.summary}**`;
+    case 'delete_logged_food':
+      return `✅ **${result.summary}**`;
+    case 'update_daily_macro_targets':
+      return `✅ **${result.summary}**`;
+    case 'update_workout_plan':
+    case 'swap_plan_exercise':
+    case 'manage_workout_schedule':
+    case 'log_completed_workout':
+    case 'update_user_settings':
+      return `✅ **${result.summary}**`;
+    default:
+      return `✅ **${result.summary}**`;
+  }
+}
+
 export class AgentHarness {
   /**
    * Runs the agent harness loop: handles reasoning, tool execution, and final synthesis
    */
   public static async run(params: AgentRunParams): Promise<AgentRunResult> {
-    const { systemPrompt, messages, callbacks, temperature = 0.5, maxTokens = 600 } = params;
+    const { systemPrompt, messages, callbacks, temperature = 0.1, maxTokens = 400 } = params;
 
     const isOnDevice = llmService.getProvider() === 'on_device';
-    // Enhance system prompt with agent harness instructions (compact on-device version saves ~1,100 tokens)
-    const augmentedSystemPrompt = `${systemPrompt}\n${buildAgentToolPrompt(isOnDevice)}`;
-    const synthesisSystemPrompt = isOnDevice
-      ? `${systemPrompt}\n\n[TOOL EXECUTION COMPLETE: Confirm the <tool_result> concisely to the athlete. Do NOT output <tool_call> tags.]`
-      : augmentedSystemPrompt;
+    // Enhance system prompt with compact 10-core-tool declarations (~220 tokens)
+    const augmentedSystemPrompt = `${systemPrompt}\n${buildAgentToolPrompt()}`;
+    const synthesisSystemPrompt = `${systemPrompt}\n\n[DATA RETRIEVED: Answer the athlete's question concisely using the <tool_result> data above. Do NOT output <tool_call> tags.]`;
     const conversationHistory = [...messages];
     const steps: AgentExecutionStep[] = [];
     let totalTokens = 0;
@@ -269,14 +254,14 @@ export class AgentHarness {
       let iterationStreamedText = '';
 
       const activeSysPrompt =
-        isOnDevice && toolCallsCount > 0 ? synthesisSystemPrompt : augmentedSystemPrompt;
+        toolCallsCount > 0 ? synthesisSystemPrompt : augmentedSystemPrompt;
 
       const completionResult: CompletionResult = await llmService.streamCompletion(
         {
           systemPrompt: activeSysPrompt,
           messages: conversationHistory,
           temperature,
-          maxTokens: isOnDevice ? Math.min(maxTokens, 350) : maxTokens,
+          maxTokens: isOnDevice ? Math.min(maxTokens, 320) : maxTokens,
           mediaPaths: toolCallsCount === 0 ? params.mediaPaths : undefined,
         },
         (token: string) => {
@@ -338,6 +323,25 @@ export class AgentHarness {
       runningStep.status = toolResult.success ? 'completed' : 'failed';
       runningStep.summary = toolResult.summary;
       callbacks?.onStepUpdate?.({ ...runningStep });
+
+      // FAST DETERMINISTIC PATH FOR WRITE TOOLS:
+      // When a write action (save_memory, log_food_item, manage_workout_schedule, etc.) succeeds,
+      // return an instant deterministic confirmation with 0 extra LLM passes!
+      if (meta.access === 'write' && toolResult.success) {
+        const preToolText = outputText.split('<tool_call>')[0]?.trim();
+        const confirmationText = formatDeterministicWriteConfirmation(
+          detectedCall,
+          toolResult,
+          preToolText
+        );
+        callbacks?.onToken?.(confirmationText);
+        return {
+          fullText: confirmationText,
+          steps,
+          tokensGenerated: totalTokens,
+          tokensPerSecond: finalTokensPerSecond,
+        };
+      }
 
       // Append assistant tool call and tool result to conversation context for next iteration
       conversationHistory.push({

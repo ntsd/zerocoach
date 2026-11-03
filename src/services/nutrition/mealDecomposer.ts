@@ -783,7 +783,7 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks:
         systemPrompt:
           'You are ZeroCoach, an athletic coach and clinical sports nutritionist. Always output valid JSON strictly following the schema without markdown or conversational filler.',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
+        temperature: 0.1,
         maxTokens: 450,
       },
       (token) => {

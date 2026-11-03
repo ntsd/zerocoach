@@ -526,7 +526,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   },
 
   // =========================================================================
-  // DOMAIN 8: ATHLETE MEMORY & PERSONALITY (MEM0 LAYER) [READ / WRITE]
+  // DOMAIN 8: ATHLETE MEMORY & PERSONALITY [READ / WRITE]
   // =========================================================================
   {
     name: 'save_memory',

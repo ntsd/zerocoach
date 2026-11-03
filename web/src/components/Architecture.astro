@@ -7,9 +7,9 @@ const stackLayers = [
     tag: "Mobile Framework"
   },
   {
-    layer: "02. AI Agent & Mem0 Memory",
-    tech: "Tool Harness + Mem0 Engine",
-    description: "Symmetric read/write execution engine across 8 domains with a local Mem0 reconciliation layer for favorite foods, skills, injuries, and personality.",
+    layer: "02. AI Agent & Vector Memory",
+    tech: "Tool Harness + Memory Engine",
+    description: "Symmetric read/write execution engine across 8 domains with an on-device vector reconciliation layer for favorite foods, skills, injuries, and personality.",
     tag: "Agent & Memory"
   },
   {
@@ -46,7 +46,7 @@ const parityDomains = [
   { domain: "Workout Plan", ui: "View adaptive daily splits, swap/skip exercises, schedule future routines", agent: "Read daily workout plans, update full routines, and swap exercises from RepDB", access: "Read / Write" },
   { domain: "Workout DB (RepDB)", ui: "Browse 643 movements, filter by muscle/equipment, view poses & cues", agent: "Search 643 movements and retrieve kinetic cues, biomechanics, and pose metadata", access: "Read" },
   { domain: "ZeroCoach Settings", ui: "Update athlete profile, goals, weight/height, switch coach persona, language", agent: "Read athlete profile settings and update goals, body weight, coach tone, or language", access: "Read / Write" },
-  { domain: "Athlete Memory (Mem0)", ui: "View, filter, add, or delete categorized memories (food, skills, injuries, personality)", agent: "Reconcile facts (ADD/UPDATE/DELETE) via save_memory(), get_memories(), remove_memory()", access: "Read / Write" }
+  { domain: "Athlete Memory", ui: "View, filter, add, or delete categorized memories (food, skills, injuries, personality)", agent: "Reconcile facts (ADD/UPDATE/DELETE) via save_memory(), get_memories(), remove_memory()", access: "Read / Write" }
 ];
 ---
 

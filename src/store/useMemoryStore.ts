@@ -13,7 +13,8 @@ import {
   deleteMemoryByQuery,
   retrieveRelevantMemories,
   normalizeMemoryCategory,
-} from '@/services/memory/mem0Engine';
+} from '@/services/memory/memoryEngine';
+import { embeddingService } from '@/services/device/embeddingService';
 
 export const useMemoryStore = create<MemoryState>()(
   persist<MemoryState>(
@@ -25,6 +26,27 @@ export const useMemoryStore = create<MemoryState>()(
         const { memories: updated, result } = reconcileMemory(current, candidate);
         if (result.operation !== 'NOOP') {
           set({ memories: updated });
+
+          // Asynchronously compute and attach dense vector embedding
+          if (result.item && !result.item.embedding) {
+            const targetId = result.item.id;
+            const contentToEmbed = result.item.content;
+            embeddingService
+              .getEmbedding(contentToEmbed)
+              .then((vec) => {
+                if (vec && vec.length > 0) {
+                  const latest = get().memories;
+                  const idx = latest.findIndex((m) => m.id === targetId);
+                  if (idx !== -1) {
+                    const next = [...latest];
+                    next[idx] = { ...next[idx], embedding: vec };
+                    set({ memories: next });
+                    console.log(`[useMemoryStore] Attached dense embedding (${vec.length}-d) to memory "${contentToEmbed}"`);
+                  }
+                }
+              })
+              .catch((err) => console.warn('[useMemoryStore] Async embedding error:', err));
+          }
         }
         return result;
       },
@@ -48,6 +70,16 @@ export const useMemoryStore = create<MemoryState>()(
       searchMemories: (query: string, category?: MemoryCategory, limit = 10): MemoryItem[] => {
         const base = category ? get().getMemories(category) : get().memories;
         return retrieveRelevantMemories(base, query, limit);
+      },
+
+      searchMemoriesVector: async (
+        query: string,
+        category?: MemoryCategory,
+        limit = 10
+      ): Promise<MemoryItem[]> => {
+        const queryVec = await embeddingService.getEmbedding(query);
+        const base = category ? get().getMemories(category) : get().memories;
+        return retrieveRelevantMemories(base, query, limit, queryVec || undefined);
       },
 
       clearMemories: () => {

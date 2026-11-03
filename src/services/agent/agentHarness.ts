@@ -10,7 +10,7 @@ import {
 } from './types';
 import { llmService } from '@/services/llm/llmService';
 import { CompletionRequest, CompletionResult } from '@/services/llm/types';
-import { isNegationOrRecoveryStatement } from '@/services/memory/mem0Engine';
+import { isNegationOrRecoveryStatement } from '@/services/memory/memoryEngine';
 
 const MAX_TOOL_CALLS = 4;
 

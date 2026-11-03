@@ -1599,7 +1599,7 @@ export function generateAdaptiveWorkoutPlan(
   }
 
   // ==========================================
-  // SIMPLIFY TO FOCUSED CORE EXERCISES & APPLY MEM0 FAVORITES / INJURIES
+  // SIMPLIFY TO FOCUSED CORE EXERCISES & APPLY FAVORITES / INJURIES
   // ==========================================
   // Keep only core movements (skill, strength, metabolic) so humans get a clean 4-exercise workout
   let focusedExercises = exercises.filter(

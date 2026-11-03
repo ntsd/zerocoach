@@ -144,7 +144,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   ]);
   const currentSplit = currentStep.split;
 
-  // Compute simplified 4-movement adaptive plan (with Mem0 favorites prioritized)
+  // Compute simplified 4-movement adaptive plan (with coach memory favorites prioritized)
   const adaptivePlan = useMemo(() => {
     return generateAdaptiveWorkoutPlan({
       goals: [activeGoal],

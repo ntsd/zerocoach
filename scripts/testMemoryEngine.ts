@@ -1,4 +1,23 @@
-import assert from 'node:assert';
+interface AssertFn {
+  (condition: any, message?: string): asserts condition;
+  strictEqual(actual: any, expected: any, message?: string): void;
+}
+
+const assert: AssertFn = Object.assign(
+  function (condition: any, message?: string): asserts condition {
+    if (!condition) {
+      throw new Error(message || 'Assertion failed');
+    }
+  },
+  {
+    strictEqual(actual: any, expected: any, message?: string) {
+      if (actual !== expected) {
+        throw new Error(`${message || 'Assertion failed'}: expected ${expected}, got ${actual}`);
+      }
+    },
+  }
+);
+
 import {
   isNegationOrRecoveryStatement,
   deleteMemoryByQuery,
@@ -6,8 +25,9 @@ import {
   computeMemorySimilarity,
   tokenizeMemoryText,
   inferCategoryFromContent,
-} from '../src/services/memory/mem0Engine.ts';
-import { MemoryItem } from '../src/types/memory.ts';
+} from '../src/services/memory/memoryEngine';
+import { MemoryItem } from '../src/types/memory';
+import { cosineSimilarity, rankMemoriesByVector } from '../src/services/memory/vectorSearch';
 
 console.log('--- 1. Testing isNegationOrRecoveryStatement ---');
 const positiveNegations = [
@@ -186,6 +206,93 @@ console.log('\n--- 4. Testing reconcileMemory ---');
   assert.strictEqual(res.result.operation, "NOOP");
   assert.strictEqual(res.memories.length, 1);
   console.log('✅ reconcileMemory never adds negative statement as a new memory.');
+}
+
+console.log('\n--- 5. Testing Cosine Similarity & Vector Ranking ---');
+{
+  const v1 = [1, 0, 0, 0];
+  const v2 = [1, 0, 0, 0];
+  const v3 = [0, 1, 0, 0];
+  const v4 = [-1, 0, 0, 0];
+  const v5 = [0.8, 0.6, 0, 0];
+
+  assert.strictEqual(Math.round(cosineSimilarity(v1, v2) * 100) / 100, 1.0);
+  assert.strictEqual(Math.round(cosineSimilarity(v1, v3) * 100) / 100, 0.0);
+  assert.strictEqual(Math.round(cosineSimilarity(v1, v4) * 100) / 100, -1.0);
+  assert.strictEqual(Math.round(cosineSimilarity(v1, v5) * 100) / 100, 0.8);
+  console.log('✅ cosineSimilarity calculates accurate angle metrics.');
+
+  const testMemories: MemoryItem[] = [
+    {
+      id: 'm1',
+      category: 'food_preference',
+      topic: 'allergy_shrimp',
+      content: 'Allergic to shrimp',
+      source: 'agent',
+      embedding: [0.95, 0.1, 0.0, 0.0],
+      createdAt: 1000,
+      updatedAt: 1000,
+    },
+    {
+      id: 'm2',
+      category: 'workout_preference',
+      topic: 'knee_rehab',
+      content: 'Left knee tendonitis',
+      source: 'agent',
+      embedding: [0.0, 0.1, 0.95, 0.0],
+      createdAt: 1000,
+      updatedAt: 1000,
+    },
+  ];
+
+  const queryVec = [0.92, 0.12, 0.0, 0.0];
+  const ranked = rankMemoriesByVector(queryVec, testMemories, 0.5);
+  assert.strictEqual(ranked.length, 1);
+  assert.strictEqual(ranked[0].item.id, 'm1');
+  assert(ranked[0].similarity > 0.9);
+  console.log('✅ rankMemoriesByVector accurately filters and orders by similarity.');
+}
+
+console.log('\n--- 6. Testing reconcileMemory with Dense Vectors ---');
+{
+  // Test 6a: High similarity vector (>= 0.88) detects duplicate
+  const existingWithVec: MemoryItem[] = [
+    {
+      id: 'm-shrimp',
+      category: 'food_preference',
+      topic: 'allergy_shrimp',
+      content: 'Severe allergy to shrimp and shellfish',
+      source: 'agent',
+      embedding: [0.8, 0.6, 0.0, 0.0],
+      createdAt: 1000,
+      updatedAt: 1000,
+    },
+  ];
+
+  const candidateDuplicate = {
+    category: 'food_preference' as const,
+    content: 'Allergic to shrimp',
+    source: 'agent' as const,
+    embedding: [0.81, 0.59, 0.0, 0.0], // > 0.99 cosine similarity
+  };
+
+  const res = reconcileMemory(existingWithVec, candidateDuplicate);
+  assert.strictEqual(res.result.operation, 'NOOP');
+  console.log('✅ reconcileMemory detects high-similarity vector duplicate (operation = NOOP).');
+
+  // Test 6b: Vector update with refined detail (0.65 <= sim < 0.88)
+  const candidateUpdate = {
+    category: 'food_preference' as const,
+    topic: 'allergy_shrimp',
+    content: 'Severe anaphylactic allergy to shrimp and prawns',
+    source: 'agent' as const,
+    embedding: [0.6, 0.4, 0.69, 0.0], // cosine similarity ~0.72 with [0.8, 0.6, 0.0, 0.0]
+  };
+
+  const resUpdate = reconcileMemory(existingWithVec, candidateUpdate);
+  assert.strictEqual(resUpdate.result.operation, 'UPDATE');
+  assert.strictEqual(resUpdate.memories[0].content, candidateUpdate.content);
+  console.log('✅ reconcileMemory updates existing memory when similarity >= 0.65.');
 }
 
 console.log('\n🎉 ALL TESTS PASSED SUCCESSFULLY! 🎉');

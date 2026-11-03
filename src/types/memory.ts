@@ -11,10 +11,12 @@ export type MemorySource = 'agent' | 'extractor' | 'manual';
 export interface MemoryItem {
   id: string;
   category: MemoryCategory;
-  /** Normalized subject key for deduplication & Mem0 UPDATE/DELETE reconciliation (e.g., "favorite_food", "favorite_skill", "shoulder_injury") */
+  /** Normalized subject key for deduplication & memory reconciliation (e.g., "favorite_food", "favorite_skill", "shoulder_injury") */
   topic: string;
   /** Atomic fact stored for the athlete (e.g., "Favorite food: Grilled salmon & jasmine rice") */
   content: string;
+  /** Optional dense vector embedding (e.g. 384-dimensional vector from MiniLM or BGE) */
+  embedding?: number[];
   source: MemorySource;
   createdAt: number;
   updatedAt: number;
@@ -24,6 +26,7 @@ export interface MemoryCandidate {
   category: MemoryCategory;
   content: string;
   topic?: string;
+  embedding?: number[];
   operationHint?: 'ADD_OR_UPDATE' | 'DELETE';
   source?: MemorySource;
 }
@@ -42,6 +45,7 @@ export interface MemoryState {
   forget: (idOrQuery: string) => MemoryReconciliationResult;
   getMemories: (category?: MemoryCategory) => MemoryItem[];
   searchMemories: (query: string, category?: MemoryCategory, limit?: number) => MemoryItem[];
+  searchMemoriesVector?: (query: string, category?: MemoryCategory, limit?: number) => Promise<MemoryItem[]>;
   clearMemories: () => void;
 }
 

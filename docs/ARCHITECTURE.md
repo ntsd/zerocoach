@@ -43,7 +43,7 @@ flowchart TD
         Store_WorkoutHistory["useWorkoutStore.historyByDate\n(Completed Sessions & Volume)"]
         Store_WorkoutPlan["useWorkoutStore.plansByDate\n(Persistent Workout Plans)"]
         Store_Settings["useCoachStore & useModelStore\n(Profile, Persona, Keys)"]
-        Store_Memory["useMemoryStore\n(Mem0 Athlete Memory)"]
+        Store_Memory["useMemoryStore\n(Athlete Memory & Vector Engine)"]
     end
 
     subgraph Data_Sources ["🌐 Local & External Databases"]
@@ -100,7 +100,7 @@ Every domain exposes symmetric capabilities across the mobile interface and the 
 | **5. Workout Plan** | View adaptive daily splits, swap movements, skip exercises, schedule future routines | **Read**: `get_workout_plan()`<br>**Write**: `update_workout_plan()`, `swap_plan_exercise()` | `useWorkoutStore` (`plansByDate`) |
 | **6. Workout Database (RepDB)** | Browse 643 movements, filter by muscle/equipment, view start/peak pose images & kinetic cues | **Read**: `search_exercises()`, `get_exercise_details()` | `exerciseRepository` (`data/exercises.json`) |
 | **7. ZeroCoach Settings** | Update athlete goals, weight, height, equipment preference, skill level, language | **Read**: `get_user_settings()`<br>**Write**: `update_user_settings()` | `useCoachStore`, `useModelStore` |
-| **8. Athlete Memory (Mem0)** | View, filter, add, or delete categorized personal memories (`Food`, `Workout`, `Injuries`, `Personality`) | **Read**: `get_memories()`<br>**Write**: `save_memory()`, `remove_memory()` | `useMemoryStore`, `mem0Engine` |
+| **8. Athlete Memory** | View, filter, add, or delete categorized personal memories (`Food`, `Workout`, `Injuries`, `Personality`) | **Read**: `get_memories()`<br>**Write**: `save_memory()`, `remove_memory()` | `useMemoryStore`, `memoryEngine` |
 
 ---
 

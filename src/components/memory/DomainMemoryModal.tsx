@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useMemoryStore } from '@/store/useMemoryStore';
 import { MemoryCategory } from '@/types/memory';
-import { inferCategoryFromContent } from '@/services/memory/mem0Engine';
+import { inferCategoryFromContent } from '@/services/memory/memoryEngine';
 import { GlassCard } from '@/components/common/GlassCard';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';

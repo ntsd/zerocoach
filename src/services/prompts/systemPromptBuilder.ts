@@ -5,7 +5,7 @@ import { generateAdaptiveWorkoutPlan } from '@/services/workout/workoutPlanGener
 import {
   formatMemoriesForFullPrompt,
   formatMemoriesForCompactPrompt,
-} from '@/services/memory/mem0Engine';
+} from '@/services/memory/memoryEngine';
 import { useMemoryStore } from '@/store/useMemoryStore';
 import { BASE_COACH_PROMPT } from './baseCoach';
 

@@ -8,7 +8,7 @@ import {
   normalizeMemoryCategory,
   inferCategoryFromContent,
   isNegationOrRecoveryStatement,
-} from '@/services/memory/mem0Engine';
+} from '@/services/memory/memoryEngine';
 import {
   searchUsdaFoods,
   searchOpenFoodFacts,
@@ -928,7 +928,7 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
       }
 
       // =====================================================================
-      // DOMAIN 8: ATHLETE MEMORY & PERSONALITY (MEM0 LAYER) [READ / WRITE]
+      // DOMAIN 8: ATHLETE MEMORY & PERSONALITY [READ / WRITE]
       // =====================================================================
       case 'save_memory': {
         const memoryStore = useMemoryStore.getState();

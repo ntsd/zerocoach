@@ -18,6 +18,7 @@ import { SkillLevel, TrainingGoal } from '@/types/coach';
 import { useMemoryStore } from '@/store/useMemoryStore';
 import { MemoryCategory } from '@/types/memory';
 import { llmService } from '@/services/llm/llmService';
+import { embeddingService } from '@/services/device/embeddingService';
 import { updateService } from '@/services/updates/updateService';
 import { COLORS, getModeColors } from '@/theme/colors';
 import { SPACING, RADIUS } from '@/theme/spacing';
@@ -75,6 +76,10 @@ export const ModelManagerScreen: React.FC = () => {
     mmprojDownloadProgress,
     isMmprojDownloaded,
     downloadMmproj,
+    isEmbeddingDownloading,
+    embeddingDownloadProgress,
+    isEmbeddingDownloaded,
+    downloadEmbeddingModel,
     provider,
     openAIConfig,
     geminiApiKey,
@@ -633,6 +638,64 @@ export const ModelManagerScreen: React.FC = () => {
                   )}
                 </View>
               )}
+
+              {/* Coach Memory Vector Embedding Model Section (Dedicated Dual Context) */}
+              <View style={[styles.projectorCard, { marginTop: 12 }]}>
+                <View style={styles.projectorHeader}>
+                  <Brain size={14} color={modeColors.accent} />
+                  <Text style={styles.projectorTitle}>Coach Memory (On-Device Vector Engine)</Text>
+                  {isEmbeddingDownloaded && embeddingService.isReady() ? (
+                    <View style={styles.projectorActiveBadge}>
+                      <CheckCircle2 size={11} color="#00F0FF" />
+                      <Text style={styles.projectorActiveBadgeText}>ACTIVE IN RAM (384-D)</Text>
+                    </View>
+                  ) : isEmbeddingDownloaded ? (
+                    <View style={[styles.projectorActiveBadge, { borderColor: '#FFB800' }]}>
+                      <Text style={[styles.projectorActiveBadgeText, { color: '#FFB800' }]}>DOWNLOADED</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.projectorDesc}>
+                  Enables 100% offline semantic vector similarity for athlete preferences, injuries, and dietary allergies in English & Thai (~70 MB GGUF, ~80 MB RAM).
+                </Text>
+                {isEmbeddingDownloading ? (
+                  <View style={styles.downloadBox}>
+                    <View style={styles.progressHeader}>
+                      <Text style={styles.downloadingText}>Downloading Embedding Model...</Text>
+                      <Text style={styles.downloadPercent}>{embeddingDownloadProgress}%</Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                      <View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${embeddingDownloadProgress}%`,
+                            backgroundColor: modeColors.accent,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <View style={{ gap: 8, marginTop: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => downloadEmbeddingModel(true)}
+                      style={[
+                        styles.btn,
+                        { borderColor: `${modeColors.accent}40` },
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Download size={14} color={modeColors.accent} />
+                      <Text style={[styles.btnText, { color: modeColors.accent }]}>
+                        {isEmbeddingDownloaded
+                          ? 'RE-VERIFY EMBEDDING MODEL'
+                          : 'DOWNLOAD EMBEDDING MODEL (218 MB)'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             </View>
           )}
 
@@ -990,9 +1053,6 @@ export const ModelManagerScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
         </GlassCard>
-
-
-
 
         {/* OTA Updates Section */}
         <GlassCard style={styles.card}>

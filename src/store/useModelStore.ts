@@ -10,6 +10,7 @@ import {
   OpenAICompatibleConfig,
 } from '@/types/model';
 import { llmService } from '@/services/llm/llmService';
+import { embeddingService } from '@/services/device/embeddingService';
 import { getDeviceMemoryInfo } from '@/services/device/deviceMemory';
 
 export const QWEN3_VL_2B_MODEL: ModelMetadata = {
@@ -56,6 +57,30 @@ export const QWEN_3_INSTRUCT_MODEL: ModelMetadata = {
   contextLength: 4096,
 };
 
+export const COACH_EMBEDDING_MODEL: ModelMetadata = {
+  id: 'bge-small-en-v1.5-q4_k_m',
+  name: 'BGE Small v1.5 (English Memory Vectors)',
+  sizeBytes: 24808576,
+  sizeFormatted: '24.8 MB',
+  quantization: 'Q4_K_M',
+  downloadUrl:
+    'https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q4_k_m.gguf',
+  isFineTuned: false,
+  contextLength: 512,
+};
+
+export const COACH_MULTILINGUAL_EMBEDDING_MODEL: ModelMetadata = {
+  id: 'paraphrase-multilingual-minilm-l12-v2-q4_k_m',
+  name: 'MiniLM Multilingual L12 (English + Thai Memory Vectors)',
+  sizeBytes: 218732928,
+  sizeFormatted: '218 MB',
+  quantization: 'Q4_K_M',
+  downloadUrl:
+    'https://huggingface.co/mradermacher/TRoTR-paraphrase-multilingual-MiniLM-L12-v2-GGUF/resolve/main/TRoTR-paraphrase-multilingual-MiniLM-L12-v2.Q4_K_M.gguf',
+  isFineTuned: false,
+  contextLength: 512,
+};
+
 export const AVAILABLE_MODELS: ModelMetadata[] = [
   QWEN3_VL_2B_MODEL,
   ZEROCOACH_ATHLETIC_MODEL,
@@ -89,6 +114,9 @@ export const useModelStore = create<ModelState>()(
       isMmprojDownloading: false,
       mmprojDownloadProgress: 0,
       isMmprojDownloaded: false,
+      isEmbeddingDownloading: false,
+      embeddingDownloadProgress: 0,
+      isEmbeddingDownloaded: false,
       provider: 'on_device',
       openAIConfig: DEFAULT_OPENAI_CONFIG,
       geminiApiKey: '',
@@ -353,6 +381,64 @@ export const useModelStore = create<ModelState>()(
         }
       },
 
+      downloadEmbeddingModel: async (multilingual = true) => {
+        const embedModel = multilingual ? COACH_MULTILINGUAL_EMBEDDING_MODEL : COACH_EMBEDDING_MODEL;
+        if (!Paths.document) throw new Error('Filesystem document path not available');
+
+        const destinationFile = new File(Paths.document, `${embedModel.id}.gguf`);
+        const minExpectedBytes = Math.round(embedModel.sizeBytes * 0.85);
+
+        if (destinationFile.exists && destinationFile.size >= minExpectedBytes) {
+          console.log(`[useModelStore] Embedding model already verified on disk (${destinationFile.size} bytes). Initializing context...`);
+          const nativePath = destinationFile.uri.replace(/^file:\/\//, '');
+          const ok = await embeddingService.initEmbeddingContext(nativePath);
+          set({ isEmbeddingDownloaded: Boolean(ok) });
+          return;
+        }
+
+        set({ isEmbeddingDownloading: true, embeddingDownloadProgress: 0, errorMessage: null });
+        try {
+          const tempPartFile = new File(Paths.document, `${embedModel.id}.gguf.part`);
+          if (tempPartFile.exists) tempPartFile.delete();
+
+          console.log(`[useModelStore] Downloading Vector Embedding Model (${embedModel.name})...`);
+          await File.downloadFileAsync(embedModel.downloadUrl, tempPartFile, {
+            idempotent: true,
+            onProgress: (progress) => {
+              if (progress.totalBytes > 0) {
+                const pct = Math.min(99, Math.round((progress.bytesWritten / progress.totalBytes) * 100));
+                set({ embeddingDownloadProgress: pct });
+              } else if (embedModel.sizeBytes && progress.bytesWritten > 0) {
+                const pct = Math.min(99, Math.round((progress.bytesWritten / embedModel.sizeBytes) * 100));
+                set({ embeddingDownloadProgress: pct });
+              }
+            },
+          });
+
+          if (tempPartFile.exists && tempPartFile.size >= minExpectedBytes) {
+            if (destinationFile.exists) destinationFile.delete();
+            await tempPartFile.move(destinationFile);
+            console.log(`[useModelStore] Vector Embedding Model verified on disk (${destinationFile.size} bytes)!`);
+            set({ isEmbeddingDownloading: false, embeddingDownloadProgress: 100 });
+
+            const nativePath = destinationFile.uri.replace(/^file:\/\//, '');
+            const ok = await embeddingService.initEmbeddingContext(nativePath);
+            set({ isEmbeddingDownloaded: Boolean(ok) });
+            console.log(`[useModelStore] Vector Embedding context initialized: ${ok}`);
+          } else {
+            if (tempPartFile.exists) tempPartFile.delete();
+            throw new Error(`Embedding model download incomplete (${tempPartFile.size || 0} / ${embedModel.sizeBytes} bytes).`);
+          }
+        } catch (err: any) {
+          console.error('[useModelStore] Failed to download embedding model:', err);
+          set({
+            isEmbeddingDownloading: false,
+            isEmbeddingDownloaded: false,
+            errorMessage: err?.message || 'Failed to download embedding model',
+          });
+        }
+      },
+
       unloadModel: async () => {
         await llmService.unload();
         set({ status: 'ready', isMmprojDownloaded: false });
@@ -383,6 +469,18 @@ export const useModelStore = create<ModelState>()(
                 set({ isMmprojDownloaded: Boolean(mmSuccess) });
               }
             }
+
+            // Check for downloaded vector embedding model and initialize dual context
+            const multiEmbed = new File(Paths.document, `${COACH_MULTILINGUAL_EMBEDDING_MODEL.id}.gguf`);
+            const compactEmbed = new File(Paths.document, `${COACH_EMBEDDING_MODEL.id}.gguf`);
+            const targetEmbedFile = multiEmbed.exists ? multiEmbed : compactEmbed.exists ? compactEmbed : null;
+            if (targetEmbedFile && !embeddingService.isReady()) {
+              const embedNativePath = targetEmbedFile.uri.replace(/^file:\/\//, '');
+              const ok = await embeddingService.initEmbeddingContext(embedNativePath);
+              set({ isEmbeddingDownloaded: Boolean(ok) });
+              console.log(`[useModelStore] Auto-initialized dual embedding context (${targetEmbedFile.name}): ${ok}`);
+            }
+
             return;
           }
 

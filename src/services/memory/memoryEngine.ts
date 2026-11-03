@@ -4,6 +4,7 @@ import {
   MemoryItem,
   MemoryReconciliationResult,
 } from '@/types/memory';
+import { cosineSimilarity } from './vectorSearch';
 
 const MAX_MEMORIES = 50;
 
@@ -208,7 +209,7 @@ export function isNegationOrRecoveryStatement(content: string): boolean {
 }
 
 /**
- * Core Mem0-style reconciliation loop:
+ * Core memory reconciliation loop:
  * Evaluates a candidate fact against existing memories and resolves to ADD, UPDATE, DELETE, or NOOP.
  */
 export function reconcileMemory(
@@ -275,7 +276,7 @@ export function reconcileMemory(
   const exactMatch = existingMemories.find(
     (m) =>
       computeMemorySimilarity(m.content, cleanContent) >= 0.85 ||
-      (m.category === category && m.topic === topic && computeMemorySimilarity(m.content, cleanContent) >= 0.65)
+      (m.embedding && candidate.embedding && cosineSimilarity(m.embedding, candidate.embedding) >= 0.88)
   );
   if (exactMatch) {
     return {
@@ -292,7 +293,9 @@ export function reconcileMemory(
   const topicOrOverlapIndex = existingMemories.findIndex(
     (m) =>
       m.category === category &&
-      (m.topic === topic || computeMemorySimilarity(m.content, cleanContent) >= 0.58)
+      (m.topic === topic ||
+        computeMemorySimilarity(m.content, cleanContent) >= 0.58 ||
+        (m.embedding && candidate.embedding && cosineSimilarity(m.embedding, candidate.embedding) >= 0.65))
   );
 
   if (topicOrOverlapIndex !== -1) {
@@ -301,6 +304,7 @@ export function reconcileMemory(
       ...prev,
       topic,
       content: cleanContent,
+      embedding: candidate.embedding || prev.embedding,
       source: candidate.source || prev.source,
       updatedAt: now,
     };
@@ -324,6 +328,7 @@ export function reconcileMemory(
     category,
     topic,
     content: cleanContent,
+    embedding: candidate.embedding,
     source: candidate.source || 'agent',
     createdAt: now,
     updatedAt: now,
@@ -474,10 +479,11 @@ export function deleteMemoryByQuery(
 export function retrieveRelevantMemories(
   memories: MemoryItem[],
   query?: string,
-  maxItems: number = 10
+  maxItems: number = 10,
+  queryEmbedding?: number[]
 ): MemoryItem[] {
   if (!memories || memories.length === 0) return [];
-  if (memories.length <= maxItems && !query) return memories;
+  if (memories.length <= maxItems && !query && !queryEmbedding) return memories;
 
   const queryTokens = new Set(tokenizeMemoryText(query || ''));
   const isFoodQuery =
@@ -507,6 +513,14 @@ export function retrieveRelevantMemories(
       score += 40;
     }
 
+    // Dense Vector Cosine Similarity (when embeddings are present)
+    if (queryEmbedding && m.embedding && m.embedding.length > 0) {
+      const vecSim = cosineSimilarity(queryEmbedding, m.embedding);
+      if (vecSim > 0.3) {
+        score += Math.round(vecSim * 80);
+      }
+    }
+
     // Lexical / BM25-lite overlap with current query
     if (queryTokens.size > 0) {
       const memTokens = tokenizeMemoryText(m.content);
@@ -533,7 +547,7 @@ export function retrieveRelevantMemories(
 export function formatMemoriesForFullPrompt(memories: MemoryItem[], query?: string): string {
   const selected = retrieveRelevantMemories(memories, query, 16);
   if (selected.length === 0) {
-    return `- ATHLETE MEMORY & PERSONALITY (MEM0 LAYER):
+    return `- ATHLETE MEMORY & PERSONALITY:
   * No personal preferences stored yet. If the athlete mentions their favorite foods, dietary restrictions, favorite workout skills/exercises, injuries, or personality/schedule preferences, call save_memory to remember them.`;
   }
 
@@ -548,7 +562,7 @@ export function formatMemoriesForFullPrompt(memories: MemoryItem[], query?: stri
     byCat[m.category].push(m.content);
   }
 
-  const lines: string[] = ['- ATHLETE MEMORY & PERSONALITY (MEM0 LAYER):'];
+  const lines: string[] = ['- ATHLETE MEMORY & PERSONALITY:'];
   if (byCat.personality_style.length > 0) {
     lines.push(`  * Personality & Lifestyle: ${byCat.personality_style.join(' | ')}`);
   }

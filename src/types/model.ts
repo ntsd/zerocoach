@@ -48,6 +48,9 @@ export interface ModelState {
   isMmprojDownloading: boolean;
   mmprojDownloadProgress: number;
   isMmprojDownloaded: boolean;
+  isEmbeddingDownloading: boolean;
+  embeddingDownloadProgress: number;
+  isEmbeddingDownloaded: boolean;
   provider: LLMProviderType;
   openAIConfig: OpenAICompatibleConfig;
   geminiApiKey: string;
@@ -61,6 +64,7 @@ export interface ModelState {
   testGeminiConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
   downloadModel: () => Promise<void>;
   downloadMmproj: () => Promise<void>;
+  downloadEmbeddingModel: (multilingual?: boolean) => Promise<void>;
   loadModel: () => Promise<void>;
   unloadModel: () => Promise<void>;
   autoInitOnDeviceModel: () => Promise<void>;

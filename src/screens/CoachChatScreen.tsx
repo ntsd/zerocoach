@@ -663,7 +663,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           </TouchableOpacity>
         </Modal>
 
-        {/* Unified Coach Memory (Mem0 Layer) Modal */}
+        {/* Unified Coach Memory Modal */}
         <DomainMemoryModal
           visible={isPersonalizeMemoryOpen}
           onClose={() => setIsPersonalizeMemoryOpen(false)}

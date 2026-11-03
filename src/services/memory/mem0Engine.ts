@@ -14,6 +14,8 @@ const STOP_WORDS = new Set([
   'and', 'or', 'but', 'so', 'very', 'really', 'just', 'also', 'too',
   'that', 'this', 'it', 'have', 'has', 'had', 'do', 'does', 'did',
   'am', 'can', 'will', 'would', 'should', 'could',
+  'don', 'dont', 'doesnt', 'didnt', 'isnt', 'arent', 'wont', 'cant',
+  'im', 'youre', 'ive', 'id', 'not', 'no',
   'ฉัน', 'ผม', 'เรา', 'คือ', 'เป็น', 'ที่', 'ใน', 'ของ', 'และ', 'หรือ', 'มาก', 'เลย', 'ครับ', 'ค่ะ', 'นะ',
 ]);
 
@@ -28,10 +30,10 @@ export function inferCategoryFromContent(text: string): MemoryCategory {
     return 'injury_limitation';
   }
   if (
-    /\b(food|diet\w*|nutrition|meal|eat\w*|allerg\w*|intoleran\w*|vegan|vegetarian|keto|halal|protein|calorie\w*|macro\w*|breakfast|lunch|dinner|snack|chicken|beef|pork|salmon|fish|rice|egg\w*|milk|dairy|peanut\w*|seafood|coffee)\b/.test(
+    /\b(food|diet\w*|nutrition|meal|eat\w*|allerg\w*|intoleran\w*|vegan|vegetarian|keto|halal|protein|calorie\w*|macro\w*|breakfast|lunch|dinner|snack|chicken|beef|pork|salmon|fish|shrimp|prawn|crab|lobster|seafood|rice|egg\w*|milk|dairy|peanut\w*|nuts?|gluten|coffee)\b/.test(
       lower
     ) ||
-    /อาหาร|กิน|ทาน|มื้อ|แพ้|มังสวิรัติ|คีโต|ฮาลาล|โปรตีน|แคลอรี่|ข้าว|ไก่|ปลา|ไข่/.test(lower)
+    /อาหาร|กิน|ทาน|มื้อ|แพ้|มังสวิรัติ|คีโต|ฮาลาล|โปรตีน|แคลอรี่|ข้าว|ไก่|ปลา|กุ้ง|ไข่/.test(lower)
   ) {
     return 'food_preference';
   }
@@ -60,13 +62,23 @@ export function normalizeMemoryCategory(raw?: string): MemoryCategory {
   return inferCategoryFromContent(lower);
 }
 
+function stemToken(token: string): string {
+  if (token.startsWith('allerg')) return 'allerg';
+  if (token.startsWith('injur')) return 'injur';
+  if (token.startsWith('prefer')) return 'prefer';
+  if (token.startsWith('dislik')) return 'dislik';
+  if (token.startsWith('favor')) return 'favor';
+  if (token.startsWith('equip')) return 'equip';
+  return token;
+}
+
 export function tokenizeMemoryText(text: string): string[] {
   if (!text) return [];
   return text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s_-]/gu, ' ')
     .split(/\s+/)
-    .map((t) => t.trim())
+    .map((t) => stemToken(t.trim()))
     .filter((t) => t.length > 1 && !STOP_WORDS.has(t));
 }
 
@@ -154,13 +166,45 @@ export function computeMemorySimilarity(a: string, b: string): number {
   return union > 0 ? intersection / union : 0;
 }
 
-function isNegationOrRecoveryStatement(content: string): boolean {
-  const lower = content.toLowerCase();
-  return (
-    /\b(no longer|recovered from|healed|doesn't hurt anymore|does not hurt anymore|pain is gone|not allergic|forget that)\b/.test(
+export function isNegationOrRecoveryStatement(content: string): boolean {
+  if (!content) return false;
+  const lower = content.toLowerCase().trim();
+
+  // Explicit negation phrases, apologies, corrections, and forgetting commands
+  if (
+    /\b(no longer|recovered from|healed|pain is gone|not hurt|doesn't hurt|does not hurt|never mind|forget that|forget memory|remove memory|delete memory|false alarm|i lie|i lied|was mistaken)\b/i.test(
       lower
-    ) || /หายเจ็บ|หายปวด|ไม่เจ็บแล้ว|ไม่ปวดแล้ว|ลืมเรื่อง/.test(lower)
-  );
+    )
+  ) {
+    return true;
+  }
+
+  // Allergy / preference negations: "don't allergic", "not allergic", "don't allergy", "no allergy", "not have an allergy", "not have shrimp allergy"
+  if (
+    /\b(not|don't|dont|do not|doesn't|doesnt|never|no|without)\b.*\b(allergic|allergy|allergies|injured|pain|hurt|limitation)\b/i.test(
+      lower
+    )
+  ) {
+    return true;
+  }
+
+  // Equipment / habit negations: "don't have ... anymore", "no longer have", "lost my"
+  if (
+    /\b(don't have|dont have|do not have|no longer have|lost my|sold my)\b/i.test(lower)
+  ) {
+    return true;
+  }
+
+  // Thai negations
+  if (
+    /ไม่ได้แพ้|ไม่แพ้แล้ว|ไม่แพ้|หายแพ้|หายเจ็บ|หายปวด|ไม่เจ็บแล้ว|ไม่ปวดแล้ว|ไม่ได้เป็น|ไม่มีแล้ว|ลบความจำ|ลืมเรื่อง|ลืม/.test(
+      lower
+    )
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -191,10 +235,17 @@ export function reconcileMemory(
 
   // 1. Check if this is an explicit DELETE or a recovery/negation of an existing memory
   if (candidate.operationHint === 'DELETE' || isNegationOrRecoveryStatement(cleanContent)) {
+    // First, use keyword/entity query deletion
+    const delResult = deleteMemoryByQuery(existingMemories, cleanContent);
+    if (delResult.result.operation === 'DELETE') {
+      return delResult;
+    }
+
+    // Secondary fallback: Match by topic or semantic similarity across categories
     const target = existingMemories.find(
       (m) =>
         m.topic === topic ||
-        (m.category === category && computeMemorySimilarity(m.content, cleanContent) >= 0.4)
+        computeMemorySimilarity(m.content, cleanContent) >= 0.35
     );
     if (target) {
       const filtered = existingMemories.filter((m) => m.id !== target.id);
@@ -208,20 +259,23 @@ export function reconcileMemory(
         },
       };
     }
-    if (candidate.operationHint === 'DELETE') {
-      return {
-        memories: existingMemories,
-        result: {
-          operation: 'NOOP',
-          summary: 'No matching memory found to delete.',
-        },
-      };
-    }
+
+    // Negations/recovery statements should NEVER fall through to ADD as new memories
+    return {
+      memories: existingMemories,
+      result: {
+        operation: 'NOOP',
+        summary: `No matching memory found to remove for "${cleanContent}".`,
+      },
+    };
   }
 
   // 2. Check for exact or near-exact duplicate -> NOOP
+  // Cross-category check ensures duplicate memories aren't created if model miscategorizes
   const exactMatch = existingMemories.find(
-    (m) => m.category === category && computeMemorySimilarity(m.content, cleanContent) >= 0.85
+    (m) =>
+      computeMemorySimilarity(m.content, cleanContent) >= 0.85 ||
+      (m.category === category && m.topic === topic && computeMemorySimilarity(m.content, cleanContent) >= 0.65)
   );
   if (exactMatch) {
     return {
@@ -298,7 +352,7 @@ export function reconcileMemory(
 }
 
 /**
- * Deletes a memory by exact ID or best keyword/topic match.
+ * Deletes a memory by exact ID, topic, or keyword/entity match.
  */
 export function deleteMemoryByQuery(
   existingMemories: MemoryItem[],
@@ -307,8 +361,8 @@ export function deleteMemoryByQuery(
   memories: MemoryItem[];
   result: MemoryReconciliationResult;
 } {
-  const clean = idOrQuery.trim();
-  if (!clean) {
+  const rawClean = idOrQuery.trim();
+  if (!rawClean) {
     return {
       memories: existingMemories,
       result: { operation: 'NOOP', summary: 'No memory ID or query provided.' },
@@ -317,11 +371,14 @@ export function deleteMemoryByQuery(
 
   // 1. Direct ID or exact topic match
   const byIdOrTopic = existingMemories.find(
-    (m) => m.id === clean || m.topic.toLowerCase() === clean.toLowerCase()
+    (m) => m.id === rawClean || m.topic.toLowerCase() === rawClean.toLowerCase()
   );
   if (byIdOrTopic) {
+    const remaining = existingMemories.filter(
+      (m) => m.id !== byIdOrTopic.id && m.topic.toLowerCase() !== rawClean.toLowerCase()
+    );
     return {
-      memories: existingMemories.filter((m) => m.id !== byIdOrTopic.id),
+      memories: remaining,
       result: {
         operation: 'DELETE',
         removedId: byIdOrTopic.id,
@@ -331,32 +388,71 @@ export function deleteMemoryByQuery(
     };
   }
 
-  // 2. Substring or token similarity match
-  const lower = clean.toLowerCase();
-  let bestMatch: MemoryItem | undefined;
+  // Strip negation phrases, lead-ins, or tool call wrappers to isolate the core entity being forgotten
+  // e.g. "I lie, I don't allergy to shrimp" -> "shrimp"
+  // e.g. "I don't allergic to shrimp" -> "shrimp"
+  // e.g. "not allergic to shrimp" -> "shrimp"
+  // e.g. "forget pull-up bar" -> "pull-up bar"
+  const strippedQuery = rawClean
+    .toLowerCase()
+    .replace(/\b(i lie|i lied|was mistaken|mistake|actually|wait)\b/gi, ' ')
+    .replace(/\b(i am not|i'm not|i don't|i do not|dont|do not|never|no longer|not|no|haven't got|dont have|do not have|no longer have)\b/gi, ' ')
+    .replace(/\b(allergic to|allergy to|allergic|allergy|allergies)\b/gi, ' ')
+    .replace(/\b(forget that|forget memory|forget|remove memory|remove|delete memory|delete)\b/gi, ' ')
+    .replace(/\b(to|the|a|an|my|anymore)\b/gi, ' ')
+    .trim();
+
+  const lower = rawClean.toLowerCase();
+  const strippedLower = strippedQuery.toLowerCase();
+
+  const matches: MemoryItem[] = [];
   let bestScore = 0;
+  let bestMatch: MemoryItem | undefined;
 
   for (const m of existingMemories) {
-    if (m.content.toLowerCase().includes(lower) || m.topic.toLowerCase().includes(lower)) {
-      bestMatch = m;
-      bestScore = 1;
-      break;
+    const memContentLower = m.content.toLowerCase();
+    const memTopicLower = m.topic.toLowerCase();
+
+    // Check substring match (bidirectional)
+    const isDirectSubstring =
+      memContentLower.includes(lower) ||
+      lower.includes(memContentLower) ||
+      memTopicLower.includes(lower) ||
+      (strippedLower.length >= 3 && (memContentLower.includes(strippedLower) || memTopicLower.includes(strippedLower)));
+
+    if (isDirectSubstring) {
+      matches.push(m);
+      if (!bestMatch) {
+        bestMatch = m;
+        bestScore = 1.0;
+      }
+      continue;
     }
-    const sim = computeMemorySimilarity(m.content, clean);
+
+    const sim = Math.max(
+      computeMemorySimilarity(m.content, rawClean),
+      strippedLower ? computeMemorySimilarity(m.content, strippedLower) : 0
+    );
+
+    if (sim >= 0.3) {
+      matches.push(m);
+    }
     if (sim > bestScore) {
       bestScore = sim;
       bestMatch = m;
     }
   }
 
-  if (bestMatch && bestScore >= 0.3) {
+  if (matches.length > 0) {
+    const matchIds = new Set(matches.map((m) => m.id));
+    const target = bestMatch || matches[0];
     return {
-      memories: existingMemories.filter((m) => m.id !== bestMatch!.id),
+      memories: existingMemories.filter((m) => !matchIds.has(m.id)),
       result: {
         operation: 'DELETE',
-        removedId: bestMatch.id,
-        previousContent: bestMatch.content,
-        summary: `Forgot memory: "${bestMatch.content}"`,
+        removedId: target.id,
+        previousContent: target.content,
+        summary: `Forgot memory: "${target.content}"`,
       },
     };
   }
@@ -365,7 +461,7 @@ export function deleteMemoryByQuery(
     memories: existingMemories,
     result: {
       operation: 'NOOP',
-      summary: `No matching memory found for "${clean}".`,
+      summary: `No matching memory found for "${rawClean}".`,
     },
   };
 }

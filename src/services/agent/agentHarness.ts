@@ -10,6 +10,7 @@ import {
 } from './types';
 import { llmService } from '@/services/llm/llmService';
 import { CompletionRequest, CompletionResult } from '@/services/llm/types';
+import { isNegationOrRecoveryStatement } from '@/services/memory/mem0Engine';
 
 const MAX_TOOL_CALLS = 4;
 
@@ -21,8 +22,8 @@ const MAX_TOOL_CALLS = 4;
 export function buildAgentToolPrompt(): string {
   return `
 [AGENT TOOLS — 10 CORE TOOLS]
-1. save_memory(category, content, topic): Save lasting athlete fact. category="workout_preference" (equipment, skills, exercises) | "food_preference" (diet, favorite/disliked foods, allergies) | "injury_limitation" (pain/injury) | "personality_style" (coaching tone/schedule).
-2. remove_memory(idOrQuery): Forget outdated memory by ID, topic, or keyword.
+1. save_memory(category, content, topic): Save lasting athlete fact or preference. category="workout_preference" (equipment, skills, exercises) | "food_preference" (diet, favorite/disliked foods, allergies) | "injury_limitation" (pain/injury) | "personality_style" (coaching tone/schedule).
+2. remove_memory(idOrQuery): Forget/delete outdated memory by ID, topic, or keyword.
 3. log_food_item(name, mealType, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, fiberGrams, sugarGrams, date): Log food/meal to diary.
 4. search_food_database(query, source): Search USDA / OpenFoodFacts when nutrition lookup is needed.
 5. get_food_history(date): Get logged meals & macro totals for a specific date (YYYY-MM-DD).
@@ -35,11 +36,15 @@ export function buildAgentToolPrompt(): string {
 
 PROTOCOL:
 - Live telemetry, today's workout, and stored memories are ALREADY in ATHLETE CONTEXT above.
-- Whenever the athlete says "memorize"/"remember" OR states equipment they own (e.g. "I have a pull-up bar"), favorite skills/foods, injuries, or preferences, you MUST call save_memory.
-- To call a tool, start your response immediately with <tool_call> (no text before <tool_call>):
+- When the athlete states NEW equipment they own, favorite foods/skills, new injuries, or preferences, call save_memory:
 <tool_call>
 {"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "equipment_pull_up_bar", "content": "Available equipment: Pull-up bar"}}
 </tool_call>
+- When the athlete states they are NOT/NO LONGER allergic (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "no shrimp allergy"), healed from injury ("shoulder is healed"), don't have equipment anymore, or asks to forget/remove a memory, you MUST call remove_memory:
+<tool_call>
+{"name": "remove_memory", "arguments": {"idOrQuery": "shrimp"}}
+</tool_call>
+- To call a tool, start your response directly with <tool_call>.
 - If no tool is needed, reply normally without <tool_call> tags.`;
 }
 
@@ -177,6 +182,7 @@ function getToolMeta(toolName: string): { domain: DomainName; access: ToolAccess
 
 export function cleanFinalResponseText(text: string): string {
   return text
+    .replace(/^\s*\(?no text before(?: <tool_call>)?\)?\s*/gi, '')
     .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
     .replace(/<\/?tool_call>/gi, '')
     .replace(/<tool_result>[\s\S]*?<\/tool_result>/gi, '')
@@ -208,7 +214,10 @@ function formatDeterministicWriteConfirmation(
   result: ToolResult,
   leadingText?: string
 ): string {
-  const cleanLeading = leadingText ? cleanFinalResponseText(leadingText) : '';
+  let cleanLeading = leadingText ? cleanFinalResponseText(leadingText) : '';
+  if (/^\(?no text before/i.test(cleanLeading)) {
+    cleanLeading = '';
+  }
   if (cleanLeading && cleanLeading.length > 8) {
     return `${cleanLeading}\n\n✅ **${result.summary}**`;
   }
@@ -217,7 +226,7 @@ function formatDeterministicWriteConfirmation(
     case 'save_memory':
       return `✅ **Saved to Coach Memory:** ${call.arguments?.content || result.summary}`;
     case 'remove_memory':
-      return `✅ **Removed from Coach Memory:** ${result.summary}`;
+      return `✅ **${result.summary}**`;
     case 'log_food_item':
       return `✅ **${result.summary}**`;
     case 'delete_logged_food':
@@ -304,6 +313,24 @@ export class AgentHarness {
           tokensPerSecond: finalTokensPerSecond,
           contextTokensUsed: lastContextTokensUsed,
           contextMaxTokens: lastContextMaxTokens,
+        };
+      }
+
+      // Inverted action protection: If athlete explicitly expressed negation or recovery
+      // (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "healed from knee pain")
+      // but the model invoked save_memory, intercept and redirect to remove_memory.
+      const lastUserMsg =
+        [...conversationHistory].reverse().find((m) => m.role === 'user')?.content || '';
+      if (detectedCall.name === 'save_memory' && isNegationOrRecoveryStatement(lastUserMsg)) {
+        const rawContent = String(
+          detectedCall.arguments?.content ||
+          detectedCall.arguments?.topic ||
+          detectedCall.arguments?.idOrQuery ||
+          ''
+        );
+        detectedCall.name = 'remove_memory';
+        detectedCall.arguments = {
+          idOrQuery: rawContent || lastUserMsg,
         };
       }
 

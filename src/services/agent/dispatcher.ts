@@ -7,6 +7,7 @@ import { useMemoryStore } from '@/store/useMemoryStore';
 import {
   normalizeMemoryCategory,
   inferCategoryFromContent,
+  isNegationOrRecoveryStatement,
 } from '@/services/memory/mem0Engine';
 import {
   searchUsdaFoods,
@@ -942,15 +943,31 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           };
         }
 
+        // If the statement is a negation or recovery (e.g. "I don't allergic to shrimp", "not allergic to shrimp"),
+        // route directly to forget/remove rather than saving as an active memory.
+        if (isNegationOrRecoveryStatement(content) || args.operationHint === 'DELETE') {
+          const recResult = memoryStore.forget(content);
+          return {
+            toolCallId: id,
+            name: 'remove_memory',
+            success: recResult.operation === 'DELETE',
+            data: recResult,
+            summary: `🧠 ${recResult.summary}`,
+          };
+        }
+
         const rawCategory = args.category ? String(args.category).trim().toLowerCase() : '';
         const isExactCategory =
           rawCategory === 'food_preference' ||
           rawCategory === 'workout_preference' ||
           rawCategory === 'injury_limitation' ||
           rawCategory === 'personality_style';
-        const category = isExactCategory
-          ? normalizeMemoryCategory(rawCategory)
-          : inferCategoryFromContent(`${rawCategory} ${content}`);
+        const inferredCategory = inferCategoryFromContent(content);
+        const category =
+          isExactCategory && inferredCategory === 'personality_style'
+            ? normalizeMemoryCategory(rawCategory)
+            : inferredCategory;
+
         const recResult = memoryStore.remember({
           category,
           content,

@@ -44,6 +44,7 @@ PROTOCOL:
 <tool_call>
 {"name": "remove_memory", "arguments": {"idOrQuery": "shrimp"}}
 </tool_call>
+- CRITICAL: Never write fake confirmation text like "✅ Saved to Coach Memory" in plain text. Plain text does NOT save anything. You MUST invoke save_memory using <tool_call>.
 - To call a tool, start your response directly with <tool_call>.
 - If no tool is needed, reply normally without <tool_call> tags.`;
 }

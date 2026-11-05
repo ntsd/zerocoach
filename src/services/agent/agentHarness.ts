@@ -23,7 +23,7 @@ interface ScopedToolDef {
 const COMPACT_TOOL_CATALOG: ScopedToolDef[] = [
   {
     domain: 'memory',
-    line: 'save_memory(category, content, topic): Save lasting athlete fact or preference. category="workout_preference" (equipment, skills, exercises) | "food_preference" (diet, favorite/disliked foods, allergies) | "injury_limitation" (pain/injury) | "personality_style" (coaching tone/schedule).',
+    line: 'save_memory(content): Save lasting athlete fact, equipment owned, favorite/disliked foods, allergies, injuries, or coaching preference.',
   },
   {
     domain: 'memory',
@@ -31,19 +31,11 @@ const COMPACT_TOOL_CATALOG: ScopedToolDef[] = [
   },
   {
     domain: 'food_history',
-    line: 'log_food_item(name, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, date): Log food to diary. Meal time auto-inferred from device clock.',
+    line: 'log_food_item(name, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, date): Log food to diary. Meal time auto-inferred from clock.',
   },
   {
     domain: 'food_database',
     line: 'search_food_database(query, source): Search USDA / OpenFoodFacts when nutrition lookup is needed.',
-  },
-  {
-    domain: 'food_history',
-    line: 'get_food_history(date): Get logged meals & macro totals for a specific date (YYYY-MM-DD).',
-  },
-  {
-    domain: 'food_history',
-    line: 'update_daily_macro_targets(targetCalories, targetProtein, targetCarbs, targetFat, targetFiber): Update daily macro targets.',
   },
   {
     domain: 'workout_plan',
@@ -63,19 +55,11 @@ const COMPACT_TOOL_CATALOG: ScopedToolDef[] = [
   },
   {
     domain: 'workout_database',
-    line: 'search_exercises(query, muscleGroup): Search RepDB movement library for exercise technique or replacements.',
-  },
-  {
-    domain: 'workout_database',
-    line: 'get_exercise_details(exerciseIdOrName): Get biomechanics, execution cues, and progression details.',
-  },
-  {
-    domain: 'telemetry',
-    line: 'get_telemetry_metrics(): Read live readiness (0-100), HRV, resting heart rate, sleep quality, and steps.',
+    line: 'search_exercises(query, muscleGroup): Search RepDB movement library for exercise technique, cues, biomechanics, or progression.',
   },
   {
     domain: 'settings',
-    line: 'update_user_settings(weightKg, heightCm, dailyCalorieTarget, proteinGrams, equipmentPreference, skillLevel): Update athlete profile settings.',
+    line: 'update_user_settings(dailyCalorieTarget, proteinGrams, weightKg, heightCm, equipmentPreference, skillLevel): Update athlete profile and nutrition target settings.',
   },
 ];
 
@@ -113,9 +97,9 @@ ${toolLines}
 
 PROTOCOL:
 - Live telemetry, today's workout, and stored memories are ALREADY in ATHLETE CONTEXT above.
-- When the athlete states NEW equipment they own, favorite foods/skills, new injuries, or preferences, call save_memory with the NEW fact from their current message:
+- When the athlete states NEW equipment they own, favorite foods/skills, new injuries, or preferences, call save_memory with the NEW fact:
 <tool_call>
-{"name": "save_memory", "arguments": {"category": "food_preference", "topic": "shrimp", "content": "I don't eat shrimp"}}
+{"name": "save_memory", "arguments": {"content": "I don't eat shrimp"}}
 </tool_call>
 - When the athlete states they are NOT/NO LONGER allergic (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "no shrimp allergy"), healed from injury ("shoulder is healed"), don't have equipment anymore, or asks to forget/remove a memory (e.g. "remove that I don't like shrimp", "forget that"), you MUST call remove_memory:
 <tool_call>
@@ -430,8 +414,16 @@ function formatDeterministicWriteConfirmation(
   return primaryConfirmation;
 }
 
-export function isTargetUpdateAccidentalOnMealInquiry(toolName: string, userMsg: string): boolean {
-  if (toolName !== 'update_daily_macro_targets' || !userMsg) return false;
+export function isTargetUpdateAccidentalOnMealInquiry(
+  toolName: string,
+  userMsg: string,
+  toolArgs?: Record<string, any>
+): boolean {
+  if (!userMsg) return false;
+  if (toolName !== 'update_daily_macro_targets' && toolName !== 'update_user_settings') return false;
+  if (toolName === 'update_user_settings' && !toolArgs?.dailyCalorieTarget && !toolArgs?.proteinGrams) {
+    return false;
+  }
   const userMsgLower = userMsg.toLowerCase();
   const isExplicitTargetUpdateRequest =
     /\b(update|change|set|adjust|modify|reset)\b.*\b(target|goal|calorie|protein|macro)\b/i.test(
@@ -596,7 +588,7 @@ export class AgentHarness {
             detectedCall.arguments.name = foodExtract[1].trim();
           }
         }
-      } else if (isTargetUpdateAccidentalOnMealInquiry(detectedCall.name, lastUserMsg)) {
+      } else if (isTargetUpdateAccidentalOnMealInquiry(detectedCall.name, lastUserMsg, detectedCall.arguments)) {
         // Accidental target update protection: If the athlete is asking what to eat or for food recommendations,
         // but did not explicitly ask to change their macro targets, block the tool call and synthesize food options.
         conversationHistory.push({

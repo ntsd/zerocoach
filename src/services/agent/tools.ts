@@ -433,7 +433,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: 'search_exercises',
     description:
-      'Search the local RepDB exercise catalog of 643 science-backed movements by name, primary muscle, equipment, or body part.',
+      'Search the local RepDB exercise catalog of 643 science-backed movements by name, primary muscle, or equipment for exercise technique, cues, biomechanics, or progression.',
     domain: 'workout_database',
     access: 'read',
     parameters: {
@@ -515,6 +515,14 @@ export const AGENT_TOOLS: ToolDefinition[] = [
           enum: ['home', 'gym', 'both'],
           description: 'Equipment availability preference.',
         },
+        dailyCalorieTarget: {
+          type: 'number',
+          description: 'Daily caloric budget target in kcal.',
+        },
+        proteinGrams: {
+          type: 'number',
+          description: 'Daily protein budget target in grams.',
+        },
         language: {
           type: 'string',
           enum: ['en', 'th'],
@@ -537,6 +545,11 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     parameters: {
       type: 'object',
       properties: {
+        content: {
+          type: 'string',
+          description:
+            'Concise atomic fact to remember (e.g., "Available equipment: Pull-up bar", "Favorite workout skill: Muscle-Up", "Favorite food: Grilled salmon & rice", "Left shoulder impingement").',
+        },
         category: {
           type: 'string',
           enum: [
@@ -546,20 +559,15 @@ export const AGENT_TOOLS: ToolDefinition[] = [
             'personality_style',
           ],
           description:
-            'Memory category: workout_preference (equipment, skills, exercises), food_preference (diet, favorite/disliked foods, allergies), injury_limitation (pain, injuries), or personality_style (tone, lifestyle, schedule).',
-        },
-        content: {
-          type: 'string',
-          description:
-            'Concise atomic fact to remember (e.g., "Available equipment: Pull-up bar", "Favorite workout skill: Muscle-Up", "Favorite food: Grilled salmon & rice", "Left shoulder impingement").',
+            'Optional memory category: workout_preference, food_preference, injury_limitation, or personality_style. Auto-inferred if omitted.',
         },
         topic: {
           type: 'string',
           description:
-            'Optional normalized subject key for deduplication (e.g. "equipment_pull_up_bar", "favorite_skill", "favorite_food", "injury_shoulder").',
+            'Optional normalized subject key for deduplication. Auto-inferred if omitted.',
         },
       },
-      required: ['category', 'content'],
+      required: ['content'],
     },
   },
   {

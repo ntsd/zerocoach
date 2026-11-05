@@ -5,6 +5,7 @@ import {
   parseToolCallFromText,
   cleanFinalResponseText,
   isTargetUpdateAccidentalOnMealInquiry,
+  buildScopedAgentToolPrompt,
 } from '../agentHarness';
 import { inferMealTypeFromCurrentTime } from '../dispatcher';
 import {
@@ -115,6 +116,64 @@ describe('AgentHarness Synthetic Fallbacks & Memory Interception', () => {
         'What meal or whole foods should I eat next?'
       ),
       false
+    );
+    assert.strictEqual(
+      isTargetUpdateAccidentalOnMealInquiry(
+        'update_user_settings',
+        'What meal or whole foods should I eat next?',
+        { dailyCalorieTarget: 1800 }
+      ),
+      true
+    );
+    assert.strictEqual(
+      isTargetUpdateAccidentalOnMealInquiry(
+        'update_user_settings',
+        'Set my body weight to 70kg',
+        { weightKg: 70 }
+      ),
+      false
+    );
+  });
+
+  it('buildScopedAgentToolPrompt simplifies save_memory and excludes eliminated read tools', () => {
+    const fullPrompt = buildScopedAgentToolPrompt();
+
+    // Verified Task 2: save_memory takes only content
+    assert.ok(
+      fullPrompt.includes('save_memory(content)'),
+      'save_memory should be simplified to content'
+    );
+    assert.ok(
+      !fullPrompt.includes('save_memory(category, content, topic)'),
+      'save_memory should not require category or topic'
+    );
+
+    // Verified Task 3: Eliminated read tools
+    assert.ok(
+      !fullPrompt.includes('get_telemetry_metrics'),
+      'get_telemetry_metrics should be eliminated from agent tool prompt'
+    );
+    assert.ok(
+      !fullPrompt.includes('get_food_history'),
+      'get_food_history should be eliminated from agent tool prompt'
+    );
+
+    // Verified Task 4: Consolidated tools
+    assert.ok(
+      !fullPrompt.includes('get_exercise_details'),
+      'get_exercise_details should be consolidated into search_exercises'
+    );
+    assert.ok(
+      !fullPrompt.includes('update_daily_macro_targets'),
+      'update_daily_macro_targets should be consolidated into update_user_settings'
+    );
+    assert.ok(
+      fullPrompt.includes('search_exercises(query, muscleGroup)'),
+      'search_exercises should be available'
+    );
+    assert.ok(
+      fullPrompt.includes('update_user_settings(dailyCalorieTarget, proteinGrams'),
+      'update_user_settings should include nutrition targets'
     );
   });
 });

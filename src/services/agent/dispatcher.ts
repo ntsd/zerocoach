@@ -925,9 +925,17 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
         if (args.skillLevel !== undefined) profileUpdates.skillLevel = args.skillLevel;
         if (args.equipmentPreference !== undefined) profileUpdates.equipmentPreference = args.equipmentPreference;
         if (args.primaryGoals !== undefined) profileUpdates.primaryGoals = args.primaryGoals;
+        if (args.dailyCalorieTarget !== undefined) profileUpdates.dailyCalorieTarget = args.dailyCalorieTarget;
+        if (args.proteinGrams !== undefined) profileUpdates.proteinGrams = args.proteinGrams;
 
         if (Object.keys(profileUpdates).length > 0) {
           coach.updateProfile(profileUpdates);
+        }
+        if (args.dailyCalorieTarget !== undefined || args.proteinGrams !== undefined) {
+          useNutritionStore.getState().updateDailyTargets({
+            targetCalories: args.dailyCalorieTarget,
+            targetProtein: args.proteinGrams,
+          });
         }
         if (args.language && (args.language === 'en' || args.language === 'th')) {
           coach.setLanguage(args.language);

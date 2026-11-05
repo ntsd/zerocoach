@@ -15,6 +15,8 @@ import { AgentHarness } from '@/services/agent/agentHarness';
 import { AgentExecutionStep } from '@/services/agent/types';
 import { analyzeMealPhoto } from '@/services/nutrition/photoMealAnalyzer';
 import { getTodayString } from '@/utils/date';
+import { inferMealTypeFromCurrentTime } from '@/services/agent/dispatcher';
+import { MealType, FoodItem } from '@/types/nutrition';
 
 const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
@@ -241,15 +243,93 @@ export const useChatStore = create<ChatState>()(
                   (acc, i) => acc + (i.quantityGrams || 0),
                   0
                 ) || 100;
-              const isUserLoggingAction =
-                /\b(ate|eat|eating|had|have|consumed|log|logging|logged|just)\b/i.test(trimmed) ||
-                /กิน|ทาน|บันทึก/.test(trimmed);
 
-              visualContext = `\n[ATTACHED PHOTO IDENTIFIED: "${photoAnalysis.dishTitle}" (${photoAnalysis.ingredientsText || ''}) | Portion: ${totalGrams}g | Nutrition: ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein, ${nutrients?.carbsGrams || 0}g carbs, ${nutrients?.fatGrams || 0}g fat. ${
-                isUserLoggingAction
-                  ? 'The athlete states they ate this: you MUST call log_food_item using <tool_call> to log it to their diary immediately.'
-                  : 'Offer to log this using log_food_item or explain how it fits the athlete\'s nutrition targets.'
-              }]`;
+              const isQuestionOrInquiry =
+                /\?|how\s+much|how\s+many|what|is\s+it|can\s+i|should\s+i|will|would|estimate|calculate|nutrition\s+for|macros\s+for|ไหม|มั้ย|หรือ|เท่าไหร่|กี่/i.test(
+                  trimmed
+                );
+
+              const expressesHavingEaten =
+                /\b(ate|had|consumed|just\s+ate|finished|logged|logging|record)\b/i.test(trimmed) ||
+                /กินแล้ว|ทานแล้ว|บันทึก|กินไป|ทานไป/.test(trimmed) ||
+                (/\b(eat|eating|have)\b/i.test(trimmed) &&
+                  !/\b(can\s+i|should\s+i|do\s+i|to\s+eat|will\s+i|could\s+i)\b/i.test(trimmed));
+
+              // Resolve meal type (detect explicit keyword or auto-infer from device wall-clock)
+              let mealType: MealType = inferMealTypeFromCurrentTime();
+              const trimmedLower = trimmed.toLowerCase();
+              if (/\bbreakfast\b|มื้อเช้า|อาหารเช้า/.test(trimmedLower)) {
+                mealType = 'breakfast';
+              } else if (/\blunch\b|มื้อเที่ยง|มื้อกลางวัน|อาหารกลางวัน/.test(trimmedLower)) {
+                mealType = 'lunch';
+              } else if (/\bdinner\b|มื้อเย็น|อาหารเย็น/.test(trimmedLower)) {
+                mealType = 'dinner';
+              } else if (/\bsnack\b|ของว่าง|ขนม/.test(trimmedLower)) {
+                mealType = 'snack';
+              }
+
+              // FAST DIRECT LOGGING PATH:
+              // If the user clearly states they ate the meal and did NOT ask an extra question,
+              // log directly to SQLite in 1ms with 0 LLM tokens!
+              if (expressesHavingEaten && !isQuestionOrInquiry && photoAnalysis.decomposition?.asFoodItem) {
+                useNutritionStore.getState().logFood(
+                  photoAnalysis.decomposition.asFoodItem,
+                  mealType,
+                  1,
+                  totalGrams,
+                  todayDate
+                );
+
+                const cals = Math.round(nutrients?.calories || 0);
+                const protein = Math.round((nutrients?.proteinGrams || 0) * 10) / 10;
+                const confirmationText = `✅ **Logged "${photoAnalysis.dishTitle}" (${totalGrams}g, ${cals} kcal, ${protein}g protein) to ${mealType}**`;
+
+                const assistantMsg: ChatMessage = {
+                  id: `msg-asst-${Date.now()}`,
+                  role: 'assistant',
+                  content: confirmationText,
+                  timestamp: Date.now(),
+                  readinessAtCreation: telemetryState.metrics.readinessScore,
+                  tokensGenerated: 0,
+                  tokensPerSecond: 0,
+                  executionSteps: [
+                    {
+                      id: `step-direct-photo-${Date.now()}`,
+                      toolName: 'log_food_item',
+                      domain: 'food_history',
+                      access: 'write',
+                      status: 'completed',
+                      summary: `Logged "${photoAnalysis.dishTitle}" (${totalGrams}g) to ${mealType}`,
+                      timestamp: Date.now(),
+                    },
+                  ],
+                };
+
+                set({
+                  messages: [...updatedMessages, assistantMsg],
+                  isGenerating: false,
+                  streamingMessage: '',
+                  activeSteps: [],
+                });
+                return;
+              }
+
+              // If the user ate it BUT also asked a question (e.g. "I ate this, is it high in sodium?"),
+              // log it immediately so state is saved, and tell the LLM to synthesize the answer without re-logging.
+              if (expressesHavingEaten && isQuestionOrInquiry && photoAnalysis.decomposition?.asFoodItem) {
+                useNutritionStore.getState().logFood(
+                  photoAnalysis.decomposition.asFoodItem,
+                  mealType,
+                  1,
+                  totalGrams,
+                  todayDate
+                );
+
+                visualContext = `\n[ATTACHED PHOTO: "${photoAnalysis.dishTitle}" (${totalGrams}g, ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein) has ALREADY been logged to the athlete's diary for ${mealType}. Answer the athlete's question directly without calling any tools.]`;
+              } else {
+                // Inquiry-only: athlete asked for an estimation or advice without having eaten it
+                visualContext = `\n[ATTACHED PHOTO ESTIMATION: "${photoAnalysis.dishTitle}" (${photoAnalysis.ingredientsText || ''}) | Portion: ${totalGrams}g | Nutrition: ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein, ${nutrients?.carbsGrams || 0}g carbs, ${nutrients?.fatGrams || 0}g fat. The athlete is asking about this meal: answer their question concisely based on these verified numbers without calling log_food_item.]`;
+              }
             } else if (photoAnalysis.errorMessage) {
               visualContext = `\n[ATTACHED PHOTO: Note: ${photoAnalysis.errorMessage}]`;
             }

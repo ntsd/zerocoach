@@ -7,6 +7,7 @@ import {
   ExerciseItem,
   CoreWorkoutDayType,
 } from '@/types/workout';
+import { getLocalDateString } from '@/utils/date';
 
 export const ALL_CYCLE_DAY_TYPES: CoreWorkoutDayType[] = [
   'push',
@@ -176,7 +177,7 @@ export const useWorkoutStore = create<WorkoutState>()(
         for (let i = 0; i < daysCount; i++) {
           const d = new Date(now);
           d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
+          const dateStr = getLocalDateString(d);
           if (historyMap[dateStr]) {
             results.push(historyMap[dateStr]);
           }

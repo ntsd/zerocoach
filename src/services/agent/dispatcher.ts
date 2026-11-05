@@ -487,10 +487,10 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           Array.isArray(args.exercises) && args.exercises.length > 0
             ? args.exercises
             : (args.exerciseNames || []).map((name: string) => ({
-                name,
-                sets: args.sets || 1,
-                reps: args.reps ? String(args.reps) : '10 reps',
-              }));
+              name,
+              sets: args.sets || 1,
+              reps: args.reps ? String(args.reps) : '10 reps',
+            }));
 
         // If both were empty but a title was passed (e.g. "Pull-up 10 reps"), extract title as exercise name
         if (rawExercises.length === 0 && args.title) {

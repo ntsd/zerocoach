@@ -11,6 +11,7 @@ import { createExerciseItemFromRepDB } from '@/services/workout/workoutPlanGener
 import { RepDBExercise } from '@/types/exercise';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useTranslation } from '@/i18n';
+import { getTodayString } from '@/utils/date';
 import {
   Dumbbell,
   CheckCircle2,
@@ -65,7 +66,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const modeColors = getModeColors();
-  const todayDateStr = new Date().toISOString().split('T')[0];
+  const todayDateStr = getTodayString();
   const currentDateStr = date || todayDateStr;
   const isToday = currentDateStr === todayDateStr;
   const { historyByDate, plansByDate, finishWorkout, removeWorkoutForDate, savePlanForDate } =

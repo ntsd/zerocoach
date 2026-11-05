@@ -14,6 +14,7 @@ import { useModelStore } from './useModelStore';
 import { AgentHarness } from '@/services/agent/agentHarness';
 import { AgentExecutionStep } from '@/services/agent/types';
 import { analyzeMealPhoto } from '@/services/nutrition/photoMealAnalyzer';
+import { getTodayString } from '@/utils/date';
 
 const INITIAL_WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome-msg',
@@ -167,7 +168,7 @@ export const useChatStore = create<ChatState>()(
         };
 
         const latestMemories = useMemoryStore.getState().memories;
-        const todayDate = new Date().toISOString().split('T')[0];
+        const todayDate = getTodayString();
         const refreshedWorkoutState = useWorkoutStore.getState();
         const todayScheduledSplit = refreshedWorkoutState.getScheduledSplitForDate(todayDate);
         const todayPlan = refreshedWorkoutState.getPlanForDate(todayDate);

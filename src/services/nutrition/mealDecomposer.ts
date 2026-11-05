@@ -879,6 +879,68 @@ export function recomputeDecompositionWithUpdatedIngredients(
 }
 
 /**
+ * Attempts to parse or safely repair truncated JSON output from Vision AI models.
+ */
+export function tryParseOrRepairJson(raw: string): any | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  // 1. Direct JSON parse
+  const directMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (directMatch) {
+    try {
+      return JSON.parse(directMatch[0]);
+    } catch {}
+  }
+
+  // 2. Truncated JSON repair (model cut off before closing array or root object)
+  const firstBrace = cleaned.indexOf('{');
+  if (firstBrace !== -1) {
+    const fromFirstBrace = cleaned.slice(firstBrace).trim();
+    const lastObjectEnd = fromFirstBrace.lastIndexOf('}');
+    if (lastObjectEnd !== -1) {
+      const truncated = fromFirstBrace.slice(0, lastObjectEnd + 1).trim();
+      const repairCandidates = [
+        truncated + '\n]}',
+        truncated + ']}',
+        truncated + '\n}',
+        truncated + '}',
+      ];
+      for (const cand of repairCandidates) {
+        try {
+          return JSON.parse(cand);
+        } catch {}
+      }
+    }
+  }
+
+  // 3. Fallback regex extraction of dishTitle and completed ingredients
+  const titleMatch = cleaned.match(/"dishTitle"\s*:\s*"([^"]+)"/i);
+  if (titleMatch) {
+    const dishTitle = titleMatch[1].trim();
+    const ingredients: any[] = [];
+    const itemRegex = /"name"\s*:\s*"([^"]+)"[\s\S]*?"quantityGrams"\s*:\s*(\d+(?:\.\d+)?)/gi;
+    let match;
+    while ((match = itemRegex.exec(cleaned)) !== null) {
+      ingredients.push({
+        name: match[1].trim(),
+        quantityGrams: parseFloat(match[2]),
+      });
+    }
+    if (ingredients.length > 0) {
+      return { dishTitle, ingredients };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Parses a raw Vision AI response (JSON or fallback text) into a `MealDecompositionResult`.
  */
 export function parseVisionMealResponse(
@@ -886,28 +948,22 @@ export function parseVisionMealResponse(
   userHintText?: string
 ): MealDecompositionResult | null {
   if (!rawVisionOutput) return null;
-  const cleaned = rawVisionOutput
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```$/i, '')
-    .trim();
 
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed && parsed.error === 'UNIDENTIFIED') {
+  try {
+    const parsed = tryParseOrRepairJson(rawVisionOutput);
+    if (parsed) {
+      if (parsed.error === 'UNIDENTIFIED') {
         return null;
       }
       const decomp = buildDecompositionFromAiJson(parsed, 'Scanned Meal', userHintText);
       if (decomp) {
         return decomp;
       }
-    } catch (e) {
-      console.warn('[MealDecomposer] Failed to parse vision JSON directly:', e);
     }
+  } catch (e) {
+    console.warn('[MealDecomposer] Failed to parse vision JSON directly:', e);
   }
+
   return null;
 }
 
@@ -988,6 +1044,13 @@ Return ONLY a valid JSON object with NO markdown formatting and NO backticks:
     }
   } catch (err) {
     console.warn('[GemmaMealDecomposer] AI inference error, falling back to USDA heuristics:', err);
+  }
+
+  // If input was a raw JSON payload that failed parsing, extract dishTitle instead of passing raw JSON code to decomposeMealText
+  if (clean.startsWith('{') || clean.includes('"dishTitle"') || clean.includes('"ingredients"')) {
+    const titleMatch = clean.match(/"dishTitle"\s*:\s*"([^"]+)"/i);
+    const safeTitle = titleMatch ? titleMatch[1].trim() : 'Scanned Meal';
+    return decomposeMealText(safeTitle);
   }
 
   // Graceful fallback to bundled USDA database matcher only if LLM is offline/unavailable

@@ -50,7 +50,7 @@ export async function analyzeMealPhoto(
     'If a fork, spoon, chopsticks, hand/thumb, or coin is visible next to the food, use it as a physical scale reference to calibrate the true portion size and gram weight of each ingredient. ' +
     'Estimate realistic cooked portion weights in grams for each component. ' +
     'Return ONLY a valid JSON object with NO markdown formatting: ' +
-    '{"dishTitle": "<Specific Dish Name>", "ingredients": [{"name": "<Component 1>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}, {"name": "<Component 2>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>, "fiberGrams": <g>, "sugarGrams": <g>}]}. ' +
+    '{"dishTitle": "<Specific Dish Name>", "ingredients": [{"name": "<Component 1>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>}, {"name": "<Component 2>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>}]}. ' +
     'If no food is visible, return {"error": "UNIDENTIFIED"}.';
 
   // 1. Check for Local Multimodal Vision (Qwen 3 VL with mmproj)
@@ -143,7 +143,11 @@ export async function analyzeMealPhoto(
         };
       } catch (decompErr) {
         console.warn('[PhotoMealAnalyzer] Gemini decomposition fallback:', decompErr);
-        const fallback = decomposeMealText(geminiResult.ingredientsText);
+        const textToDecompose =
+          geminiResult.ingredientsText.startsWith('{') || geminiResult.ingredientsText.includes('"dishTitle"')
+            ? (geminiResult.ingredientsText.match(/"dishTitle"\s*:\s*"([^"]+)"/i)?.[1] || 'Scanned Meal')
+            : geminiResult.ingredientsText;
+        const fallback = decomposeMealText(textToDecompose);
         fallback.asFoodItem.imageUrl = photoUri;
         return {
           canIdentify: true,

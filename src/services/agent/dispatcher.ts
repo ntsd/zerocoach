@@ -154,6 +154,19 @@ function getTodayString(): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Auto-infers the current meal type from the device wall-clock time.
+ * Prevents on-device small models from having to generate or guess meal categories.
+ */
+export function inferMealTypeFromCurrentTime(): MealType {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 15) return 'lunch';
+  if (hour >= 15 && hour < 18) return 'snack';
+  if (hour >= 18 && hour < 23) return 'dinner';
+  return 'snack';
+}
+
 export async function executeTool(call: ToolCall): Promise<ToolResult> {
   const { id, name, arguments: args } = call;
   const toolName = normalizeToolName(name);
@@ -253,9 +266,11 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
       case 'log_food_item': {
         const targetDate = args.date || getTodayString();
         const nutrition = useNutritionStore.getState();
-        let mealType: MealType = 'snack';
+        let mealType: MealType;
         if (args.mealType && ['breakfast', 'lunch', 'dinner', 'snack'].includes(String(args.mealType).toLowerCase())) {
           mealType = String(args.mealType).toLowerCase() as MealType;
+        } else {
+          mealType = inferMealTypeFromCurrentTime();
         }
 
         const consumedGrams = Math.max(1, parseNumber(args.consumedGrams, 100));

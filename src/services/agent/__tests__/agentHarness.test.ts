@@ -5,6 +5,7 @@ import {
   parseToolCallFromText,
   cleanFinalResponseText,
 } from '../agentHarness';
+import { inferMealTypeFromCurrentTime } from '../dispatcher';
 import {
   isNegationOrRecoveryStatement,
   deleteMemoryByQuery,
@@ -74,6 +75,15 @@ describe('AgentHarness Synthetic Fallbacks & Memory Interception', () => {
     assert.strictEqual(call.arguments.carbsGrams, 195.8);
     assert.strictEqual(call.arguments.fatGrams, 32);
     assert.strictEqual(call.arguments.mealType, 'lunch');
+  });
+
+  it('auto-infers mealType from device clock when omitted in food log output', () => {
+    const output = '✅ **Logged "Oatmeal" (100g, 150 kcal, 5g protein)**';
+    const call = extractSyntheticToolCall(output, 'I ate oatmeal');
+    assert.ok(call, 'Should synthesize a log_food_item tool call');
+    assert.strictEqual(call.name, 'log_food_item');
+    assert.strictEqual(call.arguments.name, 'Oatmeal');
+    assert.strictEqual(call.arguments.mealType, inferMealTypeFromCurrentTime());
   });
 });
 

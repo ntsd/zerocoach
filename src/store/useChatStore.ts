@@ -50,11 +50,10 @@ function sanitizeAssistantHistoryForPrompt(msg: ChatMessage): string {
       const match = text.match(/(?:✅\s*)?(?:\*\*)?Logged\s+["']?([^"'(]+)["']?\s*(?:\(([^)]+)\))?\s*(?:to\s+(\w+))?/i);
       const name = match ? match[1].trim() : 'Food';
       const details = match ? match[2] || '' : '';
-      const meal = match && match[3] ? match[3].trim().toLowerCase() : 'lunch';
       const grams = details.match(/(\d+(?:\.\d+)?)\s*g(?:rams?)?(?!\s*(?:protein|carb|fat))/i)?.[1] || '100';
       const cals = details.match(/(\d+(?:\.\d+)?)\s*(?:kcal|calories)/i)?.[1] || '200';
       const protein = details.match(/(\d+(?:\.\d+)?)\s*g\s*protein/i)?.[1] || '20';
-      return `<tool_call>\n{"name": "log_food_item", "arguments": {"name": "${name.replace(/"/g, '\\"')}", "consumedGrams": ${grams}, "calories": ${cals}, "proteinGrams": ${protein}, "mealType": "${meal}"}}\n</tool_call>`;
+      return `<tool_call>\n{"name": "log_food_item", "arguments": {"name": "${name.replace(/"/g, '\\"')}", "consumedGrams": ${grams}, "calories": ${cals}, "proteinGrams": ${protein}}}\n</tool_call>`;
     }
   }
 
@@ -75,11 +74,10 @@ function sanitizeAssistantHistoryForPrompt(msg: ChatMessage): string {
   if (foodLogMatch) {
     const name = foodLogMatch[1].trim();
     const details = foodLogMatch[2] || '';
-    const meal = foodLogMatch[3] ? foodLogMatch[3].trim().toLowerCase() : 'lunch';
     const grams = details.match(/(\d+(?:\.\d+)?)\s*g(?:rams?)?(?!\s*(?:protein|carb|fat))/i)?.[1] || '100';
     const cals = details.match(/(\d+(?:\.\d+)?)\s*(?:kcal|calories)/i)?.[1] || '200';
     const protein = details.match(/(\d+(?:\.\d+)?)\s*g\s*protein/i)?.[1] || '20';
-    return `<tool_call>\n{"name": "log_food_item", "arguments": {"name": "${name.replace(/"/g, '\\"')}", "consumedGrams": ${grams}, "calories": ${cals}, "proteinGrams": ${protein}, "mealType": "${meal}"}}\n</tool_call>`;
+    return `<tool_call>\n{"name": "log_food_item", "arguments": {"name": "${name.replace(/"/g, '\\"')}", "consumedGrams": ${grams}, "calories": ${cals}, "proteinGrams": ${protein}}}\n</tool_call>`;
   }
 
   // If text starts with a checkmark confirmation that wasn't transformed, strip checkmark to avoid contagion

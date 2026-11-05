@@ -1,5 +1,5 @@
 import { AGENT_TOOLS } from './tools';
-import { executeTool, normalizeToolName } from './dispatcher';
+import { executeTool, normalizeToolName, inferMealTypeFromCurrentTime } from './dispatcher';
 import {
   ToolCall,
   ToolResult,
@@ -31,7 +31,7 @@ const COMPACT_TOOL_CATALOG: ScopedToolDef[] = [
   },
   {
     domain: 'food_history',
-    line: 'log_food_item(name, mealType, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, fiberGrams, sugarGrams, date): Log food/meal to diary.',
+    line: 'log_food_item(name, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, date): Log food to diary. Meal time auto-inferred from device clock.',
   },
   {
     domain: 'food_database',
@@ -96,7 +96,7 @@ export function buildScopedAgentToolPrompt(activeDomains: DomainName[] = ALL_DOM
     dynamicExamples += `
 - When the athlete wants to log food or a meal:
 <tool_call>
-{"name": "log_food_item", "arguments": {"name": "Grilled Chicken Breast", "consumedGrams": 200, "calories": 330, "proteinGrams": 62, "mealType": "lunch"}}
+{"name": "log_food_item", "arguments": {"name": "Grilled Chicken Breast", "consumedGrams": 200, "calories": 330, "proteinGrams": 62}}
 </tool_call>`;
   }
   if (domains.has('workout_plan')) {
@@ -331,7 +331,7 @@ export function extractSyntheticToolCall(text: string, lastUserMsg: string = '')
   if (foodLogMatch) {
     const foodName = foodLogMatch[1].trim();
     const details = foodLogMatch[2] || '';
-    const mealType = (foodLogMatch[3] || 'lunch').toLowerCase();
+    const mealType = (foodLogMatch[3] ? foodLogMatch[3].toLowerCase() : inferMealTypeFromCurrentTime()) as string;
 
     const gramsMatch = details.match(/(\d+(?:\.\d+)?)\s*g(?:rams?)?(?!\s*(?:protein|carb|fat))/i);
     const caloriesMatch = details.match(/(\d+(?:\.\d+)?)\s*(?:kcal|calories)\b/i);

@@ -11,7 +11,7 @@ import {
 import { classifyUserIntent, ALL_DOMAINS } from './intentRouter';
 import { llmService } from '@/services/llm/llmService';
 import { CompletionRequest, CompletionResult } from '@/services/llm/types';
-import { isNegationOrRecoveryStatement } from '@/services/memory/memoryEngine';
+import { isNegationOrRecoveryStatement, inferCategoryFromContent } from '@/services/memory/memoryEngine';
 
 const MAX_TOOL_CALLS = 4;
 
@@ -113,15 +113,15 @@ ${toolLines}
 
 PROTOCOL:
 - Live telemetry, today's workout, and stored memories are ALREADY in ATHLETE CONTEXT above.
-- When the athlete states NEW equipment they own, favorite foods/skills, new injuries, or preferences, call save_memory:
+- When the athlete states NEW equipment they own, favorite foods/skills, new injuries, or preferences, call save_memory with the NEW fact from their current message:
 <tool_call>
-{"name": "save_memory", "arguments": {"category": "workout_preference", "topic": "equipment_pull_up_bar", "content": "Available equipment: Pull-up bar"}}
+{"name": "save_memory", "arguments": {"category": "food_preference", "topic": "shrimp", "content": "I don't eat shrimp"}}
 </tool_call>
-- When the athlete states they are NOT/NO LONGER allergic (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "no shrimp allergy"), healed from injury ("shoulder is healed"), don't have equipment anymore, or asks to forget/remove a memory, you MUST call remove_memory:
+- When the athlete states they are NOT/NO LONGER allergic (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "no shrimp allergy"), healed from injury ("shoulder is healed"), don't have equipment anymore, or asks to forget/remove a memory (e.g. "remove that I don't like shrimp", "forget that"), you MUST call remove_memory:
 <tool_call>
 {"name": "remove_memory", "arguments": {"idOrQuery": "shrimp"}}
 </tool_call>${dynamicExamples}
-- CRITICAL: Never write fake confirmation text like "✅ Saved to Coach Memory" in plain text. Plain text does NOT save anything. You MUST invoke save_memory using <tool_call>.
+- In save_memory, ALWAYS use the athlete's exact words from their CURRENT message. NEVER repeat past memories or examples.
 - To call a tool, start your response directly with <tool_call>.
 - If no tool is needed, reply normally without <tool_call> tags.`;
 }
@@ -247,6 +247,78 @@ export function parseToolCallFromText(text: string): ToolCall | null {
       startIndex = endIndex;
     } else {
       break;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Intercepts plain-text fake confirmations emitted by small on-device models
+ * (e.g. "✅ **Saved to Coach Memory:** ...", "Saved to Coach Memory: ...", "Memory saved: ...")
+ * and synthesizes the corresponding ToolCall so execution and persistence actually run.
+ */
+export function extractSyntheticToolCall(text: string, lastUserMsg: string = ''): ToolCall | null {
+  if (!text) return null;
+  const clean = text.trim();
+
+  // 1. Synthetic remove_memory detection
+  const removePatterns = [
+    /(?:✅\s*)?(?:\*\*)?(?:Removed|Deleted|Forgotten|Cleared) (?:from )?(?:Coach )?Memory:?(?:\*\*)?\s*(.+)?/i,
+    /(?:✅\s*)?(?:\*\*)?Memory (?:removed|deleted|forgotten|cleared):?(?:\*\*)?\s*(.+)?/i,
+    /(?:✅\s*)?(?:\*\*)?(?:I have |I've )?(?:removed|deleted|forgotten|cleared) (?:that|this|the memory):?(?:\*\*)?\s*(.+)?/i,
+    /(?:ลบ|ลืม)ความจำ(?:เรียบร้อย|แล้ว)?:?\s*(.+)?/i,
+  ];
+
+  for (const pat of removePatterns) {
+    const match = clean.match(pat);
+    if (match) {
+      const targetQuery = (match[1] || '').trim() || lastUserMsg;
+      return {
+        id: `synth-remove-${Date.now()}`,
+        name: 'remove_memory',
+        arguments: {
+          idOrQuery: targetQuery,
+        },
+      };
+    }
+  }
+
+  // 2. Synthetic save_memory detection
+  const savePatterns = [
+    /(?:✅\s*)?(?:\*\*)?Saved to (?:Coach )?Memory:?(?:\*\*)?\s*(.+)?/i,
+    /(?:✅\s*)?(?:\*\*)?(?:Added to|Stored in) (?:Coach )?Memory:?(?:\*\*)?\s*(.+)?/i,
+    /(?:✅\s*)?(?:\*\*)?Memory saved:?(?:\*\*)?\s*(.+)?/i,
+    /(?:✅\s*)?(?:\*\*)?(?:I have |I've )?(?:saved|remembered|stored) (?:that|this|to memory):?(?:\*\*)?\s*(.+)?/i,
+    /(?:บันทึก|จำ)(?:ความจำ|ข้อมูล)?(?:เรียบร้อย|แล้ว)?:?\s*(.+)?/i,
+  ];
+
+  for (const pat of savePatterns) {
+    const match = clean.match(pat);
+    if (match) {
+      const extractedContent = (match[1] || '').trim() || lastUserMsg;
+
+      // Inverted action protection: If the athlete explicitly asked to remove/forget or stated negation/recovery,
+      // but the model emitted fake "Saved to Coach Memory", redirect to remove_memory!
+      if (isNegationOrRecoveryStatement(lastUserMsg) || isNegationOrRecoveryStatement(extractedContent)) {
+        return {
+          id: `synth-remove-${Date.now()}`,
+          name: 'remove_memory',
+          arguments: {
+            idOrQuery: extractedContent || lastUserMsg,
+          },
+        };
+      }
+
+      return {
+        id: `synth-save-${Date.now()}`,
+        name: 'save_memory',
+        arguments: {
+          category: inferCategoryFromContent(extractedContent),
+          topic: 'user_preference',
+          content: extractedContent,
+        },
+      };
     }
   }
 
@@ -387,9 +459,18 @@ export class AgentHarness {
       lastContextMaxTokens = completionResult.contextMaxTokens || lastContextMaxTokens;
 
       const outputText = completionResult.fullText.trim();
-      const detectedCall = parseToolCallFromText(outputText);
+      const lastUserMsg =
+        [...conversationHistory].reverse().find((m) => m.role === 'user')?.content || '';
+      let detectedCall = parseToolCallFromText(outputText);
 
-      // If no tool was called, this is the final response to the user
+      // Synthetic Tool Call Interception Fallback:
+      // If small on-device LLM outputted plain-text confirmation instead of <tool_call>,
+      // intercept and synthesize the corresponding ToolCall so SQLite persistence actually happens!
+      if (!detectedCall) {
+        detectedCall = extractSyntheticToolCall(outputText, lastUserMsg);
+      }
+
+      // If no tool was called (and no synthetic call was intercepted), this is the final response to the user
       if (!detectedCall) {
         const cleanFinalText = cleanFinalResponseText(outputText);
 
@@ -406,8 +487,6 @@ export class AgentHarness {
       // Inverted action protection: If athlete explicitly expressed negation or recovery
       // (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "healed from knee pain")
       // but the model invoked save_memory, intercept and redirect to remove_memory.
-      const lastUserMsg =
-        [...conversationHistory].reverse().find((m) => m.role === 'user')?.content || '';
       if (detectedCall.name === 'save_memory' && isNegationOrRecoveryStatement(lastUserMsg)) {
         const rawContent = String(
           detectedCall.arguments?.content ||
@@ -419,6 +498,26 @@ export class AgentHarness {
         detectedCall.arguments = {
           idOrQuery: rawContent || lastUserMsg,
         };
+      } else if (detectedCall.name === 'save_memory' && lastUserMsg) {
+        // Hallucinated content correction for save_memory:
+        // If the model invoked save_memory but copied an irrelevant past memory/example
+        // instead of the user's current message, align content to user's statement!
+        const rawContent = String(detectedCall.arguments?.content || '').toLowerCase();
+        const userMsgLower = lastUserMsg.toLowerCase();
+        const userTokens = userMsgLower.split(/[\s,.;:!?]+/).filter((w) => w.length > 3);
+        const hasOverlap = userTokens.some((t) => rawContent.includes(t));
+        const expressesFactOrPreference =
+          /\b(like|love|hate|dislike|prefer|favorite|eat|diet|allergy|allergic|own|bought|have|pain|hurt|injury)\b/i.test(
+            userMsgLower
+          ) || /ชอบ|ไม่ชอบ|รัก|แพ้|กิน|ซื้อ|มี|เจ็บ|ปวด/.test(userMsgLower);
+
+        if (!hasOverlap && expressesFactOrPreference) {
+          detectedCall.arguments = {
+            category: inferCategoryFromContent(lastUserMsg),
+            topic: 'user_preference',
+            content: lastUserMsg,
+          };
+        }
       }
 
       // Tool Call Detected!

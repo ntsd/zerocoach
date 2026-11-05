@@ -31,10 +31,10 @@ export function inferCategoryFromContent(text: string): MemoryCategory {
     return 'injury_limitation';
   }
   if (
-    /\b(food|diet\w*|nutrition|meal|eat\w*|allerg\w*|intoleran\w*|vegan|vegetarian|keto|halal|protein|calorie\w*|macro\w*|breakfast|lunch|dinner|snack|chicken|beef|pork|salmon|fish|shrimp|prawn|crab|lobster|seafood|rice|egg\w*|milk|dairy|peanut\w*|nuts?|gluten|coffee)\b/.test(
+    /\b(food|diet\w*|nutrition|meal|eat\w*|allerg\w*|intoleran\w*|vegan|vegetarian|keto|halal|protein|calorie\w*|macro\w*|breakfast|lunch|dinner|snack|chicken|beef|steak|meat|pork|salmon|fish|shrimp|prawn|crab|lobster|seafood|rice|egg\w*|milk|dairy|peanut\w*|nuts?|gluten|coffee|fruit\w*|vegetable\w*|pasta|bread)\b/.test(
       lower
     ) ||
-    /อาหาร|กิน|ทาน|มื้อ|แพ้|มังสวิรัติ|คีโต|ฮาลาล|โปรตีน|แคลอรี่|ข้าว|ไก่|ปลา|กุ้ง|ไข่/.test(lower)
+    /อาหาร|กิน|ทาน|มื้อ|แพ้|มังสวิรัติ|คีโต|ฮาลาล|โปรตีน|แคลอรี่|ข้าว|ไก่|ปลา|กุ้ง|ไข่|เนื้อ|สเต็ก/.test(lower)
   ) {
     return 'food_preference';
   }
@@ -171,9 +171,12 @@ export function isNegationOrRecoveryStatement(content: string): boolean {
   if (!content) return false;
   const lower = content.toLowerCase().trim();
 
-  // Explicit negation phrases, apologies, corrections, and forgetting commands
+  // Explicit negation phrases, apologies, corrections, and forgetting/removal commands
   if (
-    /\b(no longer|recovered from|healed|pain is gone|not hurt|doesn't hurt|does not hurt|never mind|forget that|forget memory|remove memory|delete memory|false alarm|i lie|i lied|was mistaken)\b/i.test(
+    /\b(no longer|recovered from|healed|pain is gone|not hurt|doesn't hurt|does not hurt|never mind|forget that|forget this|forget memory|remove that|remove this|remove memory|delete that|delete this|delete memory|clear that|clear memory|false alarm|i lie|i lied|was mistaken)\b/i.test(
+      lower
+    ) ||
+    /\b(remove|delete|forget|erase|drop|clear)\b.*\b(memory|preference|allergy|limitation|fact|rule|that|this|it)\b/i.test(
       lower
     )
   ) {
@@ -189,6 +192,11 @@ export function isNegationOrRecoveryStatement(content: string): boolean {
     return true;
   }
 
+  // Preferences reversal: "actually like", "now like", "actually eat", "now eat"
+  if (/\b(actually|now)\s+(like|love|eat|enjoy|have)\b/i.test(lower)) {
+    return true;
+  }
+
   // Equipment / habit negations: "don't have ... anymore", "no longer have", "lost my"
   if (
     /\b(don't have|dont have|do not have|no longer have|lost my|sold my)\b/i.test(lower)
@@ -198,7 +206,7 @@ export function isNegationOrRecoveryStatement(content: string): boolean {
 
   // Thai negations
   if (
-    /ไม่ได้แพ้|ไม่แพ้แล้ว|ไม่แพ้|หายแพ้|หายเจ็บ|หายปวด|ไม่เจ็บแล้ว|ไม่ปวดแล้ว|ไม่ได้เป็น|ไม่มีแล้ว|ลบความจำ|ลืมเรื่อง|ลืม/.test(
+    /ไม่ได้แพ้|ไม่แพ้แล้ว|ไม่แพ้|หายแพ้|หายเจ็บ|หายปวด|ไม่เจ็บแล้ว|ไม่ปวดแล้ว|ไม่ได้เป็น|ไม่มีแล้ว|ลบความจำ|ลบข้อมูล|ลบเรื่อง|ลืมเรื่อง|ลืมความจำ|ลืม|เอาออก/.test(
       lower
     )
   ) {
@@ -396,15 +404,16 @@ export function deleteMemoryByQuery(
   // Strip negation phrases, lead-ins, or tool call wrappers to isolate the core entity being forgotten
   // e.g. "I lie, I don't allergy to shrimp" -> "shrimp"
   // e.g. "I don't allergic to shrimp" -> "shrimp"
-  // e.g. "not allergic to shrimp" -> "shrimp"
+  // e.g. "Remove that I don't like shrimp, I actually like shrimp" -> "shrimp"
   // e.g. "forget pull-up bar" -> "pull-up bar"
   const strippedQuery = rawClean
     .toLowerCase()
     .replace(/\b(i lie|i lied|was mistaken|mistake|actually|wait)\b/gi, ' ')
     .replace(/\b(i am not|i'm not|i don't|i do not|dont|do not|never|no longer|not|no|haven't got|dont have|do not have|no longer have)\b/gi, ' ')
     .replace(/\b(allergic to|allergy to|allergic|allergy|allergies)\b/gi, ' ')
-    .replace(/\b(forget that|forget memory|forget|remove memory|remove|delete memory|delete)\b/gi, ' ')
-    .replace(/\b(to|the|a|an|my|anymore)\b/gi, ' ')
+    .replace(/\b(i don't like|i dont like|i do not like|i like|i actually like|i hate|i love|like|hate|dislike|eat)\b/gi, ' ')
+    .replace(/\b(forget that|forget this|forget memory|forget|remove that|remove this|remove memory|remove|delete that|delete this|delete memory|delete|clear memory|clear that|clear)\b/gi, ' ')
+    .replace(/\b(to|the|a|an|my|anymore|that|this|it)\b/gi, ' ')
     .trim();
 
   const lower = rawClean.toLowerCase();

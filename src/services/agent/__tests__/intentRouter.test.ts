@@ -87,6 +87,17 @@ describe('classifyUserIntent', () => {
     assert.ok(domains.includes('memory'), 'Should include memory');
   });
 
+  it('classifies dedicated memory queries into scoped memory domain', () => {
+    const prefDomains = classifyUserIntent("I don't like shrimp");
+    assert.deepStrictEqual(prefDomains, ['memory'], 'Should scope exclusively to memory');
+
+    const removeDomains = classifyUserIntent("Remove that I don't like shrimp, I actually like shrimp");
+    assert.deepStrictEqual(removeDomains, ['memory'], 'Should scope removal request to memory');
+
+    const equipDomains = classifyUserIntent('I bought a pull-up bar');
+    assert.deepStrictEqual(equipDomains, ['memory'], 'Should scope equipment purchase to memory');
+  });
+
   it('falls back to full catalog on casual chat, greeting, or ambiguous phrasing', () => {
     const greetingDomains = classifyUserIntent('Hello coach, tell me a joke');
     assert.deepStrictEqual(new Set(greetingDomains), new Set(ALL_DOMAINS), 'Should fall back to all domains');

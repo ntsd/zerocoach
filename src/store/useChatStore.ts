@@ -25,6 +25,45 @@ Ask me to log food, swap an exercise in today's workout, check your wearable rea
   timestamp: Date.now(),
 };
 
+/**
+ * Sanitizes assistant messages in chat history when building context messages for the LLM.
+ * Eliminates checkmark/confirmation prompt contagion by representing previous write confirmations
+ * as valid tool-calling syntax (<tool_call>...</tool_call>) so small models do not emit fake plain text.
+ */
+function sanitizeAssistantHistoryForPrompt(msg: ChatMessage): string {
+  const text = msg.content.trim();
+
+  // 1. Inspect executionSteps first if present
+  if (msg.executionSteps && msg.executionSteps.length > 0) {
+    const step = msg.executionSteps[0];
+    if (step.toolName === 'save_memory') {
+      const match = text.match(/(?:✅\s*)?(?:\*\*)?Saved to (?:Coach )?Memory:?(?:\*\*)?\s*(.+)/i);
+      const fact = match ? match[1].trim() : 'preference';
+      return `<tool_call>\n{"name": "save_memory", "arguments": {"content": "${fact.replace(/"/g, '\\"')}"}}\n</tool_call>`;
+    }
+    if (step.toolName === 'remove_memory') {
+      const match = text.match(/(?:✅\s*)?(?:\*\*)?.*(?:Removed|Forgot).*memory(?::|.*matching)?\s*['"]?([^'"]+?)['"]?(?:\*\*)?$/i);
+      const query = match ? match[1].trim() : 'item';
+      return `<tool_call>\n{"name": "remove_memory", "arguments": {"idOrQuery": "${query.replace(/"/g, '\\"')}"}}\n</tool_call>`;
+    }
+  }
+
+  // 2. Fallback regex matching
+  const saveMemoryMatch = text.match(/(?:✅\s*)?(?:\*\*)?Saved to (?:Coach )?Memory:?(?:\*\*)?\s*(.+)/i);
+  if (saveMemoryMatch) {
+    const fact = saveMemoryMatch[1].trim();
+    return `<tool_call>\n{"name": "save_memory", "arguments": {"content": "${fact.replace(/"/g, '\\"')}"}}\n</tool_call>`;
+  }
+
+  const removeMemoryMatch = text.match(/(?:✅\s*)?(?:\*\*)?.*(?:Removed|Forgot).*memory(?::|.*matching)?\s*['"]?([^'"]+?)['"]?(?:\*\*)?$/i);
+  if (removeMemoryMatch) {
+    const query = removeMemoryMatch[1].trim();
+    return `<tool_call>\n{"name": "remove_memory", "arguments": {"idOrQuery": "${query.replace(/"/g, '\\"')}"}}\n</tool_call>`;
+  }
+
+  return text;
+}
+
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
@@ -181,13 +220,19 @@ export const useChatStore = create<ChatState>()(
           }
         }
 
-        // Compress older assistant turns to conserve prompt tokens for fast on-device prefill
+        // Sanitize assistant history to prevent plain-text checkmark prompt contagion
+        // and compress older turns to conserve prompt tokens for fast on-device prefill
         const contextMessages = filteredHistory.map((m, idx) => {
-          let content = m.content.trim();
+          let content = m.role === 'assistant' ? sanitizeAssistantHistoryForPrompt(m) : m.content.trim();
           if (idx === filteredHistory.length - 1 && visualContext) {
             content = `${content}${visualContext}`;
           }
-          if (m.role === 'assistant' && idx < filteredHistory.length - 1 && content.length > 240) {
+          if (
+            m.role === 'assistant' &&
+            idx < filteredHistory.length - 1 &&
+            !content.startsWith('<tool_call>') &&
+            content.length > 240
+          ) {
             content = content.slice(0, 240) + '...';
           }
           return {

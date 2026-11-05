@@ -61,6 +61,20 @@ describe('AgentHarness Synthetic Fallbacks & Memory Interception', () => {
     assert.strictEqual(call.name, 'save_memory');
     assert.strictEqual(call.arguments.content, 'ชอบกินข้าวกล้อง');
   });
+
+  it('extracts synthetic log_food_item call when model outputs plain-text food logging confirmation', () => {
+    const output = '✅ **Logged "Cornbread" (450g, 1197 kcal, 30.2g protein, 195.8g carbs, 32g fat) to lunch**\n\nThis fits your macros.';
+    const call = extractSyntheticToolCall(output, 'I just ate this.');
+    assert.ok(call, 'Should synthesize a log_food_item tool call');
+    assert.strictEqual(call.name, 'log_food_item');
+    assert.strictEqual(call.arguments.name, 'Cornbread');
+    assert.strictEqual(call.arguments.consumedGrams, 450);
+    assert.strictEqual(call.arguments.calories, 1197);
+    assert.strictEqual(call.arguments.proteinGrams, 30.2);
+    assert.strictEqual(call.arguments.carbsGrams, 195.8);
+    assert.strictEqual(call.arguments.fatGrams, 32);
+    assert.strictEqual(call.arguments.mealType, 'lunch');
+  });
 });
 
 describe('Memory Negation & Deletion Engine', () => {

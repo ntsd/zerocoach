@@ -46,6 +46,16 @@ function sanitizeAssistantHistoryForPrompt(msg: ChatMessage): string {
       const query = match ? match[1].trim() : 'item';
       return `<tool_call>\n{"name": "remove_memory", "arguments": {"idOrQuery": "${query.replace(/"/g, '\\"')}"}}\n</tool_call>`;
     }
+    if (step.toolName === 'log_food_item') {
+      const match = text.match(/(?:✅\s*)?(?:\*\*)?Logged\s+["']?([^"'(]+)["']?\s*(?:\(([^)]+)\))?\s*(?:to\s+(\w+))?/i);
+      const name = match ? match[1].trim() : 'Food';
+      const details = match ? match[2] || '' : '';
+      const meal = match && match[3] ? match[3].trim().toLowerCase() : 'lunch';
+      const grams = details.match(/(\d+(?:\.\d+)?)\s*g(?:rams?)?(?!\s*(?:protein|carb|fat))/i)?.[1] || '100';
+      const cals = details.match(/(\d+(?:\.\d+)?)\s*(?:kcal|calories)/i)?.[1] || '200';
+      const protein = details.match(/(\d+(?:\.\d+)?)\s*g\s*protein/i)?.[1] || '20';
+      return `<tool_call>\n{"name": "log_food_item", "arguments": {"name": "${name.replace(/"/g, '\\"')}", "consumedGrams": ${grams}, "calories": ${cals}, "proteinGrams": ${protein}, "mealType": "${meal}"}}\n</tool_call>`;
+    }
   }
 
   // 2. Fallback regex matching
@@ -59,6 +69,22 @@ function sanitizeAssistantHistoryForPrompt(msg: ChatMessage): string {
   if (removeMemoryMatch) {
     const query = removeMemoryMatch[1].trim();
     return `<tool_call>\n{"name": "remove_memory", "arguments": {"idOrQuery": "${query.replace(/"/g, '\\"')}"}}\n</tool_call>`;
+  }
+
+  const foodLogMatch = text.match(/(?:✅\s*)?(?:\*\*)?Logged\s+["']?([^"'(]+)["']?\s*(?:\(([^)]+)\))?\s*(?:to\s+(\w+))?/i);
+  if (foodLogMatch) {
+    const name = foodLogMatch[1].trim();
+    const details = foodLogMatch[2] || '';
+    const meal = foodLogMatch[3] ? foodLogMatch[3].trim().toLowerCase() : 'lunch';
+    const grams = details.match(/(\d+(?:\.\d+)?)\s*g(?:rams?)?(?!\s*(?:protein|carb|fat))/i)?.[1] || '100';
+    const cals = details.match(/(\d+(?:\.\d+)?)\s*(?:kcal|calories)/i)?.[1] || '200';
+    const protein = details.match(/(\d+(?:\.\d+)?)\s*g\s*protein/i)?.[1] || '20';
+    return `<tool_call>\n{"name": "log_food_item", "arguments": {"name": "${name.replace(/"/g, '\\"')}", "consumedGrams": ${grams}, "calories": ${cals}, "proteinGrams": ${protein}, "mealType": "${meal}"}}\n</tool_call>`;
+  }
+
+  // If text starts with a checkmark confirmation that wasn't transformed, strip checkmark to avoid contagion
+  if (text.startsWith('✅')) {
+    return text.replace(/(?:✅\s*)?(?:\*\*)?[^*]+(?:\*\*)\s*/, '').trim() || text;
   }
 
   return text;
@@ -211,7 +237,20 @@ export const useChatStore = create<ChatState>()(
 
             if (photoAnalysis.canIdentify && photoAnalysis.dishTitle) {
               const nutrients = photoAnalysis.decomposition?.totalNutrients;
-              visualContext = `\n[ATTACHED PHOTO IDENTIFIED: "${photoAnalysis.dishTitle}" (${photoAnalysis.ingredientsText || ''}) | Nutrition: ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein, ${nutrients?.carbsGrams || 0}g carbs, ${nutrients?.fatGrams || 0}g fat. You can offer to log this using log_food_item or explain how it fits the athlete's nutrition targets.]`;
+              const totalGrams =
+                photoAnalysis.decomposition?.ingredients?.reduce(
+                  (acc, i) => acc + (i.quantityGrams || 0),
+                  0
+                ) || 100;
+              const isUserLoggingAction =
+                /\b(ate|eat|eating|had|have|consumed|log|logging|logged|just)\b/i.test(trimmed) ||
+                /กิน|ทาน|บันทึก/.test(trimmed);
+
+              visualContext = `\n[ATTACHED PHOTO IDENTIFIED: "${photoAnalysis.dishTitle}" (${photoAnalysis.ingredientsText || ''}) | Portion: ${totalGrams}g | Nutrition: ${nutrients?.calories || 0} kcal, ${nutrients?.proteinGrams || 0}g protein, ${nutrients?.carbsGrams || 0}g carbs, ${nutrients?.fatGrams || 0}g fat. ${
+                isUserLoggingAction
+                  ? 'The athlete states they ate this: you MUST call log_food_item using <tool_call> to log it to their diary immediately.'
+                  : 'Offer to log this using log_food_item or explain how it fits the athlete\'s nutrition targets.'
+              }]`;
             } else if (photoAnalysis.errorMessage) {
               visualContext = `\n[ATTACHED PHOTO: Note: ${photoAnalysis.errorMessage}]`;
             }

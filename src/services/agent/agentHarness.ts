@@ -322,6 +322,44 @@ export function extractSyntheticToolCall(text: string, lastUserMsg: string = '')
     }
   }
 
+  // 3. Synthetic log_food_item detection
+  // e.g. '✅ **Logged "Cornbread" (450g, 1197 kcal, 30.2g protein, 195.8g carbs, 32g fat) to lunch**'
+  // e.g. 'Logged "Salmon" (100g, 235 kcal, 24g protein) to lunch'
+  const foodLogMatch = clean.match(
+    /(?:✅\s*)?(?:\*\*)?(?:Logged|Recorded|Added)\s+["']?([^"'(]+)["']?\s*(?:\(([^)]+)\))?\s*(?:to\s+(\w+))?/i
+  );
+  if (foodLogMatch) {
+    const foodName = foodLogMatch[1].trim();
+    const details = foodLogMatch[2] || '';
+    const mealType = (foodLogMatch[3] || 'lunch').toLowerCase();
+
+    const gramsMatch = details.match(/(\d+(?:\.\d+)?)\s*g(?:rams?)?(?!\s*(?:protein|carb|fat))/i);
+    const caloriesMatch = details.match(/(\d+(?:\.\d+)?)\s*(?:kcal|calories)\b/i);
+    const proteinMatch = details.match(/(\d+(?:\.\d+)?)\s*g\s*protein\b/i);
+    const carbsMatch = details.match(/(\d+(?:\.\d+)?)\s*g\s*carbs?\b/i);
+    const fatMatch = details.match(/(\d+(?:\.\d+)?)\s*g\s*fat\b/i);
+
+    const consumedGrams = gramsMatch ? parseFloat(gramsMatch[1]) : 100;
+    const calories = caloriesMatch ? parseFloat(caloriesMatch[1]) : 0;
+    const proteinGrams = proteinMatch ? parseFloat(proteinMatch[1]) : 0;
+    const carbsGrams = carbsMatch ? parseFloat(carbsMatch[1]) : 0;
+    const fatGrams = fatMatch ? parseFloat(fatMatch[1]) : 0;
+
+    return {
+      id: `synth-food-${Date.now()}`,
+      name: 'log_food_item',
+      arguments: {
+        name: foodName,
+        consumedGrams,
+        calories,
+        proteinGrams,
+        carbsGrams,
+        fatGrams,
+        mealType,
+      },
+    };
+  }
+
   return null;
 }
 
@@ -375,30 +413,21 @@ function formatDeterministicWriteConfirmation(
   if (/^\(?no text before/i.test(cleanLeading)) {
     cleanLeading = '';
   }
+  // Strip duplicate fake confirmations from leading text if present
+  cleanLeading = cleanLeading
+    .replace(/(?:✅\s*)?(?:\*\*)?(?:Logged|Recorded|Added|Saved to|Removed from|Forgot).*?(?:\*\*|$)\n*/gi, '')
+    .trim();
+
+  const primaryConfirmation =
+    call.name === 'save_memory'
+      ? `✅ **Saved to Coach Memory:** ${call.arguments?.content || result.summary}`
+      : `✅ **${result.summary}**`;
+
   if (cleanLeading && cleanLeading.length > 8) {
-    return `${cleanLeading}\n\n✅ **${result.summary}**`;
+    return `${primaryConfirmation}\n\n${cleanLeading}`;
   }
 
-  switch (call.name) {
-    case 'save_memory':
-      return `✅ **Saved to Coach Memory:** ${call.arguments?.content || result.summary}`;
-    case 'remove_memory':
-      return `✅ **${result.summary}**`;
-    case 'log_food_item':
-      return `✅ **${result.summary}**`;
-    case 'delete_logged_food':
-      return `✅ **${result.summary}**`;
-    case 'update_daily_macro_targets':
-      return `✅ **${result.summary}**`;
-    case 'update_workout_plan':
-    case 'swap_plan_exercise':
-    case 'manage_workout_schedule':
-    case 'log_completed_workout':
-    case 'update_user_settings':
-      return `✅ **${result.summary}**`;
-    default:
-      return `✅ **${result.summary}**`;
-  }
+  return primaryConfirmation;
 }
 
 export class AgentHarness {
@@ -517,6 +546,40 @@ export class AgentHarness {
             topic: 'user_preference',
             content: lastUserMsg,
           };
+        }
+      } else if (detectedCall.name === 'log_food_item' && lastUserMsg) {
+        // Alignment for log_food_item:
+        const rawName = String(detectedCall.arguments?.name || '').toLowerCase();
+        const userMsgLower = lastUserMsg.toLowerCase();
+
+        // 1. Attached photo alignment: If a meal photo was identified in the prompt context,
+        // align food name and macro nutrients with the photo's verified analysis
+        const photoMatch = lastUserMsg.match(
+          /\[ATTACHED PHOTO IDENTIFIED:\s*"([^"]+)"(?:\s*\([^)]*\))?\s*\|\s*Portion:\s*(\d+)g\s*\|\s*Nutrition:\s*(\d+)\s*kcal,\s*(\d+(?:\.\d+)?)\s*g\s*protein,\s*(\d+(?:\.\d+)?)\s*g\s*carbs,\s*(\d+(?:\.\d+)?)\s*g\s*fat/i
+        );
+        if (photoMatch) {
+          detectedCall.arguments.name = photoMatch[1].trim();
+          if (
+            !detectedCall.arguments.consumedGrams ||
+            detectedCall.arguments.consumedGrams === 100 ||
+            detectedCall.arguments.consumedGrams === 200
+          ) {
+            detectedCall.arguments.consumedGrams = parseFloat(photoMatch[2]) || 100;
+          }
+          if (!detectedCall.arguments.calories || detectedCall.arguments.calories === 330) {
+            detectedCall.arguments.calories = parseFloat(photoMatch[3]) || 0;
+            detectedCall.arguments.proteinGrams = parseFloat(photoMatch[4]) || 0;
+            detectedCall.arguments.carbsGrams = parseFloat(photoMatch[5]) || 0;
+            detectedCall.arguments.fatGrams = parseFloat(photoMatch[6]) || 0;
+          }
+        } else if (rawName.includes('chicken') && !userMsgLower.includes('chicken')) {
+          // 2. Text message alignment: If model parroted "chicken" from the prompt example
+          const foodExtract = lastUserMsg.match(
+            /(?:ate|eat|eating|had|have|consumed|log|logging|logged)\s+(?:(?:around|about|approx(?:\.)?|some|a|an|\d+(?:\.\d+)?\s*(?:g|grams?|oz|pieces?|servings?|bowls?|plates?))\s+(?:of\s+)?)?([^,.;!?\n]+?)(?:\s+(?:for|at)\s+(?:breakfast|lunch|dinner|snack)|$)/i
+          );
+          if (foodExtract && foodExtract[1]) {
+            detectedCall.arguments.name = foodExtract[1].trim();
+          }
         }
       }
 

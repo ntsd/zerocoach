@@ -181,8 +181,8 @@ export function buildCompactSystemPrompt(params: {
   const effectiveReadiness = hasLiveTelemetry ? telemetry.readinessScore : 75;
 
   if (isThai) {
-    const macroLine = nutritionSummary && nutritionSummary.remainingCalories > 0
-      ? `แคลอรี่คงเหลือ ${nutritionSummary.remainingCalories} kcal, โปรตีนคงเหลือ ${nutritionSummary.remainingProtein}g`
+    const macroLine = nutritionSummary
+      ? `โภชนาการวันนี้: ทานแล้ว ${nutritionSummary.totalCalories}/${nutritionSummary.targetCalories} kcal (คงเหลือ ${nutritionSummary.remainingCalories} kcal) | โปรตีน ${nutritionSummary.totalProtein}/${nutritionSummary.targetProtein}g (คงเหลือ ${nutritionSummary.remainingProtein}g)`
       : `เป้าหมายประจำวัน: ${userProfile.dailyCalorieTarget || 2000} kcal, โปรตีน ${userProfile.proteinGrams || 140}g`;
 
     const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'สร้างกล้ามเนื้อและสมรรถภาพ';
@@ -211,8 +211,8 @@ export function buildCompactSystemPrompt(params: {
 5. ตอบเป็นภาษาไทยที่กระชับ ชัดเจน ตรงประเด็น`;
   }
 
-  const nutritionLine = nutritionSummary && nutritionSummary.remainingCalories > 0
-    ? `Remaining: ${nutritionSummary.remainingCalories} kcal, ${nutritionSummary.remainingProtein}g protein`
+  const nutritionLine = nutritionSummary
+    ? `Consumed ${nutritionSummary.totalCalories}/${nutritionSummary.targetCalories} kcal (${nutritionSummary.remainingCalories} kcal left) | Protein: ${nutritionSummary.totalProtein}/${nutritionSummary.targetProtein}g (${nutritionSummary.remainingProtein}g left)`
     : `Target: ${userProfile.dailyCalorieTarget || 2000} kcal, ${userProfile.proteinGrams || 140}g protein`;
 
   const goal = userProfile.primaryGoals?.[0]?.replace(/_/g, ' ') || 'Strength & Hypertrophy';

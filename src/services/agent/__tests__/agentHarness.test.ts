@@ -4,6 +4,7 @@ import {
   extractSyntheticToolCall,
   parseToolCallFromText,
   cleanFinalResponseText,
+  isTargetUpdateAccidentalOnMealInquiry,
 } from '../agentHarness';
 import { inferMealTypeFromCurrentTime } from '../dispatcher';
 import {
@@ -84,6 +85,37 @@ describe('AgentHarness Synthetic Fallbacks & Memory Interception', () => {
     assert.strictEqual(call.name, 'log_food_item');
     assert.strictEqual(call.arguments.name, 'Oatmeal');
     assert.strictEqual(call.arguments.mealType, inferMealTypeFromCurrentTime());
+  });
+
+  it('detects accidental update_daily_macro_targets on food suggestion queries', () => {
+    assert.strictEqual(
+      isTargetUpdateAccidentalOnMealInquiry(
+        'update_daily_macro_targets',
+        'Based on my current daily targets (1283 kcal and 44.2g protein remaining), what meal or whole foods should I eat next?'
+      ),
+      true
+    );
+    assert.strictEqual(
+      isTargetUpdateAccidentalOnMealInquiry(
+        'update_daily_macro_targets',
+        'I have 557 kcal left today. What should I eat?'
+      ),
+      true
+    );
+    assert.strictEqual(
+      isTargetUpdateAccidentalOnMealInquiry(
+        'update_daily_macro_targets',
+        'Please update my daily calorie target to 2200 kcal'
+      ),
+      false
+    );
+    assert.strictEqual(
+      isTargetUpdateAccidentalOnMealInquiry(
+        'log_food_item',
+        'What meal or whole foods should I eat next?'
+      ),
+      false
+    );
   });
 });
 

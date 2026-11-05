@@ -496,7 +496,7 @@ export const TRANSLATIONS = {
           'Coach, based on my primary goal, my skill level, and my current readiness score, suggest the best workout plan and split for me today. Breakdown the exercises, sets, reps, and why it fits my physiology.',
         food: 'Suggest food',
         foodPromptWithKcal:
-          'Based on my current daily targets ({kcal} kcal and {protein}g protein remaining), what meal or whole foods should I eat next? Give exact portions and macros.',
+          'I have {kcal} kcal and {protein}g protein remaining today. What meal or whole foods should I eat next? Give exact portions and macros.',
         foodPromptGeneral:
           'What nutrient-dense recovery food or snack do you recommend right now to optimize muscle protein synthesis and recovery?',
         macros: 'Adjust macros',
@@ -1318,7 +1318,7 @@ export const TRANSLATIONS = {
           'โค้ช ช่วยแนะนำแผนการฝึกและตารางที่เหมาะสมที่สุดสำหรับผมวันนี้ โดยอิงจากเป้าหมายหลัก ระดับความชำนาญ และคะแนนความพร้อม พร้อมอธิบายท่าฝึก เซ็ต และจำนวนครั้ง',
         food: 'แนะนำอาหาร',
         foodPromptWithKcal:
-          'จากเป้าหมายประจำวันของผม (เหลืออีก {kcal} kcal และโปรตีน {protein} กรัม) มื้อถัดไปควรทานอาหารอะไรดี ขอปริมาณและสารอาหารที่แม่นยำ',
+          'วันนี้ผมเหลืออีก {kcal} kcal และโปรตีน {protein} กรัม มื้อถัดไปควรทานอาหารอะไรดี ขอปริมาณและสารอาหารที่แม่นยำ',
         foodPromptGeneral:
           'แนะนำอาหารหรือของว่างสำหรับการฟื้นฟูกล้ามเนื้อที่เหมาะสมที่สุดในตอนนี้ให้หน่อย',
         macros: 'ปรับสารอาหาร',

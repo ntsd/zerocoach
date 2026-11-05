@@ -430,6 +430,21 @@ function formatDeterministicWriteConfirmation(
   return primaryConfirmation;
 }
 
+export function isTargetUpdateAccidentalOnMealInquiry(toolName: string, userMsg: string): boolean {
+  if (toolName !== 'update_daily_macro_targets' || !userMsg) return false;
+  const userMsgLower = userMsg.toLowerCase();
+  const isExplicitTargetUpdateRequest =
+    /\b(update|change|set|adjust|modify|reset)\b.*\b(target|goal|calorie|protein|macro)\b/i.test(
+      userMsgLower
+    ) || /เปลี่ยน|ตั้งค่า|ปรับ.*(เป้าหมาย|แคล|โปรตีน)/.test(userMsgLower);
+
+  const isMealInquiry =
+    /\b(what|suggest|recommend|eat|meal|food|portion|recipe)\b/i.test(userMsgLower) ||
+    /แนะนำ|ทานอะไร|กินอะไร|ควรทาน|เมนู/.test(userMsgLower);
+
+  return !isExplicitTargetUpdateRequest && isMealInquiry;
+}
+
 export class AgentHarness {
   /**
    * Runs the agent harness loop: handles reasoning, tool execution, and final synthesis
@@ -581,6 +596,18 @@ export class AgentHarness {
             detectedCall.arguments.name = foodExtract[1].trim();
           }
         }
+      } else if (isTargetUpdateAccidentalOnMealInquiry(detectedCall.name, lastUserMsg)) {
+        // Accidental target update protection: If the athlete is asking what to eat or for food recommendations,
+        // but did not explicitly ask to change their macro targets, block the tool call and synthesize food options.
+        conversationHistory.push({
+          role: 'assistant',
+          content: `I will not change your daily targets. Here are the best meals to hit your remaining budget:`,
+        });
+        conversationHistory.push({
+          role: 'user',
+          content: `[SYSTEM: Do NOT call update_daily_macro_targets. Recommend specific whole-food meals and portions matching the athlete's remaining caloric and protein budget.]`,
+        });
+        continue;
       }
 
       // Tool Call Detected!

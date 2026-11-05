@@ -155,6 +155,10 @@ export const useChatStore = create<ChatState>()(
         let visualContext = '';
         if (imageUri) {
           try {
+            if (modelState.provider === 'on_device') {
+              console.log('[useChatStore] On-device image query: ensuring vision projector loaded...');
+              await modelState.ensureVisionProjectorLoaded();
+            }
             console.log('[useChatStore] Analyzing attached image with photoMealAnalyzer...');
             const photoAnalysis = await analyzeMealPhoto(
               imageUri,

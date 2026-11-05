@@ -66,6 +66,16 @@ export class LLMService {
     return this.nativeEngine.initMultimodal(mmprojPath);
   }
 
+  public async ensureMultimodalLoaded(mmprojPath?: string): Promise<boolean> {
+    if (this.isMultimodalReady()) return true;
+    if (!mmprojPath) return false;
+    return this.initMultimodal(mmprojPath);
+  }
+
+  public async releaseMultimodal(): Promise<void> {
+    await this.nativeEngine.releaseMultimodal();
+  }
+
   public isMultimodalReady(): boolean {
     return this.nativeEngine.isMultimodalEnabled();
   }

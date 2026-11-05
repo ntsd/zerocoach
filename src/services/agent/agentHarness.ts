@@ -8,31 +8,108 @@ import {
   DomainName,
   ToolAccessType,
 } from './types';
+import { classifyUserIntent, ALL_DOMAINS } from './intentRouter';
 import { llmService } from '@/services/llm/llmService';
 import { CompletionRequest, CompletionResult } from '@/services/llm/types';
 import { isNegationOrRecoveryStatement } from '@/services/memory/memoryEngine';
 
 const MAX_TOOL_CALLS = 4;
 
+interface ScopedToolDef {
+  domain: DomainName;
+  line: string;
+}
+
+const COMPACT_TOOL_CATALOG: ScopedToolDef[] = [
+  {
+    domain: 'memory',
+    line: 'save_memory(category, content, topic): Save lasting athlete fact or preference. category="workout_preference" (equipment, skills, exercises) | "food_preference" (diet, favorite/disliked foods, allergies) | "injury_limitation" (pain/injury) | "personality_style" (coaching tone/schedule).',
+  },
+  {
+    domain: 'memory',
+    line: 'remove_memory(idOrQuery): Forget/delete outdated memory by ID, topic, or keyword.',
+  },
+  {
+    domain: 'food_history',
+    line: 'log_food_item(name, mealType, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, fiberGrams, sugarGrams, date): Log food/meal to diary.',
+  },
+  {
+    domain: 'food_database',
+    line: 'search_food_database(query, source): Search USDA / OpenFoodFacts when nutrition lookup is needed.',
+  },
+  {
+    domain: 'food_history',
+    line: 'get_food_history(date): Get logged meals & macro totals for a specific date (YYYY-MM-DD).',
+  },
+  {
+    domain: 'food_history',
+    line: 'update_daily_macro_targets(targetCalories, targetProtein, targetCarbs, targetFat, targetFiber): Update daily macro targets.',
+  },
+  {
+    domain: 'workout_plan',
+    line: 'update_workout_plan(title, split, exercises, date): Create or update workout routine.',
+  },
+  {
+    domain: 'workout_plan',
+    line: 'swap_plan_exercise(targetExerciseNameOrId, replacementExerciseNameOrId, date): Swap an exercise in the plan.',
+  },
+  {
+    domain: 'workout_plan',
+    line: 'manage_workout_schedule(action, splitCycle, date): action="skip_workout" | "reschedule_next" | "set_cycle".',
+  },
+  {
+    domain: 'workout_history',
+    line: 'log_completed_workout(title, exercises, durationMinutes, rpe, notes, date): Log completed workout or set.',
+  },
+  {
+    domain: 'workout_database',
+    line: 'search_exercises(query, muscleGroup): Search RepDB movement library for exercise technique or replacements.',
+  },
+  {
+    domain: 'workout_database',
+    line: 'get_exercise_details(exerciseIdOrName): Get biomechanics, execution cues, and progression details.',
+  },
+  {
+    domain: 'telemetry',
+    line: 'get_telemetry_metrics(): Read live readiness (0-100), HRV, resting heart rate, sleep quality, and steps.',
+  },
+  {
+    domain: 'settings',
+    line: 'update_user_settings(weightKg, heightCm, dailyCalorieTarget, proteinGrams, equipmentPreference, skillLevel): Update athlete profile settings.',
+  },
+];
+
 /**
- * Builds an ultra-compact (~220 tokens) deterministic tool declaration block
- * containing the 10 core actionable tools. Redundant read tools whose data is
- * already injected in ATHLETE CONTEXT are omitted so tool selection is fast and accurate.
+ * Builds an intent-scoped tool declaration block (~75–140 tokens).
+ * Includes ambient memory tools unconditionally alongside matched domain tools.
  */
-export function buildAgentToolPrompt(): string {
+export function buildScopedAgentToolPrompt(activeDomains: DomainName[] = ALL_DOMAINS): string {
+  const domains = new Set<DomainName>(activeDomains);
+  // Ambient memory invariant
+  domains.add('memory');
+
+  const selectedTools = COMPACT_TOOL_CATALOG.filter((t) => domains.has(t.domain));
+  const toolLines = selectedTools.map((t, idx) => `${idx + 1}. ${t.line}`).join('\n');
+
+  let dynamicExamples = '';
+  if (domains.has('food_history')) {
+    dynamicExamples += `
+- When the athlete wants to log food or a meal:
+<tool_call>
+{"name": "log_food_item", "arguments": {"name": "Grilled Chicken Breast", "consumedGrams": 200, "calories": 330, "proteinGrams": 62, "mealType": "lunch"}}
+</tool_call>`;
+  }
+  if (domains.has('workout_plan')) {
+    dynamicExamples += `
+- When the athlete wants to swap or change an exercise:
+<tool_call>
+{"name": "swap_plan_exercise", "arguments": {"targetExerciseNameOrId": "Push-up", "replacementExerciseNameOrId": "Incline Dumbbell Press"}}
+</tool_call>`;
+  }
+
   return `
-[AGENT TOOLS — 10 CORE TOOLS]
-1. save_memory(category, content, topic): Save lasting athlete fact or preference. category="workout_preference" (equipment, skills, exercises) | "food_preference" (diet, favorite/disliked foods, allergies) | "injury_limitation" (pain/injury) | "personality_style" (coaching tone/schedule).
-2. remove_memory(idOrQuery): Forget/delete outdated memory by ID, topic, or keyword.
-3. log_food_item(name, mealType, consumedGrams, calories, proteinGrams, carbsGrams, fatGrams, fiberGrams, sugarGrams, date): Log food/meal to diary.
-4. search_food_database(query, source): Search USDA / OpenFoodFacts when nutrition lookup is needed.
-5. get_food_history(date): Get logged meals & macro totals for a specific date (YYYY-MM-DD).
-6. update_daily_macro_targets(targetCalories, targetProtein, targetCarbs, targetFat, targetFiber): Update daily macro targets.
-7. update_workout_plan(title, split, exercises, date): Create or update workout routine.
-8. swap_plan_exercise(targetExerciseNameOrId, replacementExerciseNameOrId, date): Swap an exercise in the plan.
-9. manage_workout_schedule(action, splitCycle, date): action="skip_workout" | "reschedule_next" | "set_cycle".
-10. log_completed_workout(title, exercises, durationMinutes, rpe, notes, date): Log completed workout or set.
-11. update_user_settings(weightKg, heightCm, dailyCalorieTarget, proteinGrams, equipmentPreference, skillLevel): Update athlete profile settings.
+[AGENT TOOLS — SCOPED TOOLS]
+${toolLines}
 
 PROTOCOL:
 - Live telemetry, today's workout, and stored memories are ALREADY in ATHLETE CONTEXT above.
@@ -43,10 +120,17 @@ PROTOCOL:
 - When the athlete states they are NOT/NO LONGER allergic (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "no shrimp allergy"), healed from injury ("shoulder is healed"), don't have equipment anymore, or asks to forget/remove a memory, you MUST call remove_memory:
 <tool_call>
 {"name": "remove_memory", "arguments": {"idOrQuery": "shrimp"}}
-</tool_call>
+</tool_call>${dynamicExamples}
 - CRITICAL: Never write fake confirmation text like "✅ Saved to Coach Memory" in plain text. Plain text does NOT save anything. You MUST invoke save_memory using <tool_call>.
 - To call a tool, start your response directly with <tool_call>.
 - If no tool is needed, reply normally without <tool_call> tags.`;
+}
+
+/**
+ * Backward-compatible full-catalog tool prompt generator.
+ */
+export function buildAgentToolPrompt(): string {
+  return buildScopedAgentToolPrompt(ALL_DOMAINS);
 }
 
 function tryExtractToolCall(jsonStr: string): ToolCall | null {
@@ -253,8 +337,10 @@ export class AgentHarness {
     const { systemPrompt, messages, callbacks, temperature = 0.1, maxTokens = 400 } = params;
 
     const isOnDevice = llmService.getProvider() === 'on_device';
-    // Enhance system prompt with compact 10-core-tool declarations (~220 tokens)
-    const augmentedSystemPrompt = `${systemPrompt}\n${buildAgentToolPrompt()}`;
+    // Dynamically scope tools based on detected user intent (~75–140 tokens)
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+    const activeDomains = classifyUserIntent(lastUserMessage, messages);
+    const augmentedSystemPrompt = `${systemPrompt}\n${buildScopedAgentToolPrompt(activeDomains)}`;
     const synthesisSystemPrompt = `${systemPrompt}\n\n[DATA RETRIEVED: Answer the athlete's question concisely using the <tool_result> data above. Do NOT output <tool_call> tags.]`;
     const conversationHistory = [...messages];
     const steps: AgentExecutionStep[] = [];

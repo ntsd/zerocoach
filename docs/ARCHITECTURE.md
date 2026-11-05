@@ -168,17 +168,29 @@ ZeroCoach runs on diverse hardware profiles with three distinct inference engine
 
 ---
 
-## 🎯 Token Optimization Strategy (Saving LLM Tokens)
+## 🎯 Token Optimization & On-Device Memory Lifecycle
 
-On-device inference and mobile context windows require conservative token budgets. ZeroCoach implements three architectural optimizations to minimize prompt bloat:
+On-device inference and mobile context windows require conservative token budgets and strict heap containment. ZeroCoach implements five architectural optimizations to minimize prompt bloat, eliminate tool calling omission, and prevent OS Low Memory Killer (LMK) terminations on 6 GB hardware:
 
-1. **On-Demand Tool Retrieval vs. Context Dumping**:
+1. **Dynamic Intent-Gated Tool Scoping (`src/services/agent/intentRouter.ts`)**:
+   - Rather than declaring all 11 tools (~220 tokens) on every turn, a sub-millisecond heuristic intent router dynamically scopes declarations down to ~75–140 tokens based on active conversation intent.
+   - **Ambient Memory Invariant**: `memory` tools (`save_memory`, `remove_memory`) remain declared unconditionally in every prompt to guarantee that health disclosures, injuries, and preferences are always captured.
+   - **Multi-Turn Anaphora Inheritance**: Automatically inherits prior domains when users reply with action pronouns (*"Log it"*, *"Swap that"*, *"บันทึกเลย"*).
+   - **Bilingual Token Dictionary**: Fully supports English and Thai athletic vocabulary (`กิน`, `อาหาร`, `ซ้อม`, `เปลี่ยนท่า`, etc.).
+   - **Safe Full Fallback**: Falls back to the complete 11-tool catalog on ambiguous turns or casual chat to eliminate tool starvation.
+2. **Session-Scoped Lazy Multimodal Vision Lifecycle**:
+   - Defers the 600 MB vision projector (`mmproj`) at app boot, keeping resident native heap at ~540 MB during text coaching (saving 600 MB and maintaining total memory well below Android's 2.0 GB LMK threshold).
+   - Initializes `ensureVisionProjectorLoaded()` on demand on the first photo turn and keeps it cached in memory for subsequent session turns to eliminate mobile flash storage I/O thrashing (1.5–3.0 s reload delay).
+   - Unloads the projector upon model switch (`useModelStore.unloadModel()`), chat reset, or app backgrounding.
+3. **Preserved 4,096-Token Context Capacity (`n_ctx: 4096`)**:
+   - Full context window is retained in `llamaRNEngine.ts` to prevent "context full" runtime overflows during USDA database searches, recipe expansions, and multimodal embedding processing.
+4. **On-Demand Tool Retrieval vs. Context Dumping**:
    - Rather than dumping the entire 7-day workout routine, 643 exercises, and complete food diaries into the system prompt, the baseline prompt contains only high-level summary metrics.
    - When the athlete inquires about workout plans or food items, the LLM calls `get_workout_plan(date)` or `search_food_database(query)` on demand, fetching only the specific payload needed for that turn.
-2. **Compact ReAct Schemas**:
-   - Tool declarations use concise function signatures (`tool_name(param1, param2): description`) rather than voluminous multi-kilobyte JSON schema definitions on quantized on-device models.
-3. **Context Window Compression**:
+5. **Context Window Compression**:
    - Older assistant conversation turns are truncated to essential highlights (<= 240 chars) to prevent quadratic prefill latency on mobile GPUs.
+
+> For the comprehensive engineering specification and benchmarks, see [Context Optimization & Accuracy Scaling Design Document](designs/context_optimization_and_accuracy.md).
 
 ---
 

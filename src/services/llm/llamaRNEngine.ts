@@ -83,6 +83,18 @@ export class LlamaRNEngine implements LLMEngine {
     return this.isMultimodalActive;
   }
 
+  public async releaseMultimodal(): Promise<void> {
+    if (this.llamaContext && typeof this.llamaContext.releaseMultimodal === 'function') {
+      try {
+        console.log('[LlamaRNEngine] Releasing native multimodal vision projector');
+        await this.llamaContext.releaseMultimodal();
+      } catch (err) {
+        console.warn('[LlamaRNEngine] Error releasing multimodal:', err);
+      }
+    }
+    this.isMultimodalActive = false;
+  }
+
   public isReady(): boolean {
     return this.isModelReady && this.llamaContext !== null;
   }

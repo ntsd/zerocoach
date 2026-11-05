@@ -59,8 +59,8 @@ export async function analyzeMealPhoto(
     try {
       const state = useModelStore.getState();
       if (state.provider === 'on_device' && state.status !== 'loading' && state.status !== 'downloading') {
-        console.log('[PhotoMealAnalyzer] Local vision not active in memory. Attempting auto-load from disk...');
-        await state.loadModel();
+        console.log('[PhotoMealAnalyzer] Local vision not active in memory. Attempting on-demand lazy load...');
+        await state.ensureVisionProjectorLoaded();
       }
     } catch (e) {
       console.warn('[PhotoMealAnalyzer] Auto-load local vision failed:', e);

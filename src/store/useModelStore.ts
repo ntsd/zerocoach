@@ -114,6 +114,7 @@ export const useModelStore = create<ModelState>()(
       isMmprojDownloading: false,
       mmprojDownloadProgress: 0,
       isMmprojDownloaded: false,
+      isVisionProjectorLoaded: false,
       isEmbeddingDownloading: false,
       embeddingDownloadProgress: 0,
       isEmbeddingDownloaded: false,
@@ -276,18 +277,15 @@ export const useModelStore = create<ModelState>()(
             console.log(`[useModelStore] ${model.name} loaded successfully into llama.rn memory!`);
             set({ status: 'loaded', errorMessage: null });
 
-            // Check if multimodal vision projector is present on disk
+            // Check if multimodal vision projector is present on disk (deferred lazy load)
             if (model.mmprojDownloadUrl && Paths.document) {
               const mmprojFile = new File(Paths.document, `${model.id}-mmproj.gguf`);
               const minMmprojBytes = Math.round((model.mmprojSizeBytes || 445000000) * 0.85);
               if (mmprojFile.exists && mmprojFile.size >= minMmprojBytes) {
-                const mmprojNativePath = mmprojFile.uri.replace(/^file:\/\//, '');
-                console.log(`[useModelStore] Initializing multimodal vision projector: ${mmprojNativePath}`);
-                const mmSuccess = await llmService.initMultimodal(mmprojNativePath);
-                set({ isMmprojDownloaded: Boolean(mmSuccess) });
-                console.log(`[useModelStore] Vision projector loaded: ${mmSuccess}`);
+                console.log(`[useModelStore] Vision projector verified on disk (${mmprojFile.size} bytes). Deferred until image query.`);
+                set({ isMmprojDownloaded: true });
               } else {
-                set({ isMmprojDownloaded: false });
+                set({ isMmprojDownloaded: false, isVisionProjectorLoaded: false });
               }
             }
           } else {
@@ -320,16 +318,10 @@ export const useModelStore = create<ModelState>()(
           await get().downloadModel();
         }
 
-        // 2. If projector already exists on disk and is verified, initialize directly
+        // 2. If projector already exists on disk and is verified, mark downloaded
         if (destinationFile.exists && destinationFile.size >= minExpectedBytes) {
-          console.log(`[useModelStore] Vision Projector already verified on disk (${destinationFile.size} bytes). Initializing...`);
-          if (get().status !== 'loaded') {
-            await get().loadModel();
-          } else {
-            const nativeMmprojPath = destinationFile.uri.replace(/^file:\/\//, '');
-            const mmSuccess = await llmService.initMultimodal(nativeMmprojPath);
-            set({ isMmprojDownloaded: Boolean(mmSuccess) });
-          }
+          console.log(`[useModelStore] Vision Projector already verified on disk (${destinationFile.size} bytes).`);
+          set({ isMmprojDownloaded: true });
           return;
         }
 
@@ -357,16 +349,7 @@ export const useModelStore = create<ModelState>()(
             if (destinationFile.exists) destinationFile.delete();
             await tempPartFile.move(destinationFile);
             console.log(`[useModelStore] Vision Projector verified (${destinationFile.size} bytes)!`);
-            set({ isMmprojDownloading: false, mmprojDownloadProgress: 100 });
-
-            if (get().status !== 'loaded') {
-              await get().loadModel();
-            } else {
-              const nativeMmprojPath = destinationFile.uri.replace(/^file:\/\//, '');
-              const mmSuccess = await llmService.initMultimodal(nativeMmprojPath);
-              set({ isMmprojDownloaded: Boolean(mmSuccess) });
-              console.log(`[useModelStore] Vision projector loaded: ${mmSuccess}`);
-            }
+            set({ isMmprojDownloading: false, mmprojDownloadProgress: 100, isMmprojDownloaded: true });
           } else {
             if (tempPartFile.exists) tempPartFile.delete();
             throw new Error('Vision Projector download was incomplete.');
@@ -376,6 +359,7 @@ export const useModelStore = create<ModelState>()(
           set({
             isMmprojDownloading: false,
             isMmprojDownloaded: false,
+      isVisionProjectorLoaded: false,
             errorMessage: err?.message || 'Failed to download vision projector',
           });
         }
@@ -439,9 +423,50 @@ export const useModelStore = create<ModelState>()(
         }
       },
 
+      ensureVisionProjectorLoaded: async (): Promise<boolean> => {
+        if (get().isVisionProjectorLoaded && llmService.isMultimodalReady()) {
+          return true;
+        }
+
+        const model = get().currentModel;
+        if (!model.mmprojDownloadUrl || !Paths.document) {
+          return false;
+        }
+
+        const mmprojFile = new File(Paths.document, `${model.id}-mmproj.gguf`);
+        const minMmprojBytes = Math.round((model.mmprojSizeBytes || 445000000) * 0.85);
+
+        if (!mmprojFile.exists || mmprojFile.size < minMmprojBytes) {
+          console.warn('[useModelStore] mmproj not found or incomplete on disk for lazy loading');
+          set({ isMmprojDownloaded: false, isVisionProjectorLoaded: false });
+          return false;
+        }
+
+        // Ensure base model context is initialized first
+        if (get().status !== 'loaded') {
+          await get().loadModel();
+        }
+
+        const mmprojNativePath = mmprojFile.uri.replace(/^file:\/\//, '');
+        console.log(`[useModelStore] Lazy-loading multimodal vision projector: ${mmprojNativePath}`);
+        const success = await llmService.ensureMultimodalLoaded(mmprojNativePath);
+        set({
+          isMmprojDownloaded: true,
+          isVisionProjectorLoaded: Boolean(success),
+        });
+        return Boolean(success);
+      },
+
+      unloadVisionProjector: async () => {
+        console.log('[useModelStore] Unloading multimodal vision projector from RAM');
+        await llmService.releaseMultimodal();
+        set({ isVisionProjectorLoaded: false });
+      },
+
       unloadModel: async () => {
+        await get().unloadVisionProjector();
         await llmService.unload();
-        set({ status: 'ready', isMmprojDownloaded: false });
+        set({ status: 'ready', isVisionProjectorLoaded: false });
       },
 
       autoInitOnDeviceModel: async () => {
@@ -460,13 +485,11 @@ export const useModelStore = create<ModelState>()(
             if (state.status !== 'loaded') {
               set({ status: 'loaded' });
             }
-            if (state.currentModel.mmprojDownloadUrl && !llmService.isMultimodalReady()) {
+            if (state.currentModel.mmprojDownloadUrl) {
               const mmprojFile = new File(Paths.document, `${state.currentModel.id}-mmproj.gguf`);
               const minMmprojBytes = Math.round((state.currentModel.mmprojSizeBytes || 445000000) * 0.85);
               if (mmprojFile.exists && mmprojFile.size >= minMmprojBytes) {
-                const mmprojNativePath = mmprojFile.uri.replace(/^file:\/\//, '');
-                const mmSuccess = await llmService.initMultimodal(mmprojNativePath);
-                set({ isMmprojDownloaded: Boolean(mmSuccess) });
+                set({ isMmprojDownloaded: true });
               }
             }
 

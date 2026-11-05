@@ -27,13 +27,16 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "@types/react": "~19.2.2",
     "eas-cli": "^25.1.1",
     "expo-mcp": "~0.2.1",
     "patch-package": "^8.0.1",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3"
   },
   "scripts": {
+    "test": "tsx --import ./test/setup.cjs --test \"src/**/__tests__/*.test.ts\"",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",

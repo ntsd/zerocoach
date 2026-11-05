@@ -48,6 +48,7 @@ export interface ModelState {
   isMmprojDownloading: boolean;
   mmprojDownloadProgress: number;
   isMmprojDownloaded: boolean;
+  isVisionProjectorLoaded: boolean;
   isEmbeddingDownloading: boolean;
   embeddingDownloadProgress: number;
   isEmbeddingDownloaded: boolean;
@@ -67,6 +68,8 @@ export interface ModelState {
   downloadEmbeddingModel: (multilingual?: boolean) => Promise<void>;
   loadModel: () => Promise<void>;
   unloadModel: () => Promise<void>;
+  ensureVisionProjectorLoaded: () => Promise<boolean>;
+  unloadVisionProjector: () => Promise<void>;
   autoInitOnDeviceModel: () => Promise<void>;
 }
 

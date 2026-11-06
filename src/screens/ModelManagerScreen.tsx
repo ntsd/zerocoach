@@ -1048,7 +1048,7 @@ export const ModelManagerScreen: React.FC = () => {
             onPress={() => Linking.openURL('https://aistudio.google.com/app/apikey')}
             activeOpacity={0.7}
           >
-            <Text style={{ color: '#00F0FF', fontSize: 12, fontWeight: '700' }}>
+            <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '700' }}>
               {t.settings.getGeminiKeyLink}
             </Text>
           </TouchableOpacity>
@@ -1057,7 +1057,7 @@ export const ModelManagerScreen: React.FC = () => {
         {/* OTA Updates Section */}
         <GlassCard style={styles.card}>
           <View style={styles.cardHeader}>
-            <RefreshCw size={16} color={COLORS.purpleAccent} />
+            <RefreshCw size={16} color={COLORS.recoveryAccent} />
             <Text style={styles.cardTitle}>{t.settings.otaHotfixTitle}</Text>
           </View>
           <Text style={styles.otaDesc}>
@@ -1681,14 +1681,14 @@ const styles = StyleSheet.create({
   },
   otaBadgeLabel: {
     ...TYPOGRAPHY.mono,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     letterSpacing: 0.5,
   },
   otaBadgeValue: {
     ...TYPOGRAPHY.badge,
-    fontSize: 10,
-    color: COLORS.purpleAccent,
+    fontSize: 11.5,
+    color: COLORS.recoveryAccent,
     marginTop: 2,
     fontWeight: '700',
   },

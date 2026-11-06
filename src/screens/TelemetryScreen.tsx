@@ -93,6 +93,9 @@ export const TelemetryScreen: React.FC = () => {
               { backgroundColor: modeColors.accent },
             ]}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Sync wearable telemetry"
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             {syncing ? (
               <ActivityIndicator size="small" color={COLORS.textDark} />
@@ -110,6 +113,8 @@ export const TelemetryScreen: React.FC = () => {
           onPress={() => setShowSyncModal(true)}
           style={styles.providersCard}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Open native wearable hub and guide"
         >
           <View style={styles.providerHeaderRow}>
             <View style={styles.providerRow}>
@@ -432,7 +437,7 @@ const styles = StyleSheet.create({
   },
   providerSub: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10,
+    fontSize: 11.5,
     color: COLORS.textSecondary,
     marginBottom: 4,
   },
@@ -451,6 +456,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardSecondary,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
+    minHeight: 32,
   },
   badgeActive: {
     backgroundColor: COLORS.surfaceElevated,
@@ -463,7 +469,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.textSecondary,
   },
   syncBridgeCard: {

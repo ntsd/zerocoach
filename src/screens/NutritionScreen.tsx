@@ -110,7 +110,7 @@ export const NutritionScreen: React.FC = () => {
       <View style={styles.topHeader}>
         <View style={styles.titleContainer}>
           <View style={styles.titleIconRow}>
-            <Utensils size={20} color="#00F0FF" />
+            <Utensils size={20} color={COLORS.primary} />
             <Text style={styles.screenTitle}>{t.nutrition.screenTitle}</Text>
           </View>
           <Text style={styles.screenSubtitle}>{t.nutrition.screenSubtitle}</Text>
@@ -120,8 +120,11 @@ export const NutritionScreen: React.FC = () => {
           style={styles.quickAddButton}
           onPress={handleOpenAddFood}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t.nutrition.logBtn || 'Log food'}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
-          <Plus size={16} color="#080B10" />
+          <Plus size={16} color={COLORS.textOnPrimary} />
           <Text style={styles.quickAddButtonText}>{t.nutrition.logBtn}</Text>
         </TouchableOpacity>
       </View>
@@ -189,7 +192,7 @@ export const NutritionScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#080B10',
+    backgroundColor: COLORS.background,
   },
   topHeader: {
     flexDirection: 'row',
@@ -216,20 +219,21 @@ const styles = StyleSheet.create({
   },
   screenSubtitle: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
   quickAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#00F0FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 5,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
     borderRadius: 14,
+    minHeight: 34,
   },
   quickAddButtonText: {
-    color: '#080B10',
+    color: COLORS.textOnPrimary,
     fontSize: 12,
     fontWeight: '800',
   },

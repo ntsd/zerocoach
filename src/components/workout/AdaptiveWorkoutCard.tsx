@@ -370,7 +370,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       case 'metabolic':
         return COLORS.warning;
       case 'cooldown':
-        return COLORS.purpleAccent;
+        return COLORS.recoveryAccent;
       default:
         return COLORS.textMuted;
     }

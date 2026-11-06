@@ -312,6 +312,9 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
               onPress={clearHistory}
               style={styles.iconButton}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Clear chat history"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Trash2 size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
@@ -330,6 +333,8 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
           ]}
           onPress={onNavigateToSettings}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Active model: ${modelInfo.name}. Tap to open settings.`}
         >
           <View style={styles.modelStatusLeft}>
             <View
@@ -505,6 +510,9 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
                 onPress={() => setSelectedImage(null)}
                 style={styles.removeImageBtn}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Remove attached image"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <X size={12} color="#FFFFFF" />
               </TouchableOpacity>
@@ -537,6 +545,9 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
               selectedImage && { backgroundColor: `${modeColors.accent}20` },
             ]}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Attach photo or meal image"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Camera
               size={18}
@@ -578,6 +589,9 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
               onPress={stopGeneration}
               style={[styles.actionButton, { backgroundColor: COLORS.danger }]}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Stop generation"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
             </TouchableOpacity>
@@ -595,6 +609,9 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
                 },
               ]}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <Send
                 size={16}
@@ -724,9 +741,13 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   iconButton: {
-    padding: 7,
+    padding: 8,
     borderRadius: RADIUS.round,
     backgroundColor: COLORS.cardSecondary,
+    minWidth: 36,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   messageList: {
     paddingVertical: SPACING.sm,
@@ -747,7 +768,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     ...TYPOGRAPHY.body,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.textPrimary,
     maxHeight: 90,
     paddingVertical: 6,
@@ -760,9 +781,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -793,9 +814,9 @@ const styles = StyleSheet.create({
     top: 2,
     right: 2,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
+    borderRadius: 11,
+    width: 22,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -871,7 +892,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardSecondary,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: `${COLORS.strict.accent}40`,
+    borderColor: `${COLORS.primary}40`,
   },
   downloadBannerHeader: {
     marginBottom: 6,
@@ -884,9 +905,10 @@ const styles = StyleSheet.create({
   },
   downloadBannerSub: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10,
+    fontSize: 12,
+    lineHeight: 16,
     color: COLORS.textMuted,
-    marginTop: 1,
+    marginTop: 2,
   },
   progressBarTrack: {
     height: 4,
@@ -912,7 +934,7 @@ const styles = StyleSheet.create({
   },
   loadingBannerText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   modelStatusBar: {

@@ -174,10 +174,10 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
                 {/* Total Sets */}
                 <View style={styles.statBox}>
                   <View style={styles.statLabelRow}>
-                    <Layers size={12} color={COLORS.purpleAccent} />
+                    <Layers size={12} color={COLORS.recoveryAccent} />
                     <Text style={styles.statLabel}>{t.workout.summaryModal.totalSets}</Text>
                   </View>
-                  <Text style={[styles.statStaticVal, { color: COLORS.purpleAccent }]}>
+                  <Text style={[styles.statStaticVal, { color: COLORS.recoveryAccent }]}>
                     {totalSets} {t.common.sets}
                   </Text>
                 </View>

@@ -233,6 +233,9 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
                 },
               ]}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Workout settings: ${compactEquipmentLabel}, ${compactSkillLabel}. Tap to configure.`}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               <Text style={styles.headerSettingsPillText} numberOfLines={1}>
                 {compactEquipmentLabel} • {compactSkillLabel}
@@ -266,6 +269,9 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
               onPress={() => setIsSettingsModalVisible(true)}
               style={styles.editCycleToggleBtn}
               activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Edit cycle split configuration"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Sliders size={11} color={COLORS.textSecondary} />
               <Text style={styles.editCycleToggleText}>{t.workout.editCycleBtn}</Text>
@@ -664,14 +670,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
     borderRadius: RADIUS.round,
     borderWidth: 1,
+    minHeight: 34,
   },
   headerSettingsPillText: {
     ...TYPOGRAPHY.captionBold,
-    fontSize: 10.5,
+    fontSize: 11.5,
     color: COLORS.textPrimary,
   },
   dateNavBar: {
@@ -692,6 +699,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
     marginTop: 2,
+    fontSize: 12,
   },
 
   // Dynamic Workout Sequence Bar
@@ -712,24 +720,25 @@ const styles = StyleSheet.create({
   },
   selectorGroupTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9.5,
-    color: COLORS.textMuted,
+    fontSize: 11,
+    color: COLORS.textSecondary,
     letterSpacing: 0.8,
   },
   editCycleToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    minHeight: 28,
   },
   editCycleToggleText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10.5,
+    fontSize: 11.5,
     color: COLORS.textSecondary,
   },
   cyclePillScroll: {

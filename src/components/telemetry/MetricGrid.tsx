@@ -45,7 +45,7 @@ export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
       {/* 1. Sleep Card */}
       <GlassCard style={styles.card}>
         <View style={styles.cardHeader}>
-          <Moon size={16} color={COLORS.purpleAccent} />
+          <Moon size={16} color={COLORS.recoveryAccent} />
           <Text style={styles.cardTitle}>{t.telemetry.sleepArchitecture}</Text>
         </View>
         <Text style={styles.mainValue}>{isSynced ? `${metrics.sleepHours} hrs` : '-- hrs'}</Text>

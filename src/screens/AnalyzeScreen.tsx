@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
   },
   heroSuperTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 11,
     color: COLORS.textMuted,
     letterSpacing: 1,
   },
@@ -822,14 +822,16 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   ratingBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: RADIUS.xs,
     borderWidth: 1,
+    minHeight: 24,
+    justifyContent: 'center',
   },
   ratingBadgeText: {
     ...TYPOGRAPHY.badge,
-    fontSize: 8.5,
+    fontSize: 10.5,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
@@ -851,16 +853,16 @@ const styles = StyleSheet.create({
   },
   domainItemLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 8.5,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   domainItemVal: {
     ...TYPOGRAPHY.captionBold,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
   },
   domainBarBg: {
-    height: 3.5,
+    height: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: RADIUS.round,
     overflow: 'hidden',
@@ -871,7 +873,7 @@ const styles = StyleSheet.create({
   },
   domainItemSub: {
     ...TYPOGRAPHY.caption,
-    fontSize: 8,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   heroChartSection: {
@@ -888,13 +890,13 @@ const styles = StyleSheet.create({
   },
   chartSectionTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9.5,
+    fontSize: 11,
     color: COLORS.textMuted,
     letterSpacing: 0.8,
   },
   chartSectionMeta: {
     ...TYPOGRAPHY.caption,
-    fontSize: 9.5,
+    fontSize: 11,
     color: COLORS.textMuted,
   },
   domainTabsRow: {
@@ -907,18 +909,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: RADIUS.sm,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
+    minHeight: 40,
   },
   domainTabBtnActive: {
     borderWidth: 1,
   },
   domainTabText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 11,
+    fontSize: 12.5,
     color: COLORS.textMuted,
     fontWeight: '600',
   },

@@ -543,7 +543,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
                         </View>
 
                         <View style={styles.statTile}>
-                          <Moon size={14} color={COLORS.purpleAccent} />
+                          <Moon size={14} color={COLORS.recoveryAccent} />
                           <Text style={styles.statLabel}>{t.telemetry.sleepDuration}</Text>
                           <Text style={styles.statValue}>{sleepHours ?? 0}h</Text>
                         </View>
@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     marginTop: 2,
   },
@@ -1335,19 +1335,20 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: COLORS.cardSecondary,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.borderSubtle,
+    minHeight: 34,
   },
   metricPillText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textSecondary,
   },
   inputLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.textMuted,
     marginBottom: 6,
   },
@@ -1515,7 +1516,7 @@ const styles = StyleSheet.create({
   },
   breakdownHeaderTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   syncedTagBadge: {
@@ -1523,18 +1524,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: RADIUS.sm,
   },
   syncedTagText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   manualTagText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   breakdownList: {

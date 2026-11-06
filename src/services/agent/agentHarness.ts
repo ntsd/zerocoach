@@ -414,306 +414,306 @@ function formatDeterministicWriteConfirmation(
   return primaryConfirmation;
 }
 
-export function isTargetUpdateAccidentalOnMealInquiry(
-  toolName: string,
-  userMsg: string,
-  toolArgs?: Record<string, any>
-): boolean {
-  if (!userMsg) return false;
-  if (toolName !== 'update_daily_macro_targets' && toolName !== 'update_user_settings') return false;
-  if (toolName === 'update_user_settings' && !toolArgs?.dailyCalorieTarget && !toolArgs?.proteinGrams) {
-    return false;
+  export function isTargetUpdateAccidentalOnMealInquiry(
+    toolName: string,
+    userMsg: string,
+    toolArgs?: Record<string, any>
+  ): boolean {
+    if (!userMsg) return false;
+    if (toolName !== 'update_daily_macro_targets' && toolName !== 'update_user_settings') return false;
+    if (toolName === 'update_user_settings' && !toolArgs?.dailyCalorieTarget && !toolArgs?.proteinGrams) {
+      return false;
+    }
+    const userMsgLower = userMsg.toLowerCase();
+    const isExplicitTargetUpdateRequest =
+      /\b(update|change|set|adjust|modify|reset)\b.*\b(target|goal|calorie|protein|macro)\b/i.test(
+        userMsgLower
+      ) || /เปลี่ยน|ตั้งค่า|ปรับ.*(เป้าหมาย|แคล|โปรตีน)/.test(userMsgLower);
+
+    const isMealInquiry =
+      /\b(what|suggest|recommend|eat|meal|food|portion|recipe)\b/i.test(userMsgLower) ||
+      /แนะนำ|ทานอะไร|กินอะไร|ควรทาน|เมนู/.test(userMsgLower);
+
+    return !isExplicitTargetUpdateRequest && isMealInquiry;
   }
-  const userMsgLower = userMsg.toLowerCase();
-  const isExplicitTargetUpdateRequest =
-    /\b(update|change|set|adjust|modify|reset)\b.*\b(target|goal|calorie|protein|macro)\b/i.test(
-      userMsgLower
-    ) || /เปลี่ยน|ตั้งค่า|ปรับ.*(เป้าหมาย|แคล|โปรตีน)/.test(userMsgLower);
 
-  const isMealInquiry =
-    /\b(what|suggest|recommend|eat|meal|food|portion|recipe)\b/i.test(userMsgLower) ||
-    /แนะนำ|ทานอะไร|กินอะไร|ควรทาน|เมนู/.test(userMsgLower);
+  export class AgentHarness {
+    /**
+     * Runs the agent harness loop: handles reasoning, tool execution, and final synthesis
+     */
+    public static async run(params: AgentRunParams): Promise<AgentRunResult> {
+      const { systemPrompt, messages, callbacks, temperature = 0.1, maxTokens = 400 } = params;
 
-  return !isExplicitTargetUpdateRequest && isMealInquiry;
-}
+      const isOnDevice = llmService.getProvider() === 'on_device';
+      // Dynamically scope tools based on detected user intent (~75–140 tokens)
+      const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+      const activeDomains = classifyUserIntent(lastUserMessage, messages);
+      const augmentedSystemPrompt = `${systemPrompt}\n${buildScopedAgentToolPrompt(activeDomains)}`;
+      const synthesisSystemPrompt = `${systemPrompt}\n\n[DATA RETRIEVED: Answer the athlete's question concisely using the <tool_result> data above. Do NOT output <tool_call> tags.]`;
+      const conversationHistory = [...messages];
+      const steps: AgentExecutionStep[] = [];
+      let totalTokens = 0;
+      let finalTokensPerSecond = 0;
+      let lastContextTokensUsed: number | undefined;
+      let lastContextMaxTokens: number | undefined;
+      let toolCallsCount = 0;
 
-export class AgentHarness {
-  /**
-   * Runs the agent harness loop: handles reasoning, tool execution, and final synthesis
-   */
-  public static async run(params: AgentRunParams): Promise<AgentRunResult> {
-    const { systemPrompt, messages, callbacks, temperature = 0.1, maxTokens = 400 } = params;
+      while (toolCallsCount < MAX_TOOL_CALLS) {
+        let iterationStreamedText = '';
 
-    const isOnDevice = llmService.getProvider() === 'on_device';
-    // Dynamically scope tools based on detected user intent (~75–140 tokens)
-    const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
-    const activeDomains = classifyUserIntent(lastUserMessage, messages);
-    const augmentedSystemPrompt = `${systemPrompt}\n${buildScopedAgentToolPrompt(activeDomains)}`;
-    const synthesisSystemPrompt = `${systemPrompt}\n\n[DATA RETRIEVED: Answer the athlete's question concisely using the <tool_result> data above. Do NOT output <tool_call> tags.]`;
-    const conversationHistory = [...messages];
-    const steps: AgentExecutionStep[] = [];
-    let totalTokens = 0;
-    let finalTokensPerSecond = 0;
-    let lastContextTokensUsed: number | undefined;
-    let lastContextMaxTokens: number | undefined;
-    let toolCallsCount = 0;
+        const activeSysPrompt =
+          toolCallsCount > 0 ? synthesisSystemPrompt : augmentedSystemPrompt;
 
-    while (toolCallsCount < MAX_TOOL_CALLS) {
-      let iterationStreamedText = '';
+        const completionResult: CompletionResult = await llmService.streamCompletion(
+          {
+            systemPrompt: activeSysPrompt,
+            messages: conversationHistory,
+            temperature,
+            maxTokens: isOnDevice ? Math.min(maxTokens, 320) : maxTokens,
+            mediaPaths: toolCallsCount === 0 ? params.mediaPaths : undefined,
+          },
+          (token: string) => {
+            iterationStreamedText += token;
+            // Only stream tokens directly to user if not emitting a tool call structure
+            const trimmedSoFar = iterationStreamedText.trimStart();
+            const isToolCallEmitting =
+              trimmedSoFar.startsWith('<tool_call') ||
+              trimmedSoFar.startsWith('{"name"') ||
+              trimmedSoFar.startsWith('{"tool"') ||
+              trimmedSoFar.startsWith('{"action"') ||
+              trimmedSoFar.startsWith('```');
 
-      const activeSysPrompt =
-        toolCallsCount > 0 ? synthesisSystemPrompt : augmentedSystemPrompt;
+            if (!isToolCallEmitting) {
+              callbacks?.onToken?.(token);
+            }
+          }
+        );
 
-      const completionResult: CompletionResult = await llmService.streamCompletion(
+        totalTokens += completionResult.tokensGenerated;
+        finalTokensPerSecond = completionResult.tokensPerSecond || finalTokensPerSecond;
+        lastContextTokensUsed = completionResult.contextTokensUsed || lastContextTokensUsed;
+        lastContextMaxTokens = completionResult.contextMaxTokens || lastContextMaxTokens;
+
+        const outputText = completionResult.fullText.trim();
+        const lastUserMsg =
+          [...conversationHistory].reverse().find((m) => m.role === 'user')?.content || '';
+        let detectedCall = parseToolCallFromText(outputText);
+
+        // Synthetic Tool Call Interception Fallback:
+        // If small on-device LLM outputted plain-text confirmation instead of <tool_call>,
+        // intercept and synthesize the corresponding ToolCall so SQLite persistence actually happens!
+        if (!detectedCall) {
+          detectedCall = extractSyntheticToolCall(outputText, lastUserMsg);
+        }
+
+        // If no tool was called (and no synthetic call was intercepted), this is the final response to the user
+        if (!detectedCall) {
+          const cleanFinalText = cleanFinalResponseText(outputText);
+
+          return {
+            fullText: cleanFinalText,
+            steps,
+            tokensGenerated: totalTokens,
+            tokensPerSecond: finalTokensPerSecond,
+            contextTokensUsed: lastContextTokensUsed,
+            contextMaxTokens: lastContextMaxTokens,
+          };
+        }
+
+        // Inverted action protection: If athlete explicitly expressed negation or recovery
+        // (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "healed from knee pain")
+        // but the model invoked save_memory, intercept and redirect to remove_memory.
+        if (detectedCall.name === 'save_memory' && isNegationOrRecoveryStatement(lastUserMsg)) {
+          const rawContent = String(
+            detectedCall.arguments?.content ||
+            detectedCall.arguments?.topic ||
+            detectedCall.arguments?.idOrQuery ||
+            ''
+          );
+          detectedCall.name = 'remove_memory';
+          detectedCall.arguments = {
+            idOrQuery: rawContent || lastUserMsg,
+          };
+        } else if (detectedCall.name === 'save_memory' && lastUserMsg) {
+          // Hallucinated content correction for save_memory:
+          // If the model invoked save_memory but copied an irrelevant past memory/example
+          // instead of the user's current message, align content to user's statement!
+          const rawContent = String(detectedCall.arguments?.content || '').toLowerCase();
+          const userMsgLower = lastUserMsg.toLowerCase();
+          const userTokens = userMsgLower.split(/[\s,.;:!?]+/).filter((w) => w.length > 3);
+          const hasOverlap = userTokens.some((t) => rawContent.includes(t));
+          const expressesFactOrPreference =
+            /\b(like|love|hate|dislike|prefer|favorite|eat|diet|allergy|allergic|own|bought|have|pain|hurt|injury)\b/i.test(
+              userMsgLower
+            ) || /ชอบ|ไม่ชอบ|รัก|แพ้|กิน|ซื้อ|มี|เจ็บ|ปวด/.test(userMsgLower);
+
+          if (!hasOverlap && expressesFactOrPreference) {
+            detectedCall.arguments = {
+              category: inferCategoryFromContent(lastUserMsg),
+              topic: 'user_preference',
+              content: lastUserMsg,
+            };
+          }
+        } else if (detectedCall.name === 'log_food_item' && lastUserMsg) {
+          // Alignment for log_food_item:
+          const rawName = String(detectedCall.arguments?.name || '').toLowerCase();
+          const userMsgLower = lastUserMsg.toLowerCase();
+
+          // 1. Attached photo alignment: If a meal photo was identified in the prompt context,
+          // align food name and macro nutrients with the photo's verified analysis
+          const photoMatch = lastUserMsg.match(
+            /\[ATTACHED PHOTO IDENTIFIED:\s*"([^"]+)"(?:\s*\([^)]*\))?\s*\|\s*Portion:\s*(\d+)g\s*\|\s*Nutrition:\s*(\d+)\s*kcal,\s*(\d+(?:\.\d+)?)\s*g\s*protein,\s*(\d+(?:\.\d+)?)\s*g\s*carbs,\s*(\d+(?:\.\d+)?)\s*g\s*fat/i
+          );
+          if (photoMatch) {
+            detectedCall.arguments.name = photoMatch[1].trim();
+            if (
+              !detectedCall.arguments.consumedGrams ||
+              detectedCall.arguments.consumedGrams === 100 ||
+              detectedCall.arguments.consumedGrams === 200
+            ) {
+              detectedCall.arguments.consumedGrams = parseFloat(photoMatch[2]) || 100;
+            }
+            if (!detectedCall.arguments.calories || detectedCall.arguments.calories === 330) {
+              detectedCall.arguments.calories = parseFloat(photoMatch[3]) || 0;
+              detectedCall.arguments.proteinGrams = parseFloat(photoMatch[4]) || 0;
+              detectedCall.arguments.carbsGrams = parseFloat(photoMatch[5]) || 0;
+              detectedCall.arguments.fatGrams = parseFloat(photoMatch[6]) || 0;
+            }
+          } else if (rawName.includes('chicken') && !userMsgLower.includes('chicken')) {
+            // 2. Text message alignment: If model parroted "chicken" from the prompt example
+            const foodExtract = lastUserMsg.match(
+              /(?:ate|eat|eating|had|have|consumed|log|logging|logged)\s+(?:(?:around|about|approx(?:\.)?|some|a|an|\d+(?:\.\d+)?\s*(?:g|grams?|oz|pieces?|servings?|bowls?|plates?))\s+(?:of\s+)?)?([^,.;!?\n]+?)(?:\s+(?:for|at)\s+(?:breakfast|lunch|dinner|snack)|$)/i
+            );
+            if (foodExtract && foodExtract[1]) {
+              detectedCall.arguments.name = foodExtract[1].trim();
+            }
+          }
+        } else if (isTargetUpdateAccidentalOnMealInquiry(detectedCall.name, lastUserMsg, detectedCall.arguments)) {
+          // Accidental target update protection: If the athlete is asking what to eat or for food recommendations,
+          // but did not explicitly ask to change their macro targets, block the tool call and synthesize food options.
+          conversationHistory.push({
+            role: 'assistant',
+            content: `I will not change your daily targets. Here are the best meals to hit your remaining budget:`,
+          });
+          conversationHistory.push({
+            role: 'user',
+            content: `[SYSTEM: Do NOT call update_daily_macro_targets. Recommend specific whole-food meals and portions matching the athlete's remaining caloric and protein budget.]`,
+          });
+          continue;
+        }
+
+        // Tool Call Detected!
+        toolCallsCount++;
+        const meta = getToolMeta(detectedCall.name);
+        const stepId = `step-${Date.now()}-${toolCallsCount}`;
+        const runningStep: AgentExecutionStep = {
+          id: stepId,
+          toolName: detectedCall.name,
+          domain: meta.domain,
+          access: meta.access,
+          status: 'running',
+          summary: `Executing ${detectedCall.name.replace(/_/g, ' ')}...`,
+          timestamp: Date.now(),
+        };
+
+        steps.push(runningStep);
+        callbacks?.onStepUpdate?.(runningStep);
+
+        // Execute tool against local stores and services
+        const toolResult: ToolResult = await executeTool(detectedCall);
+
+        // Update step status
+        runningStep.status = toolResult.success ? 'completed' : 'failed';
+        runningStep.summary = toolResult.summary;
+        callbacks?.onStepUpdate?.({ ...runningStep });
+
+        // FAST DETERMINISTIC PATH FOR WRITE TOOLS:
+        // When a write action (save_memory, log_food_item, manage_workout_schedule, etc.) succeeds,
+        // return an instant deterministic confirmation with 0 extra LLM passes!
+        if (meta.access === 'write' && toolResult.success) {
+          const preToolText = outputText.split('<tool_call>')[0]?.trim();
+          const confirmationText = formatDeterministicWriteConfirmation(
+            detectedCall,
+            toolResult,
+            preToolText
+          );
+          callbacks?.onToken?.(confirmationText);
+          return {
+            fullText: confirmationText,
+            steps,
+            tokensGenerated: totalTokens,
+            tokensPerSecond: finalTokensPerSecond,
+            contextTokensUsed: lastContextTokensUsed,
+            contextMaxTokens: lastContextMaxTokens,
+          };
+        }
+
+        // Append assistant tool call and tool result to conversation context for next iteration
+        conversationHistory.push({
+          role: 'assistant',
+          content: `<tool_call>\n${JSON.stringify({
+            name: detectedCall.name,
+            arguments: detectedCall.arguments,
+          })}\n</tool_call>`,
+        });
+
+        const rawResultStr = JSON.stringify(
+          toolResult.success ? toolResult.data : { error: toolResult.error }
+        );
+        const compactResultStr =
+          isOnDevice && rawResultStr.length > 800
+            ? `${rawResultStr.slice(0, 800)}... (summary: ${toolResult.summary})`
+            : rawResultStr;
+
+        conversationHistory.push({
+          role: 'user',
+          content: `<tool_result>\n${compactResultStr}\n</tool_result>\nTool execution completed (${toolResult.summary}). Now write your concise coaching response for the athlete.`,
+        });
+      }
+
+      // If max tool calls were reached without a final text response turn,
+      // ALWAYS run a final synthesis pass so the athlete receives their full coaching response!
+      conversationHistory.push({
+        role: 'user',
+        content: `[SYSTEM: All data retrievals and tool actions are completed. Synthesize your final, comprehensive, structured coaching answer to the athlete's request based on all the data above. Do NOT call any more tools or output <tool_call> tags.]`,
+      });
+
+      let synthesisStreamedText = '';
+      const synthesisResult: CompletionResult = await llmService.streamCompletion(
         {
-          systemPrompt: activeSysPrompt,
+          systemPrompt: synthesisSystemPrompt,
           messages: conversationHistory,
           temperature,
-          maxTokens: isOnDevice ? Math.min(maxTokens, 320) : maxTokens,
-          mediaPaths: toolCallsCount === 0 ? params.mediaPaths : undefined,
+          maxTokens: isOnDevice ? 350 : Math.max(maxTokens, 800),
+          mediaPaths: params.mediaPaths,
         },
         (token: string) => {
-          iterationStreamedText += token;
-          // Only stream tokens directly to user if not emitting a tool call structure
-          const trimmedSoFar = iterationStreamedText.trimStart();
-          const isToolCallEmitting =
-            trimmedSoFar.startsWith('<tool_call') ||
-            trimmedSoFar.startsWith('{"name"') ||
-            trimmedSoFar.startsWith('{"tool"') ||
-            trimmedSoFar.startsWith('{"action"') ||
-            trimmedSoFar.startsWith('```');
-
-          if (!isToolCallEmitting) {
+          synthesisStreamedText += token;
+          if (!synthesisStreamedText.includes('<tool_call>')) {
             callbacks?.onToken?.(token);
           }
         }
       );
 
-      totalTokens += completionResult.tokensGenerated;
-      finalTokensPerSecond = completionResult.tokensPerSecond || finalTokensPerSecond;
-      lastContextTokensUsed = completionResult.contextTokensUsed || lastContextTokensUsed;
-      lastContextMaxTokens = completionResult.contextMaxTokens || lastContextMaxTokens;
+      totalTokens += synthesisResult.tokensGenerated;
+      finalTokensPerSecond = synthesisResult.tokensPerSecond || finalTokensPerSecond;
+      lastContextTokensUsed = synthesisResult.contextTokensUsed || lastContextTokensUsed;
+      lastContextMaxTokens = synthesisResult.contextMaxTokens || lastContextMaxTokens;
 
-      const outputText = completionResult.fullText.trim();
-      const lastUserMsg =
-        [...conversationHistory].reverse().find((m) => m.role === 'user')?.content || '';
-      let detectedCall = parseToolCallFromText(outputText);
+      const cleanFinalText = cleanFinalResponseText(synthesisResult.fullText);
 
-      // Synthetic Tool Call Interception Fallback:
-      // If small on-device LLM outputted plain-text confirmation instead of <tool_call>,
-      // intercept and synthesize the corresponding ToolCall so SQLite persistence actually happens!
-      if (!detectedCall) {
-        detectedCall = extractSyntheticToolCall(outputText, lastUserMsg);
-      }
-
-      // If no tool was called (and no synthetic call was intercepted), this is the final response to the user
-      if (!detectedCall) {
-        const cleanFinalText = cleanFinalResponseText(outputText);
-
-        return {
-          fullText: cleanFinalText,
-          steps,
-          tokensGenerated: totalTokens,
-          tokensPerSecond: finalTokensPerSecond,
-          contextTokensUsed: lastContextTokensUsed,
-          contextMaxTokens: lastContextMaxTokens,
-        };
-      }
-
-      // Inverted action protection: If athlete explicitly expressed negation or recovery
-      // (e.g. "I don't allergic to shrimp", "not allergic to shrimp", "healed from knee pain")
-      // but the model invoked save_memory, intercept and redirect to remove_memory.
-      if (detectedCall.name === 'save_memory' && isNegationOrRecoveryStatement(lastUserMsg)) {
-        const rawContent = String(
-          detectedCall.arguments?.content ||
-          detectedCall.arguments?.topic ||
-          detectedCall.arguments?.idOrQuery ||
-          ''
-        );
-        detectedCall.name = 'remove_memory';
-        detectedCall.arguments = {
-          idOrQuery: rawContent || lastUserMsg,
-        };
-      } else if (detectedCall.name === 'save_memory' && lastUserMsg) {
-        // Hallucinated content correction for save_memory:
-        // If the model invoked save_memory but copied an irrelevant past memory/example
-        // instead of the user's current message, align content to user's statement!
-        const rawContent = String(detectedCall.arguments?.content || '').toLowerCase();
-        const userMsgLower = lastUserMsg.toLowerCase();
-        const userTokens = userMsgLower.split(/[\s,.;:!?]+/).filter((w) => w.length > 3);
-        const hasOverlap = userTokens.some((t) => rawContent.includes(t));
-        const expressesFactOrPreference =
-          /\b(like|love|hate|dislike|prefer|favorite|eat|diet|allergy|allergic|own|bought|have|pain|hurt|injury)\b/i.test(
-            userMsgLower
-          ) || /ชอบ|ไม่ชอบ|รัก|แพ้|กิน|ซื้อ|มี|เจ็บ|ปวด/.test(userMsgLower);
-
-        if (!hasOverlap && expressesFactOrPreference) {
-          detectedCall.arguments = {
-            category: inferCategoryFromContent(lastUserMsg),
-            topic: 'user_preference',
-            content: lastUserMsg,
-          };
-        }
-      } else if (detectedCall.name === 'log_food_item' && lastUserMsg) {
-        // Alignment for log_food_item:
-        const rawName = String(detectedCall.arguments?.name || '').toLowerCase();
-        const userMsgLower = lastUserMsg.toLowerCase();
-
-        // 1. Attached photo alignment: If a meal photo was identified in the prompt context,
-        // align food name and macro nutrients with the photo's verified analysis
-        const photoMatch = lastUserMsg.match(
-          /\[ATTACHED PHOTO IDENTIFIED:\s*"([^"]+)"(?:\s*\([^)]*\))?\s*\|\s*Portion:\s*(\d+)g\s*\|\s*Nutrition:\s*(\d+)\s*kcal,\s*(\d+(?:\.\d+)?)\s*g\s*protein,\s*(\d+(?:\.\d+)?)\s*g\s*carbs,\s*(\d+(?:\.\d+)?)\s*g\s*fat/i
-        );
-        if (photoMatch) {
-          detectedCall.arguments.name = photoMatch[1].trim();
-          if (
-            !detectedCall.arguments.consumedGrams ||
-            detectedCall.arguments.consumedGrams === 100 ||
-            detectedCall.arguments.consumedGrams === 200
-          ) {
-            detectedCall.arguments.consumedGrams = parseFloat(photoMatch[2]) || 100;
-          }
-          if (!detectedCall.arguments.calories || detectedCall.arguments.calories === 330) {
-            detectedCall.arguments.calories = parseFloat(photoMatch[3]) || 0;
-            detectedCall.arguments.proteinGrams = parseFloat(photoMatch[4]) || 0;
-            detectedCall.arguments.carbsGrams = parseFloat(photoMatch[5]) || 0;
-            detectedCall.arguments.fatGrams = parseFloat(photoMatch[6]) || 0;
-          }
-        } else if (rawName.includes('chicken') && !userMsgLower.includes('chicken')) {
-          // 2. Text message alignment: If model parroted "chicken" from the prompt example
-          const foodExtract = lastUserMsg.match(
-            /(?:ate|eat|eating|had|have|consumed|log|logging|logged)\s+(?:(?:around|about|approx(?:\.)?|some|a|an|\d+(?:\.\d+)?\s*(?:g|grams?|oz|pieces?|servings?|bowls?|plates?))\s+(?:of\s+)?)?([^,.;!?\n]+?)(?:\s+(?:for|at)\s+(?:breakfast|lunch|dinner|snack)|$)/i
-          );
-          if (foodExtract && foodExtract[1]) {
-            detectedCall.arguments.name = foodExtract[1].trim();
-          }
-        }
-      } else if (isTargetUpdateAccidentalOnMealInquiry(detectedCall.name, lastUserMsg, detectedCall.arguments)) {
-        // Accidental target update protection: If the athlete is asking what to eat or for food recommendations,
-        // but did not explicitly ask to change their macro targets, block the tool call and synthesize food options.
-        conversationHistory.push({
-          role: 'assistant',
-          content: `I will not change your daily targets. Here are the best meals to hit your remaining budget:`,
-        });
-        conversationHistory.push({
-          role: 'user',
-          content: `[SYSTEM: Do NOT call update_daily_macro_targets. Recommend specific whole-food meals and portions matching the athlete's remaining caloric and protein budget.]`,
-        });
-        continue;
-      }
-
-      // Tool Call Detected!
-      toolCallsCount++;
-      const meta = getToolMeta(detectedCall.name);
-      const stepId = `step-${Date.now()}-${toolCallsCount}`;
-      const runningStep: AgentExecutionStep = {
-        id: stepId,
-        toolName: detectedCall.name,
-        domain: meta.domain,
-        access: meta.access,
-        status: 'running',
-        summary: `Executing ${detectedCall.name.replace(/_/g, ' ')}...`,
-        timestamp: Date.now(),
+      return {
+        fullText:
+          cleanFinalText ||
+          (steps.length > 0
+            ? `Completed actions: ${steps.map((s) => s.summary).join('; ')}`
+            : 'Action completed. Please check your updated dashboard.'),
+        steps,
+        tokensGenerated: totalTokens,
+        tokensPerSecond: finalTokensPerSecond,
+        contextTokensUsed: lastContextTokensUsed,
+        contextMaxTokens: lastContextMaxTokens,
       };
-
-      steps.push(runningStep);
-      callbacks?.onStepUpdate?.(runningStep);
-
-      // Execute tool against local stores and services
-      const toolResult: ToolResult = await executeTool(detectedCall);
-
-      // Update step status
-      runningStep.status = toolResult.success ? 'completed' : 'failed';
-      runningStep.summary = toolResult.summary;
-      callbacks?.onStepUpdate?.({ ...runningStep });
-
-      // FAST DETERMINISTIC PATH FOR WRITE TOOLS:
-      // When a write action (save_memory, log_food_item, manage_workout_schedule, etc.) succeeds,
-      // return an instant deterministic confirmation with 0 extra LLM passes!
-      if (meta.access === 'write' && toolResult.success) {
-        const preToolText = outputText.split('<tool_call>')[0]?.trim();
-        const confirmationText = formatDeterministicWriteConfirmation(
-          detectedCall,
-          toolResult,
-          preToolText
-        );
-        callbacks?.onToken?.(confirmationText);
-        return {
-          fullText: confirmationText,
-          steps,
-          tokensGenerated: totalTokens,
-          tokensPerSecond: finalTokensPerSecond,
-          contextTokensUsed: lastContextTokensUsed,
-          contextMaxTokens: lastContextMaxTokens,
-        };
-      }
-
-      // Append assistant tool call and tool result to conversation context for next iteration
-      conversationHistory.push({
-        role: 'assistant',
-        content: `<tool_call>\n${JSON.stringify({
-          name: detectedCall.name,
-          arguments: detectedCall.arguments,
-        })}\n</tool_call>`,
-      });
-
-      const rawResultStr = JSON.stringify(
-        toolResult.success ? toolResult.data : { error: toolResult.error }
-      );
-      const compactResultStr =
-        isOnDevice && rawResultStr.length > 800
-          ? `${rawResultStr.slice(0, 800)}... (summary: ${toolResult.summary})`
-          : rawResultStr;
-
-      conversationHistory.push({
-        role: 'user',
-        content: `<tool_result>\n${compactResultStr}\n</tool_result>\nTool execution completed (${toolResult.summary}). Now write your concise coaching response for the athlete.`,
-      });
     }
-
-    // If max tool calls were reached without a final text response turn,
-    // ALWAYS run a final synthesis pass so the athlete receives their full coaching response!
-    conversationHistory.push({
-      role: 'user',
-      content: `[SYSTEM: All data retrievals and tool actions are completed. Synthesize your final, comprehensive, structured coaching answer to the athlete's request based on all the data above. Do NOT call any more tools or output <tool_call> tags.]`,
-    });
-
-    let synthesisStreamedText = '';
-    const synthesisResult: CompletionResult = await llmService.streamCompletion(
-      {
-        systemPrompt: synthesisSystemPrompt,
-        messages: conversationHistory,
-        temperature,
-        maxTokens: isOnDevice ? 350 : Math.max(maxTokens, 800),
-        mediaPaths: params.mediaPaths,
-      },
-      (token: string) => {
-        synthesisStreamedText += token;
-        if (!synthesisStreamedText.includes('<tool_call>')) {
-          callbacks?.onToken?.(token);
-        }
-      }
-    );
-
-    totalTokens += synthesisResult.tokensGenerated;
-    finalTokensPerSecond = synthesisResult.tokensPerSecond || finalTokensPerSecond;
-    lastContextTokensUsed = synthesisResult.contextTokensUsed || lastContextTokensUsed;
-    lastContextMaxTokens = synthesisResult.contextMaxTokens || lastContextMaxTokens;
-
-    const cleanFinalText = cleanFinalResponseText(synthesisResult.fullText);
-
-    return {
-      fullText:
-        cleanFinalText ||
-        (steps.length > 0
-          ? `Completed actions: ${steps.map((s) => s.summary).join('; ')}`
-          : 'Action completed. Please check your updated dashboard.'),
-      steps,
-      tokensGenerated: totalTokens,
-      tokensPerSecond: finalTokensPerSecond,
-      contextTokensUsed: lastContextTokensUsed,
-      contextMaxTokens: lastContextMaxTokens,
-    };
   }
-}
 

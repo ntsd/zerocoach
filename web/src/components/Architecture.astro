@@ -1,40 +1,48 @@
 ---
+import { Smartphone, Brain, Cpu, Dumbbell, Eye, ShieldCheck } from 'lucide-astro';
+
 const stackLayers = [
   {
     layer: "01. Application & Mobile UX",
     tech: "React Native + Expo",
     description: "Built with TypeScript for smooth 60fps performance on iOS and Android. Obsidian theme tokens, glassmorphism, and responsive safe insets.",
-    tag: "Mobile Framework"
+    tag: "Mobile Framework",
+    icon: Smartphone
   },
   {
     layer: "02. AI Agent & Dynamic Intent Scoping",
     tech: "Intent Router + Tool Harness",
     description: "Sub-millisecond bilingual intent classifier (EN/TH) scoping tool declarations down to ~75–140 tokens while keeping ambient athlete memory permanently active.",
-    tag: "Context Optimization"
+    tag: "Context Optimization",
+    icon: Brain
   },
   {
     layer: "03. Neural Inference Engine",
     tech: "llama.rn & Session-Scoped Vision",
     description: "Native C++ execution with ARM64 NEON & Apple Metal. 4,096-token KV capacity with on-demand vision projector lifecycle saving 600 MB heap during text coaching.",
-    tag: "On-Device AI"
+    tag: "On-Device AI",
+    icon: Cpu
   },
   {
     layer: "04. Exercise Intelligence",
     tech: "RepDB Verified Repository",
     description: "643 science-backed movements with start and peak pose kinematics, dynamic warmup builders, and CNS readiness load auto-regulation.",
-    tag: "Biomechanics"
+    tag: "Biomechanics",
+    icon: Dumbbell
   },
   {
     layer: "05. Multimodal Nutrition",
     tech: "Gemini Vision & NutriSight",
     description: "Plate meal decomposition via Gemini 3.8 Flash, Open Food Facts barcode lookup, and NutriSight label extraction for 11 micronutrients.",
-    tag: "Computer Vision"
+    tag: "Computer Vision",
+    icon: Eye
   },
   {
     layer: "06. Biometric Bridge & Persistence",
     tech: "Health Connect + Zustand",
     description: "OS health aggregators reading resting HR, HRV, and sleep. All logs stay encrypted in local AsyncStorage with 1-tap instant data wipe.",
-    tag: "Privacy & Storage"
+    tag: "Privacy & Storage",
+    icon: ShieldCheck
   }
 ];
 
@@ -66,18 +74,24 @@ const parityDomains = [
 
     <!-- Tech Stack Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-20">
-      {stackLayers.map((layer) => (
-        <div class="glass-panel p-6 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <span class="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">{layer.layer}</span>
-              <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">{layer.tag}</span>
+      {stackLayers.map((layer) => {
+        const IconComponent = layer.icon;
+        return (
+          <div class="glass-panel p-6 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                  <IconComponent class="w-5 h-5 text-cyan-400" />
+                </div>
+                <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">{layer.tag}</span>
+              </div>
+              <span class="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider block mb-1">{layer.layer}</span>
+              <h3 class="text-xl font-bold text-white mb-2">{layer.tech}</h3>
+              <p class="text-sm text-slate-400 leading-relaxed">{layer.description}</p>
             </div>
-            <h3 class="text-xl font-bold text-white mb-2 font-mono">{layer.tech}</h3>
-            <p class="text-sm text-slate-400 leading-relaxed">{layer.description}</p>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
 
     <!-- Symmetric Read/Write Parity Matrix -->

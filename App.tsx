@@ -191,6 +191,9 @@ export default function App() {
                       <TouchableOpacity
                         key={tab.key}
                         onPress={() => setActiveTab(tab.key)}
+                        accessibilityRole="tab"
+                        accessibilityLabel={tab.label}
+                        accessibilityState={{ selected: isActive }}
                         style={[
                           styles.tabItem,
                           isActive && styles.tabItemActive,
@@ -279,7 +282,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     letterSpacing: 0.5,
   },
   tabLabelActive: {

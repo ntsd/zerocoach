@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, LucideIcon } from 'lucide-react-native';
+import { useTranslation } from '@/i18n';
 import { COLORS } from '@/theme/colors';
 import { RADIUS } from '@/theme/spacing';
 
@@ -54,6 +55,7 @@ export const AppModal: React.FC<AppModalProps> = ({
   contentStyle,
   footerStyle,
 }) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // Ensure Android 3-button system navigation bar (Back/Home/Recents) never overlays content or buttons
   const bottomSafePadding = Math.max(insets.bottom, Platform.OS === 'android' ? 48 : 20) + 8;
@@ -115,8 +117,9 @@ export const AppModal: React.FC<AppModalProps> = ({
                   {showCloseButton && (
                     <TouchableOpacity
                       accessibilityRole="button"
-                      accessibilityLabel="Close Modal"
+                      accessibilityLabel={t.common.closeModal}
                       style={styles.closeBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       onPress={onClose}
                       activeOpacity={0.7}
                     >

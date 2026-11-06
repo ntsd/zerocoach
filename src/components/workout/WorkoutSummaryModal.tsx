@@ -53,7 +53,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
   initialDurationMin,
   initialCaloriesBurn,
 }) => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const modeColors = getModeColors();
   const [durationMinutes, setDurationMinutes] = useState(
     String(Math.max(1, initialDurationMin))
@@ -76,10 +76,7 @@ export const WorkoutSummaryModal: React.FC<WorkoutSummaryModalProps> = ({
     });
   };
 
-  const coachMessage =
-    language === 'th'
-      ? 'การฝึกได้รับการบันทึกเรียบร้อย เกิดความตึงเครียดทางกล้ามเนื้อตามโปรโตคอล ดื่มน้ำให้เพียงพอ พักผ่อนให้มีคุณภาพ และเติมสารอาหารโปรตีนตามเป้าหมาย'
-      : 'Execution recorded. High mechanical tension registered per protocol. Hydrate, prioritize recovery sleep, and hit your protein target.';
+  const coachMessage = t.workout.summaryModal.debriefMessage;
 
   return (
     <Modal

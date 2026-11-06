@@ -39,6 +39,11 @@ export const TRANSLATIONS = {
       yesterday: 'YESTERDAY',
       todayDisplay: 'Today',
       yesterdayDisplay: 'Yesterday',
+      tomorrowDisplay: 'Tomorrow',
+      previousDay: 'Previous day',
+      nextDay: 'Next day',
+      currentDateBackToToday: 'Current date, tap to view today',
+      closeModal: 'Close Modal',
       days: 'days',
       min: 'min',
       kcal: 'kcal',
@@ -622,6 +627,8 @@ export const TRANSLATIONS = {
         sessionNotes: 'NOTES (OPTIONAL)',
         notesPlaceholder: 'How did you feel? Grip fatigue, RPE, clean sets...',
         finishAndSave: 'SAVE WORKOUT',
+        debriefMessage:
+          'Execution recorded. High mechanical tension registered per protocol. Hydrate, prioritize recovery sleep, and hit your protein target.',
       },
       detailModal: {
         completed: 'Done',
@@ -862,6 +869,11 @@ export const TRANSLATIONS = {
       yesterday: 'เมื่อวาน',
       todayDisplay: 'วันนี้',
       yesterdayDisplay: 'เมื่อวาน',
+      tomorrowDisplay: 'พรุ่งนี้',
+      previousDay: 'วันก่อนหน้า',
+      nextDay: 'วันถัดไป',
+      currentDateBackToToday: 'วันที่ปัจจุบัน แตะเพื่อกลับสู่วันนี้',
+      closeModal: 'ปิดหน้าต่าง',
       days: 'วัน',
       min: 'นาที',
       kcal: 'kcal',
@@ -1445,6 +1457,8 @@ export const TRANSLATIONS = {
         sessionNotes: 'บันทึกความรู้สึก (ถ้ามี)',
         notesPlaceholder: 'ความรู้สึกวันนี้เป็นอย่างไร? ความล้า, RPE, ฟอร์ม...',
         finishAndSave: 'บันทึกการฝึก',
+        debriefMessage:
+          'การฝึกได้รับการบันทึกเรียบร้อย เกิดความตึงเครียดทางกล้ามเนื้อตามโปรโตคอล ดื่มน้ำให้เพียงพอ พักผ่อนให้มีคุณภาพ และเติมสารอาหารโปรตีนตามเป้าหมาย',
       },
       detailModal: {
         completed: 'เสร็จแล้ว',

@@ -74,7 +74,7 @@ const SKILL_LEVEL_IDS: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
 export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   onNavigateToChat,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { userProfile, updateProfile, setSkillLevel } = useCoachStore();
   const equipmentMode: 'all' | 'bodyweight' =
     userProfile?.equipmentPreference === 'home' ? 'bodyweight' : 'all';
@@ -351,7 +351,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
           <View style={styles.upNextBox}>
             <Moon size={14} color="#38BDF8" />
             <Text style={styles.upNextText}>
-              {t.workout.noWorkoutOnDate.replace('{date}', formatDateDisplay(activeDate))}
+              {t.workout.noWorkoutOnDate.replace('{date}', formatDateDisplay(activeDate, language, t))}
             </Text>
           </View>
         )}

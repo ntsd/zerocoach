@@ -3,45 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from '
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from '@/i18n';
 import { COLORS } from '@/theme/colors';
+import { formatDateDisplay, getTodayString } from '@/utils/date';
 
-export function getTodayDateString(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function formatDateDisplay(dateStr: string, language?: string): string {
-  const todayStr = getTodayDateString();
-  if (dateStr === todayStr) return language === 'th' ? 'วันนี้' : 'Today';
-
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const yesterdayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
-  ).padStart(2, '0')}`;
-  if (dateStr === yesterdayStr) return language === 'th' ? 'เมื่อวาน' : 'Yesterday';
-
-  const tmr = new Date();
-  tmr.setDate(tmr.getDate() + 1);
-  const tomorrowStr = `${tmr.getFullYear()}-${String(tmr.getMonth() + 1).padStart(2, '0')}-${String(
-    tmr.getDate()
-  ).padStart(2, '0')}`;
-  if (dateStr === tomorrowStr) return language === 'th' ? 'พรุ่งนี้' : 'Tomorrow';
-
-  try {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
+export { formatDateDisplay };
+export const getTodayDateString = getTodayString;
 
 export interface DateNavigationBarProps {
   currentDate: string;
@@ -62,7 +27,7 @@ export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
   accentColor = COLORS.strict.accent,
   allowFutureDates = false,
 }) => {
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   const todayStr = getTodayDateString();
   const isToday = currentDate === todayStr;
   const isNextDisabled = !allowFutureDates && isToday;
@@ -73,14 +38,22 @@ export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
         style={styles.navButton}
         onPress={onPrevDay}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.previousDay}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <ChevronLeft size={20} color={COLORS.textSecondary} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onToday} activeOpacity={0.7} style={styles.dateCenter}>
+      <TouchableOpacity
+        onPress={onToday}
+        activeOpacity={0.7}
+        style={styles.dateCenter}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.currentDateBackToToday}
+      >
         <Text style={[styles.dateTitle, isToday && { color: accentColor }]}>
-          {formatDateDisplay(currentDate, language)}
+          {formatDateDisplay(currentDate, language, t)}
         </Text>
         <Text style={styles.dateSubtitle}>{currentDate}</Text>
       </TouchableOpacity>
@@ -90,6 +63,8 @@ export const DateNavigationBar: React.FC<DateNavigationBarProps> = ({
         onPress={onNextDay}
         disabled={isNextDisabled}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.nextDay}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <ChevronRight

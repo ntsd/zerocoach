@@ -64,7 +64,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   onAskCoach,
   date,
 }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const modeColors = getModeColors();
   const todayDateStr = getTodayString();
   const currentDateStr = date || todayDateStr;
@@ -445,7 +445,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
                 <Text style={styles.completedBannerTitle}>
                   {isToday
                     ? t.workout.card.loggedToday
-                    : t.workout.card.loggedOnDate.replace('{date}', formatDateDisplay(currentDateStr).toUpperCase())}
+                    : t.workout.card.loggedOnDate.replace('{date}', formatDateDisplay(currentDateStr, language, t).toUpperCase())}
                 </Text>
                 <Text style={styles.completedBannerSub}>
                   ~{sessionForDate.durationMinutes}m • ~{sessionForDate.caloriesBurned} kcal • {sessionForDate.completedMovements} {t.common.movements} • {sessionForDate.totalSets} {t.common.sets}

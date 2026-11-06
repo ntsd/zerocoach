@@ -1,5 +1,5 @@
 ---
-import { Smartphone, Brain, Cpu, Dumbbell, Eye, ShieldCheck } from 'lucide-astro';
+import { Smartphone, Brain, Cpu, Dumbbell, Eye, ShieldCheck, Zap, Minimize2, Clock } from 'lucide-astro';
 
 const stackLayers = [
   {
@@ -65,7 +65,7 @@ const parityDomains = [
         <span>ENGINEERING DEEP DIVE</span>
       </div>
       <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-        Built on Open Science & Modern Systems.
+        System Specifications & Open Engineering Architecture.
       </h2>
       <p class="mt-4 text-base sm:text-lg text-slate-400">
         A resilient, fully open-source architecture designed with 100% symmetric parity between the Mobile UI and AI Agent Action Harness.
@@ -73,7 +73,7 @@ const parityDomains = [
     </div>
 
     <!-- Tech Stack Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-20">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
       {stackLayers.map((layer) => {
         const IconComponent = layer.icon;
         return (
@@ -95,7 +95,7 @@ const parityDomains = [
     </div>
 
     <!-- Symmetric Read/Write Parity Matrix -->
-    <div class="max-w-6xl mx-auto glass-panel p-8 sm:p-10 rounded-3xl border border-white/5">
+    <div class="glass-panel p-6 sm:p-10 rounded-3xl border border-white/5">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <span class="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">SYMMETRIC ACCESS MODEL</span>
@@ -106,7 +106,8 @@ const parityDomains = [
         </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <!-- Desktop Table -->
+      <div class="hidden sm:block overflow-x-auto">
         <table class="w-full text-left text-sm border-collapse">
           <thead>
             <tr class="border-b border-white/10 text-xs font-mono uppercase tracking-wider text-slate-400">
@@ -132,23 +133,43 @@ const parityDomains = [
           </tbody>
         </table>
       </div>
+
+      <!-- Mobile Stacked Domain Cards -->
+      <div class="sm:hidden space-y-3">
+        {parityDomains.map((row) => (
+          <div class="p-4 rounded-2xl bg-slate-900/80 border border-white/5 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-white text-sm">{row.domain}</span>
+              <span class={`px-2 py-0.5 rounded-full border font-mono text-[10px] ${row.access === 'Read / Write' ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' : 'bg-slate-800 text-slate-300 border-white/10'}`}>
+                {row.access}
+              </span>
+            </div>
+            <div class="text-slate-300"><span class="text-slate-400 font-mono">UI:</span> {row.ui}</div>
+            <div class="text-cyan-200 font-mono text-[11px]"><span class="text-slate-400">Agent:</span> {row.agent}</div>
+          </div>
+        ))}
+      </div>
     </div>
 
     <!-- On-Device Context & Memory Efficiency Metrics -->
-    <div class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-6xl mx-auto">
-      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center">
+    <div class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center flex flex-col items-center justify-center">
+        <Zap class="w-6 h-6 text-cyan-400 mb-2" />
         <span class="text-2xl sm:text-3xl font-black font-mono text-cyan-400 block">-600 MB</span>
         <span class="text-xs text-slate-400 mt-1 block">RAM Saved (Lazy Vision)</span>
       </div>
-      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center">
+      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center flex flex-col items-center justify-center">
+        <Minimize2 class="w-6 h-6 text-emerald-400 mb-2" />
         <span class="text-2xl sm:text-3xl font-black font-mono text-emerald-400 block">&lt;90 Tok</span>
         <span class="text-xs text-slate-400 mt-1 block">Scoped Tool Declaration</span>
       </div>
-      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center">
+      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center flex flex-col items-center justify-center">
+        <Cpu class="w-6 h-6 text-cyan-400 mb-2" />
         <span class="text-2xl sm:text-3xl font-black font-mono text-cyan-400 block">4,096</span>
         <span class="text-xs text-slate-400 mt-1 block">Full Context Capacity</span>
       </div>
-      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center">
+      <div class="glass-panel p-5 rounded-2xl border border-white/5 text-center flex flex-col items-center justify-center">
+        <Clock class="w-6 h-6 text-emerald-400 mb-2" />
         <span class="text-2xl sm:text-3xl font-black font-mono text-emerald-400 block">&lt;1 ms</span>
         <span class="text-xs text-slate-400 mt-1 block">Bilingual Intent Router</span>
       </div>

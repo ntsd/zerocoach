@@ -1,4 +1,5 @@
 ---
+import { Zap, BookOpen, Layers } from 'lucide-astro';
 ---
 
 <section id="models" class="py-24 relative overflow-hidden">
@@ -8,7 +9,7 @@
         <span>OPEN WEIGHTS & DATASETS</span>
       </div>
       <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-        Open Athletic AI Models & Vector Weights.
+        Open Athletic AI Models & Engineering Specifications.
       </h2>
       <p class="mt-4 text-base sm:text-lg text-slate-400">
         We believe athletic intelligence belongs on your personal device. Download our fine-tuning datasets, LoRA adapters, and dense vector embeddings for 100% offline coaching.
@@ -16,12 +17,12 @@
     </div>
 
     <!-- 3-Column Asset Showcase -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-12">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
       <!-- Card 1: On-Device GGUF Weights -->
       <div class="glass-panel p-8 rounded-3xl border border-cyan-500/30 bg-cyan-500/5 glass-panel-hover flex flex-col justify-between">
         <div>
-          <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-2xl mb-6">
-            ⚡
+          <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-6">
+            <Zap class="w-6 h-6 text-cyan-400" />
           </div>
           <span class="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">On-Device Models</span>
           <h3 class="text-xl font-black text-white mt-1 mb-3">Gemma 2 & ZeroCoach GGUF</h3>
@@ -36,7 +37,7 @@
             href="https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center justify-between p-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-xs font-mono text-cyan-200 transition-colors"
+            class="flex items-center justify-between h-12 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-xs font-mono text-cyan-200 transition-colors"
           >
             <span>Gemma 2 2B (Default)</span>
             <span class="text-[10px] text-cyan-400 font-bold">1.64 GB • Q4_K_M</span>
@@ -44,7 +45,7 @@
           <a
             href="/models/zerocoach-athletic-q4_0.gguf"
             download
-            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
+            class="flex items-center justify-between h-12 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
           >
             <span>Experimental Q4_0 GGUF</span>
             <span class="text-[10px] text-amber-400 font-bold">91.7 MB (Compact)</span>
@@ -55,8 +56,8 @@
       <!-- Card 2: Fine-Tuning Dataset (/ml/data) -->
       <div class="glass-panel p-8 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
         <div>
-          <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-2xl mb-6">
-            📚
+          <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-6">
+            <BookOpen class="w-6 h-6 text-emerald-400" />
           </div>
           <span class="text-xs font-mono font-bold tracking-widest text-emerald-400 uppercase">Dataset (/ml/data)</span>
           <h3 class="text-xl font-black text-white mt-1 mb-3">Athletic SFT Dataset</h3>
@@ -70,7 +71,7 @@
             href="https://github.com/ntsd/zerocoach/blob/main/ml/data/zerocoach_dataset.jsonl"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-emerald-300 transition-colors"
+            class="flex items-center justify-between h-12 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-emerald-300 transition-colors"
           >
             <span>View JSONL Dataset</span>
             <span class="text-[10px] text-slate-400">1,075 samples</span>
@@ -79,7 +80,7 @@
             href="https://github.com/ntsd/zerocoach/blob/main/ml/data/zerocoach_alpaca.json"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
+            class="flex items-center justify-between h-12 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
           >
             <span>Alpaca Format JSON</span>
             <span class="text-[10px] text-slate-400">Universal SFT</span>
@@ -90,8 +91,8 @@
       <!-- Card 3: Embeddings & Training Scripts (/ml) -->
       <div class="glass-panel p-8 rounded-3xl border border-white/5 glass-panel-hover flex flex-col justify-between">
         <div>
-          <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-2xl mb-6">
-            🧠
+          <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mb-6">
+            <Layers class="w-6 h-6 text-indigo-400" />
           </div>
           <span class="text-xs font-mono font-bold tracking-widest text-indigo-400 uppercase">Embeddings & Pipeline</span>
           <h3 class="text-xl font-black text-white mt-1 mb-3">RepDB Vector Store</h3>
@@ -105,7 +106,7 @@
             href="https://github.com/ntsd/zerocoach/tree/main/ml/embeddings"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-indigo-300 transition-colors"
+            class="flex items-center justify-between h-12 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-indigo-300 transition-colors"
           >
             <span>Vector Store (/ml/embeddings)</span>
             <span class="text-[10px] text-slate-400">643 exercises</span>
@@ -114,7 +115,7 @@
             href="https://github.com/ntsd/zerocoach/tree/main/ml/scripts"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
+            class="flex items-center justify-between h-12 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 text-xs font-mono text-slate-300 transition-colors"
           >
             <span>Training & Merge Scripts</span>
             <span class="text-[10px] text-slate-400">PyTorch MPS</span>
@@ -122,5 +123,7 @@
         </div>
       </div>
     </div>
+  </div>
+</section>
   </div>
 </section>

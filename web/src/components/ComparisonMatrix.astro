@@ -58,7 +58,7 @@ const comparisons = [
         <span>ARCHITECTURAL COMPARISON</span>
       </div>
       <h2 class="text-3xl sm:text-5xl font-black tracking-tight text-white">
-        ZeroCoach vs. The Cloud Paradigm.
+        Architectural Comparison: ZeroCoach vs. Cloud Fitness Apps.
       </h2>
       <p class="mt-4 text-base sm:text-lg text-slate-400">
         Why running AI models on your mobile silicon changes the game for athletic training and personal health privacy.
@@ -66,8 +66,9 @@ const comparisons = [
     </div>
 
     <!-- Comparison Table in Glass Container -->
-    <div class="glass-panel rounded-3xl border border-white/5 overflow-hidden max-w-5xl mx-auto">
-      <div class="overflow-x-auto">
+    <div class="glass-panel rounded-3xl border border-white/5 overflow-hidden">
+      <!-- Desktop & Tablet Table View -->
+      <div class="hidden sm:block overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="border-b border-white/10 bg-slate-900/60 font-mono text-xs uppercase tracking-wider text-slate-400">
@@ -97,7 +98,7 @@ const comparisons = [
                 </td>
                 <td class="py-4 px-6 sm:px-8 text-slate-400 font-mono text-sm">
                   <div class="flex items-center gap-2">
-                    <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     <span>{row.cloudApps}</span>
@@ -107,6 +108,27 @@ const comparisons = [
             ))}
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile Stacked Comparison Cards -->
+      <div class="sm:hidden p-4 space-y-3">
+        {comparisons.map((row) => (
+          <div class="p-4 rounded-2xl bg-slate-900/80 border border-white/5 space-y-2">
+            <span class="font-bold text-white text-sm block">{row.feature}</span>
+            <div class="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs font-mono text-cyan-300 flex items-start gap-2">
+              <svg class="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>{row.zerocoach}</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-950/60 border border-white/5 text-xs font-mono text-slate-400 flex items-start gap-2">
+              <svg class="w-4 h-4 text-slate-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <span>{row.cloudApps}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   </div>

@@ -557,7 +557,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
         {/* Exercises List */}
         <View style={styles.exerciseList}>
-          {exercises.map((item) => {
+          {exercises.map((item, index) => {
             const isDone = !!completedExercises[item.id];
             const isSkipped = !!skippedExercises[item.id];
             const catColor = getCategoryColor(item.category);
@@ -565,7 +565,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
 
             return (
               <View
-                key={item.id}
+                key={`${item.id}-${index}`}
                 style={[
                   styles.exerciseItem,
                   isDone && styles.exerciseItemDone,

@@ -518,17 +518,19 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
         }
 
         const completedExercises: ExerciseItem[] = rawExercises.map((ex, i) => {
-          const sets = Math.max(1, parseNumber(ex.sets, 1));
-          const repsRaw = ex.reps !== undefined ? String(ex.reps).trim() : '10 reps';
+          const sets = Math.max(1, parseNumber(ex?.sets, 1));
+          const repsRaw = ex?.reps !== undefined ? String(ex.reps).trim() : '10 reps';
           const repsFormatted = repsRaw.toLowerCase().includes('rep') ? repsRaw : `${repsRaw} reps`;
 
-          const repDb = exerciseRepository.search(ex.name)[0];
+          const exObj = ex as any;
+          const exName = (typeof exObj === 'string' ? exObj : (exObj?.name || exObj?.exercise || exObj?.title || '')).trim();
+          const repDb = exName ? exerciseRepository.search(exName)[0] : undefined;
           if (repDb) {
             return createExerciseItemFromRepDB(repDb, 'strength', sets, repsFormatted);
           }
           return {
             id: `manual-ex-${Date.now()}-${i}`,
-            name: ex.name,
+            name: exName || `Exercise ${i + 1}`,
             category: 'strength',
             targetSets: sets,
             targetReps: repsFormatted,
@@ -737,33 +739,111 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
       case 'update_workout_plan': {
         const targetDate = args.date || getTodayString();
         const workoutStore = useWorkoutStore.getState();
-        const inputExercises: any[] = args.exercises || [];
+        const inputExercises: any[] = Array.isArray(args.exercises)
+          ? args.exercises
+          : typeof args.exercises === 'string' && args.exercises.trim()
+          ? [args.exercises.trim()]
+          : [];
 
         const assignedSplit = normalizeSplit(args.split, args.title);
 
-        const structuredExercises: ExerciseItem[] = inputExercises.map((e, index) => {
-          const repDb = e.id ? exerciseRepository.getById(e.id) : exerciseRepository.search(e.name || '')[0];
-          if (repDb) {
-            return createExerciseItemFromRepDB(
-              repDb,
-              (e.category as any) || 'strength',
-              parseNumber(e.targetSets, 3),
-              e.targetReps || '8–12 reps',
-              parseNumber(e.restPeriodSeconds, 90),
-              e.intensityNote || 'Updated via Coach',
-              e.coachingCue
-            );
+        const extractExerciseName = (item: any): string => {
+          if (!item) return '';
+          if (typeof item === 'string') return item.trim();
+          if (typeof item === 'object') {
+            return (
+              item.name ||
+              item.exercise ||
+              item.title ||
+              item.movement ||
+              item.exerciseName ||
+              item.id ||
+              ''
+            ).trim();
           }
-          return {
-            id: e.id || `custom-ex-${Date.now()}-${index}`,
-            name: e.name || `Exercise ${index + 1}`,
-            category: (e.category as any) || 'strength',
-            targetSets: parseNumber(e.targetSets, 3),
-            targetReps: e.targetReps || '8–12 reps',
-            restPeriodSeconds: parseNumber(e.restPeriodSeconds, 90),
-            intensityNote: 'Custom Routine',
-            coachingCue: e.coachingCue || 'Control eccentric phase.',
-          };
+          return '';
+        };
+
+        let structuredExercises: ExerciseItem[] = [];
+
+        if (inputExercises.length > 0) {
+          structuredExercises = inputExercises.map((e, index) => {
+            const rawName = extractExerciseName(e);
+            const rawId = typeof e === 'object' && e?.id ? String(e.id).trim() : undefined;
+            const targetSets = typeof e === 'object' ? parseNumber(e.sets ?? e.targetSets, 3) : 3;
+            const rawReps = typeof e === 'object' ? (e.reps ?? e.targetReps) : undefined;
+            const targetReps =
+              rawReps !== undefined
+                ? String(rawReps).toLowerCase().includes('rep')
+                  ? String(rawReps)
+                  : `${rawReps} reps`
+                : '8–12 reps';
+            const restPeriod =
+              typeof e === 'object'
+                ? parseNumber(e.restPeriodSeconds ?? e.restSeconds ?? e.restSec, 90)
+                : 90;
+            const coachingCue = typeof e === 'object' ? e.coachingCue || e.cue : undefined;
+
+            const repDb = rawId
+              ? exerciseRepository.getById(rawId)
+              : rawName
+              ? exerciseRepository.search(rawName)[0]
+              : undefined;
+
+            if (repDb) {
+              return createExerciseItemFromRepDB(
+                repDb,
+                (typeof e === 'object' && (e.category as any)) || 'strength',
+                targetSets,
+                targetReps,
+                restPeriod,
+                'Updated via Coach',
+                coachingCue
+              );
+            }
+
+            return {
+              id: rawId || `custom-ex-${Date.now()}-${index}`,
+              name: rawName || `Exercise ${index + 1}`,
+              category: (typeof e === 'object' && (e.category as any)) || 'strength',
+              targetSets,
+              targetReps,
+              restPeriodSeconds: restPeriod,
+              intensityNote: 'Custom Routine',
+              coachingCue: coachingCue || 'Control eccentric phase.',
+            };
+          });
+        }
+
+        // Fallback: If input was empty or had no identifiable exercises, generate the optimal adaptive plan for this split
+        if (structuredExercises.length === 0) {
+          const coach = useCoachStore.getState();
+          const telemetry = useTelemetryStore.getState();
+          const generated = generateAdaptiveWorkoutPlan({
+            goals: coach?.userProfile?.primaryGoals || ['strength_hypertrophy'],
+            readinessScore: telemetry?.metrics?.readinessScore || 80,
+            weightKg: coach?.userProfile?.weightKg || 70,
+            heightCm: coach?.userProfile?.heightCm || 175,
+            activeStages: telemetry?.calisthenicsStages || {},
+            activeCalories: telemetry?.metrics?.activeCalories || 0,
+            skillLevel: coach?.userProfile?.skillLevel || 'intermediate',
+            equipmentMode: coach?.userProfile?.equipmentPreference === 'home' ? 'bodyweight' : 'all',
+            selectedSplit: assignedSplit,
+          });
+          structuredExercises = generated.exercises;
+        }
+
+        // Ensure exercise IDs are unique so React keys and tracking never collide
+        const seenIds = new Set<string>();
+        structuredExercises = structuredExercises.map((ex, idx) => {
+          if (seenIds.has(ex.id)) {
+            return {
+              ...ex,
+              id: `${ex.id}-${idx}`,
+            };
+          }
+          seenIds.add(ex.id);
+          return ex;
         });
 
         // Set the active split for this date so the screen/cycle selector highlights it

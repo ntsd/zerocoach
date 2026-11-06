@@ -39,7 +39,7 @@ const COMPACT_TOOL_CATALOG: ScopedToolDef[] = [
   },
   {
     domain: 'workout_plan',
-    line: 'update_workout_plan(title, split, exercises, date): Create or update workout routine.',
+    line: 'update_workout_plan(title, split, exercises, date): Create or update workout routine with exercises=[{"name": "Push-up", "sets": 3, "reps": "10-12 reps"}, ...].',
   },
   {
     domain: 'workout_plan',
@@ -92,6 +92,10 @@ export function buildScopedAgentToolPrompt(activeDomains: DomainName[] = ALL_DOM
   }
   if (domains.has('workout_plan')) {
     dynamicExamples += `
+- When the athlete wants to create, generate, or update their workout plan:
+<tool_call>
+{"name": "update_workout_plan", "arguments": {"title": "Push Day Hypertrophy", "split": "push", "exercises": [{"name": "Push-up", "sets": 3, "reps": "10-12 reps"}, {"name": "Pike Push-up", "sets": 3, "reps": "8-10 reps"}, {"name": "Chest Dips", "sets": 3, "reps": "8-10 reps"}, {"name": "Diamond Push-up", "sets": 3, "reps": "10-12 reps"}]}}
+</tool_call>
 - When the athlete wants to swap or change an exercise:
 <tool_call>
 {"name": "swap_plan_exercise", "arguments": {"targetExerciseNameOrId": "Push-up", "replacementExerciseNameOrId": "Incline Dumbbell Press"}}

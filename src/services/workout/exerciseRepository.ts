@@ -43,9 +43,9 @@ export class ExerciseRepository {
     return this.exercises.find((e) => e.id === id);
   }
 
-  public search(query: string): RepDBExercise[] {
-    const rawQ = query.toLowerCase().trim();
-    if (!rawQ) return this.exercises;
+  public search(query?: string): RepDBExercise[] {
+    const rawQ = (query || '').toLowerCase().trim();
+    if (!rawQ) return [];
     const normQ = rawQ.replace(/[\s\-_]+/g, '');
 
     const scored: { exercise: RepDBExercise; score: number }[] = [];

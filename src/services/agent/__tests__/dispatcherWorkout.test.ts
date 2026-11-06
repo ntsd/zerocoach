@@ -19,6 +19,89 @@ describe('Workout Dispatcher & Repository Tests', () => {
     const pullupResults = exerciseRepository.search('pull up');
     assert.strictEqual(pullupResults[0].id, 'pull-up', 'pull up query should rank standard pull-up first');
     assert.strictEqual(pullupResults[0].name_en, 'Pull-Up');
+
+    const emptyResults = exerciseRepository.search('');
+    assert.strictEqual(emptyResults.length, 0, 'empty search query should return 0 results');
+    const undefResults = exerciseRepository.search(undefined);
+    assert.strictEqual(undefResults.length, 0, 'undefined search query should return 0 results');
+  });
+
+  it('update_workout_plan correctly maps array of exercise strings without ab-wheel-rollout bug', async () => {
+    const result = await executeTool({
+      id: 'call-strings-1',
+      name: 'update_workout_plan',
+      arguments: {
+        date: '2026-11-06',
+        title: 'Push Day Routine',
+        split: 'push',
+        exercises: [
+          'Push-up',
+          'Incline push-up',
+          'Dips',
+          'Pike push-ups',
+          'Diamond push-ups',
+        ],
+      },
+    });
+
+    assert.strictEqual(result.success, true);
+    const store = useWorkoutStore.getState();
+    const savedPlan = store.getPlanForDate('2026-11-06');
+    assert.ok(savedPlan);
+    assert.strictEqual(savedPlan.exercises.length, 5);
+    assert.strictEqual(savedPlan.exercises[0].id, 'push-up');
+    assert.strictEqual(savedPlan.exercises[1].id, 'incline-push-ups');
+    assert.strictEqual(savedPlan.exercises[2].id, 'dips');
+    assert.strictEqual(savedPlan.exercises[3].id, 'pike-push-ups');
+    assert.strictEqual(savedPlan.exercises[4].id, 'diamond-push-ups');
+  });
+
+  it('update_workout_plan handles object array with exercise key variants', async () => {
+    const result = await executeTool({
+      id: 'call-variants-1',
+      name: 'update_workout_plan',
+      arguments: {
+        date: '2026-11-06',
+        title: 'Push Routine',
+        split: 'push',
+        exercises: [
+          { exercise: 'Push-up', sets: 4, reps: '12 reps' },
+          { movement: 'Pike push-ups', sets: 3, reps: '8 reps' },
+          { title: 'Dips', sets: 3, reps: '10 reps' },
+        ],
+      },
+    });
+
+    assert.strictEqual(result.success, true);
+    const store = useWorkoutStore.getState();
+    const savedPlan = store.getPlanForDate('2026-11-06');
+    assert.ok(savedPlan);
+    assert.strictEqual(savedPlan.exercises.length, 3);
+    assert.strictEqual(savedPlan.exercises[0].id, 'push-up');
+    assert.strictEqual(savedPlan.exercises[1].id, 'pike-push-ups');
+    assert.strictEqual(savedPlan.exercises[2].id, 'dips');
+  });
+
+  it('update_workout_plan generates adaptive plan when exercises is empty', async () => {
+    const result = await executeTool({
+      id: 'call-empty-1',
+      name: 'update_workout_plan',
+      arguments: {
+        date: '2026-11-06',
+        title: 'Push Day',
+        split: 'push',
+        exercises: [],
+      },
+    });
+
+    assert.strictEqual(result.success, true);
+    const store = useWorkoutStore.getState();
+    const savedPlan = store.getPlanForDate('2026-11-06');
+    assert.ok(savedPlan);
+    assert.ok(savedPlan.exercises.length > 0, 'Should fall back to generating exercises');
+    // Ensure all exercise IDs are unique
+    const ids = savedPlan.exercises.map((e) => e.id);
+    assert.strictEqual(new Set(ids).size, ids.length, 'All exercise IDs must be unique');
   });
 
   it('update_workout_plan normalizes split and updates workout plan and cycle step', async () => {

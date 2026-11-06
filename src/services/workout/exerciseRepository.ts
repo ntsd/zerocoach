@@ -44,16 +44,42 @@ export class ExerciseRepository {
   }
 
   public search(query: string): RepDBExercise[] {
-    const q = query.toLowerCase().trim();
-    if (!q) return this.exercises;
+    const rawQ = query.toLowerCase().trim();
+    if (!rawQ) return this.exercises;
+    const normQ = rawQ.replace(/[\s\-_]+/g, '');
 
-    return this.exercises.filter((e) => {
-      const nameMatch = e.name_en.toLowerCase().includes(q);
-      const muscleMatch = e.primary_muscles.some((m) => m.toLowerCase().includes(q));
-      const equipMatch = e.equipment?.toLowerCase().includes(q);
-      const tagMatch = e.tags?.some((t) => t.toLowerCase().includes(q));
-      return nameMatch || muscleMatch || equipMatch || tagMatch;
-    });
+    const scored: { exercise: RepDBExercise; score: number }[] = [];
+
+    for (const e of this.exercises) {
+      const nameEn = e.name_en.toLowerCase();
+      const normName = nameEn.replace(/[\s\-_]+/g, '');
+      const normId = e.id.toLowerCase().replace(/[\s\-_]+/g, '');
+
+      let score = 0;
+      if (normId === normQ || normName === normQ) {
+        score = 100;
+      } else if (nameEn === rawQ || e.id === rawQ) {
+        score = 95;
+      } else if (normName.startsWith(normQ) || normId.startsWith(normQ)) {
+        score = 80;
+      } else if (nameEn.includes(rawQ) || e.id.includes(rawQ)) {
+        score = 60;
+      } else if (e.primary_muscles.some((m) => m.toLowerCase().includes(rawQ))) {
+        score = 30;
+      } else if (e.equipment?.toLowerCase().includes(rawQ)) {
+        score = 20;
+      } else if (e.tags?.some((t) => t.toLowerCase().includes(rawQ))) {
+        score = 10;
+      }
+
+      if (score > 0) {
+        const lengthPenalty = Math.min(10, Math.abs(nameEn.length - rawQ.length) * 0.2);
+        scored.push({ exercise: e, score: score - lengthPenalty });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((s) => s.exercise);
   }
 
   public filter(params: ExerciseFilterParams): RepDBExercise[] {

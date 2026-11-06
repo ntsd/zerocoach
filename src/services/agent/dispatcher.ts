@@ -27,6 +27,15 @@ const WORD_NUMBERS: Record<string, number> = {
   six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
 };
 
+function normalizeSplit(rawSplit?: string, title?: string): WorkoutSplit {
+  const text = `${rawSplit || ''} ${title || ''}`.toLowerCase();
+  if (text.includes('push')) return 'push';
+  if (text.includes('pull')) return 'pull';
+  if (text.includes('leg')) return 'legs';
+  if (text.includes('cardio') || text.includes('hiit') || text.includes('run')) return 'cardio';
+  return 'full_body';
+}
+
 function parseNumber(val: any, fallback = 0): number {
   if (typeof val === 'number') return isNaN(val) ? fallback : val;
   if (typeof val === 'string') {
@@ -529,24 +538,109 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           };
         });
 
-        const completedIds = completedExercises.map((e) => e.id);
-        const totalSets = completedExercises.reduce((sum, e) => sum + (e.targetSets || 1), 0);
-        const durationMinutes = Math.max(1, parseNumber(args.durationMinutes, Math.min(45, totalSets * 3)));
-        const caloriesBurned = Math.max(10, parseNumber(args.caloriesBurned, totalSets * 12));
+        // Retrieve existing session or plan for targetDate to merge into
+        const existingSession = workoutStore.getWorkoutForDate(targetDate);
+        let basePlan = workoutStore.getPlanForDate(targetDate);
+
+        if (!basePlan) {
+          const coach = useCoachStore.getState();
+          const telemetry = useTelemetryStore.getState();
+          const scheduledSplit = workoutStore.getScheduledSplitForDate(targetDate);
+          basePlan = generateAdaptiveWorkoutPlan({
+            goals: coach?.userProfile?.primaryGoals || ['strength_hypertrophy'],
+            readinessScore: telemetry?.metrics?.readinessScore || 80,
+            weightKg: coach?.userProfile?.weightKg || 70,
+            heightCm: coach?.userProfile?.heightCm || 175,
+            activeStages: telemetry?.calisthenicsStages || {},
+            activeCalories: telemetry?.metrics?.activeCalories || 0,
+            skillLevel: coach?.userProfile?.skillLevel || 'intermediate',
+            equipmentMode: coach?.userProfile?.equipmentPreference === 'home' ? 'bodyweight' : 'all',
+            selectedSplit: scheduledSplit,
+          });
+        }
+
+        // Base exercises: prefer full basePlan, supplemented by existingSession
+        const baseList = basePlan?.exercises?.length ? basePlan.exercises : (existingSession?.exercises || []);
+        const mergedExercises: ExerciseItem[] = [...baseList];
+
+        if (existingSession?.exercises) {
+          for (const exSession of existingSession.exercises) {
+            if (!mergedExercises.some((e) => e.id === exSession.id || e.name.toLowerCase() === exSession.name.toLowerCase())) {
+              mergedExercises.push(exSession);
+            }
+          }
+        }
+
+        const newlyCompletedIds: string[] = [];
+
+        for (const doneEx of completedExercises) {
+          const doneNameLower = doneEx.name.toLowerCase();
+          const matchIdx = mergedExercises.findIndex(
+            (e) =>
+              e.id.toLowerCase() === doneEx.id.toLowerCase() ||
+              e.name.toLowerCase() === doneNameLower ||
+              e.name.toLowerCase().includes(doneNameLower) ||
+              doneNameLower.includes(e.name.toLowerCase())
+          );
+
+          if (matchIdx >= 0) {
+            const matchedId = mergedExercises[matchIdx].id;
+            newlyCompletedIds.push(matchedId);
+            mergedExercises[matchIdx] = {
+              ...mergedExercises[matchIdx],
+              targetSets: Math.max(mergedExercises[matchIdx].targetSets, doneEx.targetSets),
+              targetReps: doneEx.targetReps || mergedExercises[matchIdx].targetReps,
+            };
+          } else {
+            mergedExercises.push(doneEx);
+            newlyCompletedIds.push(doneEx.id);
+          }
+        }
+
+        const allCompletedIds = Array.from(
+          new Set([...(existingSession?.completedExerciseIds || []), ...newlyCompletedIds])
+        );
+
+        const totalSets = mergedExercises
+          .filter((e) => allCompletedIds.includes(e.id))
+          .reduce((sum, e) => sum + (e.targetSets || 1), 0);
+        const durationMinutes = Math.max(
+          1,
+          parseNumber(args.durationMinutes, Math.min(45, allCompletedIds.length * 8))
+        );
+        const caloriesBurned = Math.max(
+          10,
+          parseNumber(args.caloriesBurned, allCompletedIds.length * 25)
+        );
+
+        const planTitle =
+          basePlan?.title ||
+          existingSession?.title ||
+          args.title ||
+          (completedExercises[0] ? `${completedExercises[0].name} Session` : 'Completed Workout');
+
+        const planSplit = basePlan?.selectedSplit || existingSession?.split || 'full_body';
+
+        if (basePlan) {
+          workoutStore.savePlanForDate(targetDate, {
+            ...basePlan,
+            exercises: mergedExercises,
+          });
+        }
 
         const session = workoutStore.finishWorkout({
           date: targetDate,
-          planId: `session-${Date.now()}`,
-          title: args.title || (completedExercises[0] ? `${completedExercises[0].name} Session` : 'Completed Workout'),
-          split: 'full_body',
-          tier: 'optimal',
-          exercises: completedExercises,
-          completedExerciseIds: completedIds,
-          skippedExerciseIds: [],
-          totalMovements: completedExercises.length,
-          completedMovements: completedIds.length,
+          planId: basePlan?.id || `session-${Date.now()}`,
+          title: planTitle,
+          split: planSplit,
+          tier: basePlan?.tier || 'optimal',
+          exercises: mergedExercises,
+          completedExerciseIds: allCompletedIds,
+          skippedExerciseIds: existingSession?.skippedExerciseIds || [],
+          totalMovements: mergedExercises.length,
+          completedMovements: allCompletedIds.length,
           totalSets,
-          startedAt: Date.now() - durationMinutes * 60 * 1000,
+          startedAt: existingSession?.startedAt || Date.now() - durationMinutes * 60 * 1000,
           durationMinutes,
           caloriesBurned,
         });
@@ -645,15 +739,17 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
         const workoutStore = useWorkoutStore.getState();
         const inputExercises: any[] = args.exercises || [];
 
+        const assignedSplit = normalizeSplit(args.split, args.title);
+
         const structuredExercises: ExerciseItem[] = inputExercises.map((e, index) => {
           const repDb = e.id ? exerciseRepository.getById(e.id) : exerciseRepository.search(e.name || '')[0];
           if (repDb) {
             return createExerciseItemFromRepDB(
               repDb,
               (e.category as any) || 'strength',
-              e.targetSets || 3,
+              parseNumber(e.targetSets, 3),
               e.targetReps || '8–12 reps',
-              e.restPeriodSeconds || 90,
+              parseNumber(e.restPeriodSeconds, 90),
               e.intensityNote || 'Updated via Coach',
               e.coachingCue
             );
@@ -662,13 +758,18 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
             id: e.id || `custom-ex-${Date.now()}-${index}`,
             name: e.name || `Exercise ${index + 1}`,
             category: (e.category as any) || 'strength',
-            targetSets: e.targetSets || 3,
+            targetSets: parseNumber(e.targetSets, 3),
             targetReps: e.targetReps || '8–12 reps',
-            restPeriodSeconds: e.restPeriodSeconds || 90,
+            restPeriodSeconds: parseNumber(e.restPeriodSeconds, 90),
             intensityNote: 'Custom Routine',
             coachingCue: e.coachingCue || 'Control eccentric phase.',
           };
         });
+
+        // Set the active split for this date so the screen/cycle selector highlights it
+        if (assignedSplit === 'push' || assignedSplit === 'pull' || assignedSplit === 'legs' || assignedSplit === 'cardio') {
+          workoutStore.setSplitForDate(targetDate, assignedSplit);
+        }
 
         const newPlan: GeneratedWorkoutPlan = {
           id: `plan-${targetDate}-${Date.now()}`,
@@ -681,10 +782,55 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           exercises: structuredExercises,
           coachingNotes: 'Engineered for optimal muscular tension and recovery balance.',
           generatedDate: targetDate,
-          selectedSplit: (args.split as WorkoutSplit) || 'full_body',
+          selectedSplit: assignedSplit,
         };
 
         workoutStore.savePlanForDate(targetDate, newPlan);
+
+        // Check if an existing session is on this date
+        const existingSession = workoutStore.getWorkoutForDate(targetDate);
+        if (existingSession) {
+          const matchedCompletedIds = structuredExercises
+            .filter((se) =>
+              (existingSession.completedExerciseIds || []).some((cid) => {
+                const oldEx = (existingSession.exercises || []).find((e) => e.id === cid);
+                return (
+                  cid.toLowerCase() === se.id.toLowerCase() ||
+                  (oldEx && (
+                    oldEx.name.toLowerCase() === se.name.toLowerCase() ||
+                    oldEx.name.toLowerCase().includes(se.name.toLowerCase()) ||
+                    se.name.toLowerCase().includes(oldEx.name.toLowerCase())
+                  ))
+                );
+              })
+            )
+            .map((se) => se.id);
+
+          if (matchedCompletedIds.length > 0) {
+            // Keep matched completed exercises marked as done in the new plan session
+            workoutStore.finishWorkout({
+              date: targetDate,
+              planId: newPlan.id,
+              title: newPlan.title,
+              split: assignedSplit,
+              tier: newPlan.tier,
+              exercises: structuredExercises,
+              completedExerciseIds: matchedCompletedIds,
+              skippedExerciseIds: [],
+              totalMovements: structuredExercises.length,
+              completedMovements: matchedCompletedIds.length,
+              totalSets: structuredExercises
+                .filter((e) => matchedCompletedIds.includes(e.id))
+                .reduce((sum, e) => sum + e.targetSets, 0),
+              startedAt: existingSession.startedAt || Date.now() - 15 * 60 * 1000,
+              durationMinutes: Math.max(5, matchedCompletedIds.length * 8),
+              caloriesBurned: Math.max(25, matchedCompletedIds.length * 30),
+            });
+          } else {
+            // Replace the old session so the card unlocks with the new plan ready to start
+            workoutStore.removeWorkoutForDate(targetDate);
+          }
+        }
 
         return {
           toolCallId: id,
@@ -693,10 +839,11 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
           data: {
             date: targetDate,
             title: newPlan.title,
+            split: assignedSplit,
             exerciseCount: structuredExercises.length,
             exercises: structuredExercises.map((e) => e.name),
           },
-          summary: `Updated workout plan for ${targetDate}: "${newPlan.title}" with ${structuredExercises.length} exercises`,
+          summary: `Updated workout plan for ${targetDate}: "${newPlan.title}" with ${structuredExercises.length} exercises (${assignedSplit})`,
         };
       }
 

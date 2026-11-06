@@ -123,6 +123,8 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     sessionForDate?.startedAt || useWorkoutStore.getState().activeDraft?.startedAt || Date.now()
   );
   const isFirstRenderRef = useRef(true);
+  const isSyncingFromStoreRef = useRef(false);
+  const lastSavedSessionIdRef = useRef<string | null>(sessionForDate?.id || null);
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const selectedExerciseForModal = exercises.find((ex) => ex.id === selectedExerciseId) || null;
@@ -131,10 +133,37 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
   const [isRepDBModalVisible, setIsRepDBModalVisible] = useState(false);
   const [swapTargetExercise, setSwapTargetExercise] = useState<ExerciseItem | null>(null);
 
+  // Synchronize when store sessionForDate is updated externally (e.g. by AI agent logging an exercise)
+  useEffect(() => {
+    if (!sessionForDate) return;
+    if (sessionForDate.id === lastSavedSessionIdRef.current) return;
+    lastSavedSessionIdRef.current = sessionForDate.id;
+
+    isSyncingFromStoreRef.current = true;
+    if (sessionForDate.exercises && sessionForDate.exercises.length > 0) {
+      setExercises(sessionForDate.exercises);
+    }
+    const compMap: Record<string, boolean> = {};
+    (sessionForDate.completedExerciseIds || []).forEach((id) => {
+      compMap[id] = true;
+    });
+    setCompletedExercises(compMap);
+
+    const skipMap: Record<string, boolean> = {};
+    (sessionForDate.skippedExerciseIds || []).forEach((id) => {
+      skipMap[id] = true;
+    });
+    setSkippedExercises(skipMap);
+  }, [sessionForDate]);
+
   // Instant Live Auto-Log: automatically persist or clear session in historyByDate whenever exercises are checked/unchecked or sets change
   useEffect(() => {
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
+      return;
+    }
+    if (isSyncingFromStoreRef.current) {
+      isSyncingFromStoreRef.current = false;
       return;
     }
 
@@ -169,7 +198,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       Math.round((plan.estimatedCaloriesBurn || 180) * ratio)
     );
 
-    finishWorkout({
+    const saved = finishWorkout({
       date: currentDateStr,
       planId: plan.id,
       title: plan.title,
@@ -185,6 +214,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
       caloriesBurned,
       startedAt: startedAtRef.current,
     });
+    lastSavedSessionIdRef.current = saved.id;
   }, [
     exercises,
     completedExercises,
@@ -206,12 +236,22 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
     if (prevPlanIdRef.current !== plan.id) {
       prevPlanIdRef.current = plan.id;
       const saved = (useWorkoutStore.getState().plansByDate || {})[currentDateStr];
-      if (saved && saved.selectedSplit === plan.selectedSplit && saved.exercises?.length > 0) {
+      const activeSession = (useWorkoutStore.getState().historyByDate || {})[currentDateStr];
+      isSyncingFromStoreRef.current = true;
+      if (activeSession && activeSession.exercises?.length > 0) {
+        setExercises(activeSession.exercises);
+        const compMap: Record<string, boolean> = {};
+        (activeSession.completedExerciseIds || []).forEach((id) => {
+          compMap[id] = true;
+        });
+        setCompletedExercises(compMap);
+      } else if (saved && saved.exercises?.length > 0) {
         setExercises(saved.exercises);
+        setCompletedExercises({});
       } else {
         setExercises(plan.exercises || []);
+        setCompletedExercises({});
       }
-      setCompletedExercises({});
       setSkippedExercises({});
       startedAtRef.current = Date.now();
     }
@@ -423,7 +463,7 @@ export const AdaptiveWorkoutCard: React.FC<AdaptiveWorkoutCardProps> = ({
             </View>
             <View style={styles.headerTitleBox}>
               <Text style={styles.planSuperTitle}>{t.workout.card.planSuperTitle}</Text>
-              <Text style={styles.planTitle}>{sessionForDate?.title || plan.title}</Text>
+              <Text style={styles.planTitle}>{plan.title || sessionForDate?.title}</Text>
             </View>
           </View>
 

@@ -172,12 +172,18 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
   // Read saved plan if user or AI Agent has explicitly customized/scheduled it for this date
   const effectivePlan = useMemo(() => {
     const savedPlan = (plansByDate || {})[activeDate];
-    if (
-      savedPlan &&
-      savedPlan.selectedSplit === currentSplit &&
-      savedPlan.exercises &&
-      savedPlan.exercises.length > 0
-    ) {
+    if (!savedPlan || !savedPlan.exercises || savedPlan.exercises.length === 0) {
+      return adaptivePlan;
+    }
+    const planSplit = savedPlan.selectedSplit?.toLowerCase();
+    const activeSplit = currentSplit?.toLowerCase();
+    const isSplitMatch =
+      planSplit === activeSplit ||
+      planSplit === 'custom' ||
+      planSplit === 'full_body' ||
+      !planSplit;
+
+    if (isSplitMatch) {
       return savedPlan;
     }
     return adaptivePlan;
@@ -352,7 +358,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
 
         {/* Simplified 4-Movement Adaptive Workout Card (Live Auto-Logs on Check) */}
         <AdaptiveWorkoutCard
-          key={`${activeDate}-${currentSplit}`}
+          key={`${activeDate}-${currentSplit}-${effectivePlan.id}`}
           plan={effectivePlan}
           date={activeDate}
           onAskCoach={() => handleAskCoachPlan()}

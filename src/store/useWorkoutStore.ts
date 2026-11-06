@@ -261,12 +261,16 @@ export const useWorkoutStore = create<WorkoutState>()(
         const state = get();
         const cycle = sanitizeTrainingCycle(state.activeCycle);
         const clampedIdx = Math.max(0, Math.min(cycle.length - 1, cycleIndex));
+        const targetSplit = cycle[clampedIdx];
 
         const nextOverrides = { ...(state.scheduleOverridesByDate || {}) };
         delete nextOverrides[date];
 
         const nextPlans = { ...(state.plansByDate || {}) };
-        delete nextPlans[date];
+        const existingPlan = nextPlans[date];
+        if (existingPlan && existingPlan.selectedSplit !== targetSplit) {
+          delete nextPlans[date];
+        }
 
         set({
           activeCycle: cycle,
@@ -284,7 +288,10 @@ export const useWorkoutStore = create<WorkoutState>()(
         const idxInCycle = cycle.indexOf(split);
         const nextOverrides = { ...(state.scheduleOverridesByDate || {}), [date]: split };
         const nextPlans = { ...(state.plansByDate || {}) };
-        delete nextPlans[date];
+        const existingPlan = nextPlans[date];
+        if (existingPlan && existingPlan.selectedSplit !== split) {
+          delete nextPlans[date];
+        }
 
         if (idxInCycle !== -1) {
           delete nextOverrides[date];

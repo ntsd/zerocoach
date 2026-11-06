@@ -101,6 +101,7 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
 
   const geminiApiKey = useModelStore((state) => state.geminiApiKey);
   const openAIConfig = useModelStore((state) => state.openAIConfig);
+  const useGeminiForAiSnap = useModelStore((state) => state.useGeminiForAiSnap ?? true);
   const hasGeminiVisionKey = Boolean(
     (geminiApiKey && geminiApiKey.trim().length > 0) ||
     (openAIConfig?.apiKey && openAIConfig.apiKey.trim().startsWith('AIza')) ||
@@ -109,6 +110,8 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
       openAIConfig?.apiKey &&
       openAIConfig.apiKey.trim().length > 0)
   );
+
+  const isGeminiPrioritized = hasGeminiVisionKey && useGeminiForAiSnap;
 
   const hasOpenAIVision = Boolean(
     openAIConfig &&
@@ -1089,7 +1092,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                           <View style={styles.plateSnapBadge}>
                             <Sparkles size={11} color="#00F0FF" />
                             <Text style={styles.plateSnapBadgeText}>
-                              {isLocalVisionReady
+                              {isGeminiPrioritized
+                                ? 'GEMINI FLASH (CLOUD)'
+                                : isLocalVisionReady
                                 ? 'QWEN 3 VL (100% OFFLINE VISION READY)'
                                 : isMmprojDownloaded && isLocalVisionCapable && status !== 'loaded'
                                 ? 'QWEN 3 VL (READY TO ACTIVATE)'
@@ -1101,7 +1106,9 @@ export const FoodSearchAndReviewModal: React.FC<FoodSearchAndReviewModalProps> =
                             </Text>
                           </View>
                           <Text style={styles.plateSnapModelName}>
-                            {isLocalVisionReady
+                            {isGeminiPrioritized
+                              ? 'AI Studio Gemini'
+                              : isLocalVisionReady
                               ? 'Qwen 3 VL Offline Vision'
                               : isMmprojDownloaded && isLocalVisionCapable && status !== 'loaded'
                               ? 'Offline Vision (Tap to Activate)'

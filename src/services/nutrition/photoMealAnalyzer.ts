@@ -53,61 +53,8 @@ export async function analyzeMealPhoto(
     '{"dishTitle": "<Specific Dish Name>", "ingredients": [{"name": "<Component 1>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>}, {"name": "<Component 2>", "quantityGrams": <grams>, "calories": <kcal>, "proteinGrams": <g>, "carbsGrams": <g>, "fatGrams": <g>}]}. ' +
     'If no food is visible, return {"error": "UNIDENTIFIED"}.';
 
-  // 1. Check for Local Multimodal Vision (Qwen 3 VL with mmproj)
-  const isLocalVisionModel = Boolean(useModelStore.getState().currentModel?.mmprojDownloadUrl);
-  if (isLocalVisionModel && !llmService.isMultimodalReady() && Platform.OS !== 'web') {
-    try {
-      const state = useModelStore.getState();
-      if (state.provider === 'on_device' && state.status !== 'loading' && state.status !== 'downloading') {
-        console.log('[PhotoMealAnalyzer] Local vision not active in memory. Attempting on-demand lazy load...');
-        await state.ensureVisionProjectorLoaded();
-      }
-    } catch (e) {
-      console.warn('[PhotoMealAnalyzer] Auto-load local vision failed:', e);
-    }
-  }
-
-  if (isLocalVisionModel && llmService.isMultimodalReady()) {
-    try {
-      console.log('[PhotoMealAnalyzer] Analyzing photo with on-device Qwen 3 VL vision...');
-      const visionOutput = await llmService.analyzeImageWithLocalVision(
-        photoUri,
-        visionPromptWithHint,
-        base64Data
-      );
-      console.log('[PhotoMealAnalyzer] Qwen 3 VL vision output:', visionOutput);
-
-      if (
-        visionOutput &&
-        !visionOutput.toUpperCase().includes('UNIDENTIFIED') &&
-        visionOutput.trim().length > 3
-      ) {
-        const directDecomp = parseVisionMealResponse(visionOutput.trim(), hintClean);
-        const decomposition = directDecomp || (await decomposeMealWithGemma(visionOutput.trim()));
-        decomposition.asFoodItem.imageUrl = photoUri;
-        return {
-          canIdentify: true,
-          dishTitle: decomposition.dishTitle,
-          ingredientsText: formatIngredientsSummaryText(decomposition),
-          decomposition,
-          source: 'local_vision',
-        };
-      }
-    } catch (localVisionErr) {
-      console.warn('[PhotoMealAnalyzer] Local Qwen 3 VL vision error:', localVisionErr);
-    }
-  }
-
-  if (!base64Data) {
-    return {
-      canIdentify: false,
-      source: 'unidentified',
-      errorMessage: 'No image data captured. Please try taking the photo again.',
-    };
-  }
-
-  // 2. Check for Google Gemini API Key (cloud fallback)
-  const storeGeminiKey = useModelStore.getState().geminiApiKey;
+  const modelState = useModelStore.getState();
+  const storeGeminiKey = modelState.geminiApiKey;
   const configApiKey = openAIConfig?.apiKey?.trim() || '';
   const geminiKey = (
     explicitGeminiKey ||
@@ -117,17 +64,27 @@ export async function analyzeMealPhoto(
     ''
   ).trim();
 
-  if (geminiKey) {
+  const useGeminiForAiSnap = modelState.useGeminiForAiSnap ?? true;
+  const shouldPrioritizeGemini = Boolean(geminiKey && useGeminiForAiSnap && base64Data);
+
+  let lastGeminiError: string | undefined;
+
+  // Helper: Try Google Gemini Multimodal Vision API
+  const tryGeminiVision = async (): Promise<PhotoAnalysisResponse | null> => {
+    if (!geminiKey || !base64Data) return null;
     const preferredModel =
       openAIConfig?.baseUrl?.includes('generativelanguage.googleapis.com') && openAIConfig.modelName
         ? openAIConfig.modelName.trim()
         : undefined;
+
+    console.log('[PhotoMealAnalyzer] Analyzing photo with Google Gemini Vision...');
     const geminiResult = await analyzeFoodWithGemini(
       base64Data,
       geminiKey,
       preferredModel,
       hintClean
     );
+
     if (geminiResult.success && geminiResult.ingredientsText) {
       try {
         const directDecomp = parseVisionMealResponse(geminiResult.ingredientsText, hintClean);
@@ -158,12 +115,81 @@ export async function analyzeMealPhoto(
         };
       }
     } else {
-      return {
-        canIdentify: false,
-        source: 'unidentified',
-        errorMessage: geminiResult.errorMessage || "Could not identify food items in this photo.",
-      };
+      lastGeminiError = geminiResult.errorMessage;
+      console.warn('[PhotoMealAnalyzer] Gemini Vision error:', geminiResult.errorMessage);
+      return null;
     }
+  };
+
+  // Helper: Try On-Device Local Multimodal Vision (Qwen 3 VL with mmproj)
+  const tryLocalVision = async (): Promise<PhotoAnalysisResponse | null> => {
+    const isLocalVisionModel = Boolean(modelState.currentModel?.mmprojDownloadUrl);
+    if (isLocalVisionModel && !llmService.isMultimodalReady() && Platform.OS !== 'web') {
+      try {
+        if (modelState.provider === 'on_device' && modelState.status !== 'loading' && modelState.status !== 'downloading') {
+          console.log('[PhotoMealAnalyzer] Local vision not active in memory. Attempting on-demand lazy load...');
+          await modelState.ensureVisionProjectorLoaded();
+        }
+      } catch (e) {
+        console.warn('[PhotoMealAnalyzer] Auto-load local vision failed:', e);
+      }
+    }
+
+    if (isLocalVisionModel && llmService.isMultimodalReady()) {
+      try {
+        console.log('[PhotoMealAnalyzer] Analyzing photo with on-device Qwen 3 VL vision...');
+        const visionOutput = await llmService.analyzeImageWithLocalVision(
+          photoUri,
+          visionPromptWithHint,
+          base64Data
+        );
+        console.log('[PhotoMealAnalyzer] Qwen 3 VL vision output:', visionOutput);
+
+        if (
+          visionOutput &&
+          !visionOutput.toUpperCase().includes('UNIDENTIFIED') &&
+          visionOutput.trim().length > 3
+        ) {
+          const directDecomp = parseVisionMealResponse(visionOutput.trim(), hintClean);
+          const decomposition = directDecomp || (await decomposeMealWithGemma(visionOutput.trim()));
+          decomposition.asFoodItem.imageUrl = photoUri;
+          return {
+            canIdentify: true,
+            dishTitle: decomposition.dishTitle,
+            ingredientsText: formatIngredientsSummaryText(decomposition),
+            decomposition,
+            source: 'local_vision',
+          };
+        }
+      } catch (localVisionErr) {
+        console.warn('[PhotoMealAnalyzer] Local Qwen 3 VL vision error:', localVisionErr);
+      }
+    }
+    return null;
+  };
+
+  // 1. If Gemini is prioritized (Gemini API key provided + useGeminiForAiSnap enabled, even when using local LLM engine)
+  if (shouldPrioritizeGemini) {
+    const geminiRes = await tryGeminiVision();
+    if (geminiRes) return geminiRes;
+  }
+
+  // 2. Try Local On-Device Multimodal Vision
+  const localRes = await tryLocalVision();
+  if (localRes) return localRes;
+
+  if (!base64Data) {
+    return {
+      canIdentify: false,
+      source: 'unidentified',
+      errorMessage: 'No image data captured. Please try taking the photo again.',
+    };
+  }
+
+  // 3. If Gemini was not prioritized earlier, try it as fallback now
+  if (!shouldPrioritizeGemini && geminiKey) {
+    const geminiRes = await tryGeminiVision();
+    if (geminiRes) return geminiRes;
   }
 
   // 3. Check for OpenAI-compatible endpoint with vision (avoid localhost network exceptions on device)
@@ -245,22 +271,26 @@ export async function analyzeMealPhoto(
   }
 
   // 4. No vision provider configured or Vision Projector not downloaded / loaded
-  const modelState = useModelStore.getState();
-  const hasMmproj = Boolean(modelState.currentModel.mmprojDownloadUrl);
-  const isMmprojMissing = hasMmproj && !modelState.isMmprojDownloaded;
-  const isModelNotLoaded = modelState.status !== 'loaded';
+  const latestModelState = useModelStore.getState();
+  const hasMmproj = Boolean(latestModelState.currentModel.mmprojDownloadUrl);
+  const isMmprojMissing = hasMmproj && !latestModelState.isMmprojDownloaded;
+  const isModelNotLoaded = latestModelState.status !== 'loaded';
 
-  let errorMessage = 'Google AI Studio API key required for photo plate recognition. Add your free key in Settings, or describe ingredients in text for local Qwen 3 VL analysis.';
-  if (isMmprojMissing) {
-    errorMessage = 'Vision Projector (445 MB) required for offline camera recognition with Qwen 3 VL. Download it below, add a free Gemini API key in Settings, or describe the meal in text above.';
-  } else if (hasMmproj && isModelNotLoaded) {
-    errorMessage = 'Qwen 3 VL Vision is downloaded but not active in memory. Tap "ACTIVATE OFFLINE VISION" below to load into RAM.';
+  let errorMessage =
+    lastGeminiError ||
+    'Google AI Studio API key required for photo plate recognition. Add your free key in Settings, or describe ingredients in text for local Qwen 3 VL analysis.';
+  if (!lastGeminiError && isMmprojMissing) {
+    errorMessage =
+      'Vision Projector (445 MB) required for offline camera recognition with Qwen 3 VL. Download it below, add a free Gemini API key in Settings, or describe the meal in text above.';
+  } else if (!lastGeminiError && hasMmproj && isModelNotLoaded) {
+    errorMessage =
+      'Qwen 3 VL Vision is downloaded but not active in memory. Tap "ACTIVATE OFFLINE VISION" below to load into RAM.';
   }
 
   return {
     canIdentify: false,
     requiresVisionProjector: isMmprojMissing,
-    requiresApiKey: !hasMmproj && !modelState.isMmprojDownloaded,
+    requiresApiKey: !hasMmproj && !latestModelState.isMmprojDownloaded,
     source: 'unidentified',
     errorMessage,
   };

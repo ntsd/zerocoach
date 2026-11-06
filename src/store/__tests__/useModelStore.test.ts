@@ -30,5 +30,16 @@ describe('useModelStore - Multimodal Lazy Lifecycle', () => {
     assert.strictEqual(state.isVisionProjectorLoaded, false);
     assert.strictEqual(state.status, 'ready');
   });
+
+  it('initializes useGeminiForAiSnap to true and allows toggling', () => {
+    const store = useModelStore.getState();
+    assert.strictEqual(store.useGeminiForAiSnap, true, 'Should default to prioritizing Gemini for AI Snap');
+
+    store.setUseGeminiForAiSnap(false);
+    assert.strictEqual(useModelStore.getState().useGeminiForAiSnap, false);
+
+    store.setUseGeminiForAiSnap(true);
+    assert.strictEqual(useModelStore.getState().useGeminiForAiSnap, true);
+  });
 });
 

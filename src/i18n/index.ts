@@ -228,10 +228,16 @@ export const TRANSLATIONS = {
       openaiProvider: 'OpenAI / Ollama',
       aiSnapSection: 'AI FOOD SNAP & VISION',
       aiSnapDesc:
-        'Local Gemma 4 E2B can analyze meals locally. Provide a Google AI Studio Gemini key or OpenAI endpoint for fast cloud recognition.',
+        'Local Qwen 3 VL can analyze meals offline. Provide a Google AI Studio Gemini key for fast, high-accuracy cloud recognition.',
+      useGeminiForAiSnapLabel: 'Use Gemini for AI Snap',
+      useGeminiForAiSnapDesc:
+        'Prioritize Google Gemini for meal photo recognition even when using local LLM engine.',
+      geminiKeyActiveBanner: 'Gemini Vision prioritized for AI Snap (Cloud Accelerated)',
+      geminiKeyMissingBanner: 'Provide your Gemini API key below to enable cloud meal recognition',
       geminiKeyLabel: 'GOOGLE AI STUDIO GEMINI API KEY',
       geminiKeyPlaceholder: 'Paste AIza... API key from Google AI Studio',
       getGeminiKeyLink: 'Get Free Gemini Key at aistudio.google.com ↗',
+      testGeminiKeyBtn: 'Test Gemini Connection',
       openaiVisionLabel: 'OPENAI-COMPATIBLE VISION (OPTIONAL)',
       openaiVisionDesc:
         'If your local Ollama or server runs a vision model (e.g. llava, gpt-4o), AI Food Snap can route photos through it.',
@@ -1058,10 +1064,16 @@ export const TRANSLATIONS = {
       openaiProvider: 'OpenAI / Ollama',
       aiSnapSection: 'AI ถ่ายรูปอาหาร (AI SNAP)',
       aiSnapDesc:
-        'โมเดล Gemma 4 E2B สามารถวิเคราะห์ในเครื่องได้ หรือใส่ Google AI Studio Gemini API Key เพื่อวิเคราะห์ภาพผ่านคลาวด์',
+        'โมเดล Qwen 3 VL สามารถวิเคราะห์ภาพอาหารแบบออฟไลน์ได้ หรือใส่ Google AI Studio Gemini API Key เพื่อวิเคราะห์ภาพผ่านคลาวด์ที่รวดเร็วและแม่นยำ',
+      useGeminiForAiSnapLabel: 'ใช้ Gemini สำหรับ AI Snap',
+      useGeminiForAiSnapDesc:
+        'ให้ความสำคัญกับ Google Gemini ในการวิเคราะห์ภาพอาหารเป็นอันดับแรก แม้จะใช้โมเดลในเครื่องอยู่ก็ตาม',
+      geminiKeyActiveBanner: 'เปิดใช้งาน Gemini Vision สำหรับ AI Snap เป็นอันดับแรก (คลาวด์ความเร็วสูง)',
+      geminiKeyMissingBanner: 'กรุณาระบุ Gemini API Key ด้านล่างเพื่อเปิดใช้งานการวิเคราะห์ภาพผ่านคลาวด์',
       geminiKeyLabel: 'GOOGLE AI STUDIO GEMINI API KEY',
       geminiKeyPlaceholder: 'วางรหัส API key (AIza...) จาก Google AI Studio',
       getGeminiKeyLink: 'รับ Gemini API Key ฟรีที่ aistudio.google.com ↗',
+      testGeminiKeyBtn: 'ทดสอบการเชื่อมต่อ Gemini',
       openaiVisionLabel: 'OPENAI VISION (ทางเลือกเสริม)',
       openaiVisionDesc:
         'หากเซิร์ฟเวอร์ Ollama หรือ OpenAI ของคุณรองรับวิชัน ระบบ AI Snap สามารถส่งรูปภาพไปวิเคราะห์ได้',

@@ -55,12 +55,14 @@ export interface ModelState {
   provider: LLMProviderType;
   openAIConfig: OpenAICompatibleConfig;
   geminiApiKey: string;
+  useGeminiForAiSnap: boolean;
   stats: ModelHardwareStats;
   errorMessage: string | null;
   selectModel: (model: ModelMetadata) => Promise<void>;
   setProvider: (provider: LLMProviderType) => void;
   updateOpenAIConfig: (config: Partial<OpenAICompatibleConfig>) => void;
   setGeminiApiKey: (key: string) => void;
+  setUseGeminiForAiSnap: (enabled: boolean) => void;
   testOpenAIConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
   testGeminiConnection: () => Promise<{ success: boolean; message: string; latencyMs?: number }>;
   downloadModel: () => Promise<void>;

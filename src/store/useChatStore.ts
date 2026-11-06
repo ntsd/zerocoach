@@ -221,7 +221,15 @@ export const useChatStore = create<ChatState>()(
         let visualContext = '';
         if (imageUri) {
           try {
-            if (modelState.provider === 'on_device') {
+            const hasGeminiKey = Boolean(
+              (modelState.geminiApiKey && modelState.geminiApiKey.trim()) ||
+              (modelState.openAIConfig?.geminiApiKey && modelState.openAIConfig.geminiApiKey.trim()) ||
+              (modelState.openAIConfig?.apiKey && modelState.openAIConfig.apiKey.trim().startsWith('AIza'))
+            );
+            const useGemini = modelState.useGeminiForAiSnap ?? true;
+            const willPrioritizeGemini = hasGeminiKey && useGemini;
+
+            if (modelState.provider === 'on_device' && !willPrioritizeGemini) {
               console.log('[useChatStore] On-device image query: ensuring vision projector loaded...');
               await modelState.ensureVisionProjectorLoaded();
             }

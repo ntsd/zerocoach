@@ -121,6 +121,7 @@ export const useModelStore = create<ModelState>()(
       provider: 'on_device',
       openAIConfig: DEFAULT_OPENAI_CONFIG,
       geminiApiKey: '',
+      useGeminiForAiSnap: true,
       errorMessage: null,
       stats: {
         acceleration: 'none',
@@ -166,6 +167,10 @@ export const useModelStore = create<ModelState>()(
         const clean = key.trim();
         set({ geminiApiKey: clean });
         llmService.updateGeminiConfig({ apiKey: clean });
+      },
+
+      setUseGeminiForAiSnap: (enabled: boolean) => {
+        set({ useGeminiForAiSnap: enabled });
       },
 
       testOpenAIConnection: async () => {
@@ -538,12 +543,17 @@ export const useModelStore = create<ModelState>()(
         provider: state.provider,
         openAIConfig: state.openAIConfig,
         geminiApiKey: state.geminiApiKey,
+        useGeminiForAiSnap: state.useGeminiForAiSnap,
       }),
       onRehydrateStorage: () => (hydratedState) => {
         if (hydratedState) {
           const updates: Partial<ModelState> = {
             status: 'unloaded',
             downloadProgress: 0,
+            useGeminiForAiSnap:
+              hydratedState.useGeminiForAiSnap !== undefined
+                ? hydratedState.useGeminiForAiSnap
+                : true,
           };
 
           // Default to Qwen 3 VL 2B Instruct. Automatically migrate any legacy Gemma or older model ID.

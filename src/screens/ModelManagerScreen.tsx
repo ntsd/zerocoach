@@ -10,6 +10,7 @@ import {
   TextInput,
   Platform,
   Linking,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useModelStore } from '@/store/useModelStore';
@@ -30,6 +31,7 @@ import {
   HardDrive,
   Zap,
   CheckCircle2,
+  AlertCircle,
   RefreshCw,
   Terminal,
   Trash2,
@@ -84,6 +86,8 @@ export const ModelManagerScreen: React.FC = () => {
     openAIConfig,
     geminiApiKey,
     setGeminiApiKey,
+    useGeminiForAiSnap,
+    setUseGeminiForAiSnap,
     selectModel,
     downloadModel,
     loadModel,
@@ -108,6 +112,12 @@ export const ModelManagerScreen: React.FC = () => {
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    latencyMs?: number;
+  } | null>(null);
+  const [testingAiSnapConnection, setTestingAiSnapConnection] = useState(false);
+  const [aiSnapTestResult, setAiSnapTestResult] = useState<{
     success: boolean;
     message: string;
     latencyMs?: number;
@@ -170,6 +180,14 @@ export const ModelManagerScreen: React.FC = () => {
     const result = await testGeminiConnection();
     setTestResult(result);
     setTestingConnection(false);
+  };
+
+  const handleTestAiSnapGemini = async () => {
+    setTestingAiSnapConnection(true);
+    setAiSnapTestResult(null);
+    const result = await testGeminiConnection();
+    setAiSnapTestResult(result);
+    setTestingAiSnapConnection(false);
   };
 
   const handleClearChat = async () => {
@@ -1017,12 +1035,71 @@ export const ModelManagerScreen: React.FC = () => {
             {t.settings.aiSnapDesc}
           </Text>
 
+          {/* Option: Use Gemini for AI Snap */}
+          <View style={styles.aiSnapToggleCard}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <View style={styles.aiSnapToggleHeader}>
+                <Zap
+                  size={15}
+                  color={useGeminiForAiSnap ? modeColors.accent : COLORS.textMuted}
+                />
+                <Text style={styles.aiSnapToggleTitle}>
+                  {t.settings.useGeminiForAiSnapLabel}
+                </Text>
+              </View>
+              <Text style={styles.aiSnapToggleDesc}>
+                {t.settings.useGeminiForAiSnapDesc}
+              </Text>
+            </View>
+            <Switch
+              value={useGeminiForAiSnap}
+              onValueChange={setUseGeminiForAiSnap}
+              trackColor={{
+                false: 'rgba(255, 255, 255, 0.12)',
+                true: modeColors.accent,
+              }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor="rgba(255, 255, 255, 0.12)"
+            />
+          </View>
+
+          {/* Status Indicator */}
+          {useGeminiForAiSnap && (
+            <View
+              style={[
+                styles.aiSnapStatusBanner,
+                geminiApiKey && geminiApiKey.trim().length > 0
+                  ? styles.aiSnapStatusActive
+                  : styles.aiSnapStatusWarning,
+              ]}
+            >
+              {geminiApiKey && geminiApiKey.trim().length > 0 ? (
+                <>
+                  <CheckCircle2 size={13} color={COLORS.success} />
+                  <Text style={styles.aiSnapStatusActiveText}>
+                    {t.settings.geminiKeyActiveBanner}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={13} color={COLORS.warning} />
+                  <Text style={styles.aiSnapStatusWarningText}>
+                    {t.settings.geminiKeyMissingBanner}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+
           <Text style={[styles.fieldSectionLabel, { marginTop: 12 }]}>{t.settings.geminiKeyLabel}</Text>
           <View style={styles.inputRow}>
             <Key size={14} color={COLORS.textMuted} />
             <TextInput
               value={geminiApiKey}
-              onChangeText={setGeminiApiKey}
+              onChangeText={(val) => {
+                setGeminiApiKey(val);
+                setAiSnapTestResult(null);
+              }}
               placeholder={t.settings.geminiKeyPlaceholder}
               placeholderTextColor={COLORS.textMuted}
               style={styles.textInput}
@@ -1052,6 +1129,61 @@ export const ModelManagerScreen: React.FC = () => {
               {t.settings.getGeminiKeyLink}
             </Text>
           </TouchableOpacity>
+
+          {/* Test Gemini Connection for AI Snap */}
+          {geminiApiKey && geminiApiKey.trim().length > 0 && (
+            <View style={{ marginTop: 12 }}>
+              <TouchableOpacity
+                onPress={handleTestAiSnapGemini}
+                disabled={testingAiSnapConnection}
+                style={[
+                  styles.testConnBtn,
+                  { borderColor: modeColors.accent },
+                ]}
+                activeOpacity={0.8}
+              >
+                {testingAiSnapConnection ? (
+                  <ActivityIndicator size="small" color={modeColors.accent} />
+                ) : (
+                  <RefreshCw size={14} color={modeColors.accent} />
+                )}
+                <Text style={[styles.testConnBtnText, { color: modeColors.accent }]}>
+                  {testingAiSnapConnection
+                    ? t.settings.testingConnection
+                    : (t.settings.testGeminiKeyBtn || t.settings.testConnection)}
+                </Text>
+              </TouchableOpacity>
+
+              {aiSnapTestResult && (
+                <View
+                  style={[
+                    styles.testResultBox,
+                    {
+                      backgroundColor: aiSnapTestResult.success
+                        ? 'rgba(16, 185, 129, 0.12)'
+                        : 'rgba(239, 68, 68, 0.12)',
+                      borderColor: aiSnapTestResult.success
+                        ? COLORS.success
+                        : COLORS.danger,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.testResultText,
+                      {
+                        color: aiSnapTestResult.success
+                          ? COLORS.success
+                          : COLORS.danger,
+                      },
+                    ]}
+                  >
+                    {aiSnapTestResult.message}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </GlassCard>
 
         {/* OTA Updates Section */}
@@ -2334,5 +2466,63 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: RADIUS.round,
     backgroundColor: COLORS.cardSecondary,
+  },
+  aiSnapToggleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.cardSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  aiSnapToggleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  aiSnapToggleTitle: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+  },
+  aiSnapToggleDesc: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    lineHeight: 16,
+  },
+  aiSnapStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    marginTop: SPACING.xs,
+  },
+  aiSnapStatusActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  aiSnapStatusActiveText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.success,
+    fontWeight: '600',
+  },
+  aiSnapStatusWarning: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  aiSnapStatusWarningText: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.warning,
+    fontWeight: '600',
   },
 });

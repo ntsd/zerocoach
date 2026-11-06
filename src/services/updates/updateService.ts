@@ -4,6 +4,7 @@ export interface UpdateCheckResult {
   isAvailable: boolean;
   statusMessage: string;
   canReload?: boolean;
+  gitSha?: string;
 }
 
 export const updateService = {
@@ -19,11 +20,23 @@ export const updateService = {
    * Retrieve active metadata about current OTA bundle
    */
   getUpdateMetadata() {
+    const manifest = (Updates.manifest || {}) as any;
+    const gitSha =
+      process.env.EXPO_PUBLIC_GIT_SHA ||
+      manifest?.gitCommitHash?.slice(0, 7) ||
+      manifest?.extra?.gitCommitHash?.slice(0, 7) ||
+      manifest?.extra?.gitSha?.slice(0, 7) ||
+      manifest?.metadata?.gitCommitHash?.slice(0, 7) ||
+      (Updates.updateId && Updates.updateId !== 'embedded-bundle'
+        ? Updates.updateId.slice(0, 7)
+        : 'embedded');
+
     return {
       isEnabled: Updates.isEnabled,
       channel: Updates.channel || 'production',
       updateId: Updates.updateId || 'embedded-bundle',
       runtimeVersion: Updates.runtimeVersion || '1.2.0',
+      gitSha,
       createdAt: Updates.createdAt ? new Date(Updates.createdAt).toLocaleDateString() : 'Initial Release',
     };
   },
@@ -45,10 +58,20 @@ export const updateService = {
 
       if (update.isAvailable) {
         await Updates.fetchUpdateAsync();
+        const newManifest = (update as any).manifest;
+        const newGitSha =
+          newManifest?.gitCommitHash?.slice(0, 7) ||
+          newManifest?.extra?.gitCommitHash?.slice(0, 7) ||
+          newManifest?.extra?.gitSha?.slice(0, 7) ||
+          newManifest?.metadata?.gitCommitHash?.slice(0, 7);
+
         return {
           isAvailable: true,
           canReload: true,
-          statusMessage: 'New update downloaded! Tap below to restart and apply.',
+          gitSha: newGitSha,
+          statusMessage: newGitSha
+            ? `New update (${newGitSha}) downloaded! Tap below to restart and apply.`
+            : 'New update downloaded! Tap below to restart and apply.',
         };
       }
 

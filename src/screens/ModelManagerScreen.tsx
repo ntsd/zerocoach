@@ -1064,7 +1064,7 @@ export const ModelManagerScreen: React.FC = () => {
             {t.settings.otaHotfixDesc}
           </Text>
 
-          {/* OTA Channel & Runtime Badges */}
+          {/* OTA Channel, Runtime & Git SHA Badges */}
           <View style={styles.otaBadgeRow}>
             <View style={styles.otaBadge}>
               <Text style={styles.otaBadgeLabel}>{t.settings.otaChannel}</Text>
@@ -1075,8 +1075,10 @@ export const ModelManagerScreen: React.FC = () => {
               <Text style={styles.otaBadgeValue}>{otaMetadata.runtimeVersion}</Text>
             </View>
             <View style={styles.otaBadge}>
-              <Text style={styles.otaBadgeLabel}>{t.settings.otaEngine}</Text>
-              <Text style={styles.otaBadgeValue}>EXPO EAS</Text>
+              <Text style={styles.otaBadgeLabel}>{t.settings.otaGitSha}</Text>
+              <Text style={[styles.otaBadgeValue, styles.otaBadgeMono]}>
+                {otaMetadata.gitSha || 'embedded'}
+              </Text>
             </View>
           </View>
 
@@ -1676,7 +1678,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: RADIUS.sm,
     paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
   otaBadgeLabel: {
@@ -1691,6 +1693,10 @@ const styles = StyleSheet.create({
     color: COLORS.recoveryAccent,
     marginTop: 2,
     fontWeight: '700',
+  },
+  otaBadgeMono: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    letterSpacing: 0.5,
   },
   otaBtn: {
     flexDirection: 'row',

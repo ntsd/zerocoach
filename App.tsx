@@ -41,6 +41,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('coach');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [showOtaModal, setShowOtaModal] = useState(false);
+  const [availableGitSha, setAvailableGitSha] = useState<string | undefined>(undefined);
   const [hasDismissedOta, setHasDismissedOta] = useState(false);
   const { hasCompletedOnboarding } = useCoachStore();
   const modeColors = getModeColors();
@@ -62,6 +63,9 @@ export default function App() {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         const result = await updateService.checkForUpdate();
         if (result.isAvailable && result.canReload) {
+          if (result.gitSha) {
+            setAvailableGitSha(result.gitSha);
+          }
           setShowOtaModal(true);
         }
       } catch (err) {
@@ -86,6 +90,9 @@ export default function App() {
             .checkForUpdate()
             .then((res) => {
               if (res.isAvailable && res.canReload) {
+                if (res.gitSha) {
+                  setAvailableGitSha(res.gitSha);
+                }
                 setShowOtaModal(true);
               }
             })
@@ -229,6 +236,7 @@ export default function App() {
           }}
           channel={otaMetadata.channel}
           runtimeVersion={otaMetadata.runtimeVersion}
+          gitSha={availableGitSha || otaMetadata.gitSha}
         />
       </View>
     </SafeAreaProvider>

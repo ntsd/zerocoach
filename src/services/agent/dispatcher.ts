@@ -22,9 +22,16 @@ import {
 import { FoodItem, MealType } from '@/types/nutrition';
 import { GeneratedWorkoutPlan, ExerciseItem, WorkoutSplit } from '@/types/workout';
 
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
 function parseNumber(val: any, fallback = 0): number {
   if (typeof val === 'number') return isNaN(val) ? fallback : val;
   if (typeof val === 'string') {
+    const trimmed = val.trim().toLowerCase();
+    if (WORD_NUMBERS[trimmed] !== undefined) return WORD_NUMBERS[trimmed];
     const cleaned = val.replace(/[^0-9.-]/g, '');
     const num = parseFloat(cleaned);
     return isNaN(num) ? fallback : num;
@@ -492,10 +499,10 @@ export async function executeTool(call: ToolCall): Promise<ToolResult> {
               reps: args.reps ? String(args.reps) : '10 reps',
             }));
 
-        // If both were empty but a title was passed (e.g. "Pull-up 10 reps"), extract title as exercise name
-        if (rawExercises.length === 0 && args.title) {
+        // If both were empty but a title, exercise, or name was passed (e.g. "Pull-up 10 reps"), extract as exercise name
+        if (rawExercises.length === 0 && (args.exercise || args.name || args.title)) {
           rawExercises.push({
-            name: args.title,
+            name: args.exercise || args.name || args.title,
             sets: args.sets || 1,
             reps: args.reps ? String(args.reps) : '10 reps',
           });

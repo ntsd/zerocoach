@@ -26,6 +26,18 @@ describe('classifyUserIntent', () => {
     const domains = classifyUserIntent('Completed workout: 4 sets bench press RPE 8');
     assert.ok(domains.includes('workout_history'), 'Should include workout_history');
     assert.ok(domains.includes('memory'), 'Should include memory');
+
+    const pastLogged = classifyUserIntent('I did 10 reps push up 2 sets');
+    assert.ok(pastLogged.includes('workout_history'), 'Should include workout_history for "did 10 reps push up 2 sets"');
+
+    const finishedExercise = classifyUserIntent('did 2 sets of 10 pushups');
+    assert.ok(finishedExercise.includes('workout_history'), 'Should include workout_history for "did 2 sets of 10 pushups"');
+
+    const doneExercise = classifyUserIntent('pushups 10 reps done');
+    assert.ok(doneExercise.includes('workout_history'), 'Should include workout_history for "pushups 10 reps done"');
+
+    const thaiExercise = classifyUserIntent('วิดพื้นไป 2 เซ็ต 10 ครั้ง');
+    assert.ok(thaiExercise.includes('workout_history'), 'Should include workout_history for Thai exercise log');
   });
 
   it('classifies workout_database query', () => {

@@ -13,6 +13,7 @@ import { SPACING, RADIUS } from '@/theme/spacing';
 import { TYPOGRAPHY } from '@/theme/typography';
 import { useTranslation } from '@/i18n';
 import { Sparkles, ArrowRight, X, RefreshCw, Zap } from 'lucide-react-native';
+import { updateService } from '@/services/updates/updateService';
 
 interface OtaUpdateModalProps {
   visible: boolean;
@@ -20,6 +21,7 @@ interface OtaUpdateModalProps {
   onApplyUpdate: () => Promise<void>;
   channel?: string;
   runtimeVersion?: string;
+  gitSha?: string;
 }
 
 export const OtaUpdateModal: React.FC<OtaUpdateModalProps> = ({
@@ -28,10 +30,12 @@ export const OtaUpdateModal: React.FC<OtaUpdateModalProps> = ({
   onApplyUpdate,
   channel = 'production',
   runtimeVersion = '1.2.0',
+  gitSha,
 }) => {
   const modeColors = getModeColors();
   const { t } = useTranslation();
   const [isApplying, setIsApplying] = useState(false);
+  const activeGitSha = gitSha || updateService.getUpdateMetadata().gitSha;
 
   const handleApply = async () => {
     setIsApplying(true);
@@ -116,6 +120,15 @@ export const OtaUpdateModal: React.FC<OtaUpdateModalProps> = ({
               <Text style={styles.metaLabel}>{t.settings.otaRuntime}</Text>
               <Text style={styles.metaValue}>v{runtimeVersion}</Text>
             </View>
+            {activeGitSha ? (
+              <>
+                <View style={styles.metaDivider} />
+                <View style={styles.metaItem}>
+                  <Text style={styles.metaLabel}>{t.settings.otaGitSha}</Text>
+                  <Text style={[styles.metaValue, styles.metaMonoValue]}>{activeGitSha}</Text>
+                </View>
+              </>
+            ) : null}
           </View>
 
           {/* Action Buttons */}
@@ -264,6 +277,10 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontWeight: '700',
     fontSize: 12,
+  },
+  metaMonoValue: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    letterSpacing: 0.5,
   },
   actionsContainer: {
     width: '100%',

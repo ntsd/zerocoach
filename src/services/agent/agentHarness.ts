@@ -83,6 +83,13 @@ export function buildScopedAgentToolPrompt(activeDomains: DomainName[] = ALL_DOM
 {"name": "log_food_item", "arguments": {"name": "Grilled Chicken Breast", "consumedGrams": 200, "calories": 330, "proteinGrams": 62}}
 </tool_call>`;
   }
+  if (domains.has('workout_history')) {
+    dynamicExamples += `
+- When the athlete reports completing an exercise, sets, reps, or finished workout:
+<tool_call>
+{"name": "log_completed_workout", "arguments": {"title": "Push-up Session", "exercises": [{"name": "Push-up", "sets": 2, "reps": "10 reps"}]}}
+</tool_call>`;
+  }
   if (domains.has('workout_plan')) {
     dynamicExamples += `
 - When the athlete wants to swap or change an exercise:
@@ -237,6 +244,17 @@ export function parseToolCallFromText(text: string): ToolCall | null {
   return null;
 }
 
+const WORD_TO_NUMBER: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
+function parseWordOrNumber(val: string | undefined, fallback: number = 1): number {
+  if (!val) return fallback;
+  const cleaned = val.trim().toLowerCase();
+  return WORD_TO_NUMBER[cleaned] ?? (isNaN(parseFloat(cleaned)) ? fallback : parseFloat(cleaned));
+}
+
 /**
  * Intercepts plain-text fake confirmations emitted by small on-device models
  * (e.g. "✅ **Saved to Coach Memory:** ...", "Saved to Coach Memory: ...", "Memory saved: ...")
@@ -274,7 +292,7 @@ export function extractSyntheticToolCall(text: string, lastUserMsg: string = '')
     /(?:✅\s*)?(?:\*\*)?(?:Added to|Stored in) (?:Coach )?Memory:?(?:\*\*)?\s*(.+)?/i,
     /(?:✅\s*)?(?:\*\*)?Memory saved:?(?:\*\*)?\s*(.+)?/i,
     /(?:✅\s*)?(?:\*\*)?(?:I have |I've )?(?:saved|remembered|stored) (?:that|this|to memory):?(?:\*\*)?\s*(.+)?/i,
-    /(?:บันทึก|จำ)(?:ความจำ|ข้อมูล)?(?:เรียบร้อย|แล้ว)?:?\s*(.+)?/i,
+    /(?:บันทึก|จำ)(?:ความจำ|ข้อมูล)(?:เรียบร้อย|แล้ว)?:?\s*(.+)?/i,
   ];
 
   for (const pat of savePatterns) {
@@ -306,12 +324,95 @@ export function extractSyntheticToolCall(text: string, lastUserMsg: string = '')
     }
   }
 
-  // 3. Synthetic log_food_item detection
+  // 3. Synthetic log_completed_workout detection
+  // e.g. '✅ **Logged workout: Push-up (2 sets, 10 reps)**'
+  // e.g. '- **Current Status**: You\'ve completed 10 reps of push-ups in two sets.'
+  // e.g. 'You completed 10 reps of push-ups in 2 sets.'
+  // e.g. '✅ บันทึกการซ้อมเรียบร้อย: Push-up 2 เซ็ต 10 ครั้ง'
+  const isWorkoutConfirmation =
+    /(?:workout|session|exercise|sets?|reps?|เซ็ต|ครั้ง|การซ้อม|การออกกำลังกาย)/i.test(clean);
+
+  const explicitWorkoutLogMatch = isWorkoutConfirmation
+    ? clean.match(/(?:✅\s*)?(?:\*\*)?(?:Logged|Recorded)\s+(?:workout|session|exercise)?:?\s*["']?([^"'\n]+)/i) ||
+      clean.match(/(?:✅\s*)?(?:\*\*)?(?:Workout|Exercise)\s+(?:logged|recorded):?\s*["']?([^"'\n]+)/i) ||
+      clean.match(/(?:✅\s*)?(?:\*\*)?(?:I have |I've )?(?:logged|recorded) (?:your )?(?:workout|exercise|session):?\s*["']?([^"'\n]+)/i) ||
+      clean.match(/(?:✅\s*)?(?:\*\*)?(?:บันทึกการซ้อม|บันทึกการออกกำลังกาย)(?:เรียบร้อย|แล้ว)?:?\s*["']?([^"'\n]+)/i)
+    : null;
+
+  const completedWorkoutAckMatch =
+    clean.match(/(?:completed|finished)\s+(\w+)\s*reps?\s+(?:of\s+)?([\w\s-]+?)\s+(?:in|for|,)\s+(\w+)\s*sets?/i) ||
+    clean.match(/(?:completed|finished)\s+(\w+)\s*sets?\s+(?:of\s+)?(\w+)\s*reps?\s+(?:of\s+)?([\w\s-]+)/i);
+
+  if (explicitWorkoutLogMatch || completedWorkoutAckMatch) {
+    let exerciseName = 'Workout';
+    let sets = 1;
+    let reps = '10 reps';
+
+    if (completedWorkoutAckMatch) {
+      const matchText = completedWorkoutAckMatch[0].toLowerCase();
+      const isRepsFirst = matchText.indexOf('rep') < matchText.indexOf('set');
+      if (isRepsFirst) {
+        reps = `${parseWordOrNumber(completedWorkoutAckMatch[1], 10)} reps`;
+        exerciseName = completedWorkoutAckMatch[2].trim();
+        sets = parseWordOrNumber(completedWorkoutAckMatch[3], 1);
+      } else {
+        sets = parseWordOrNumber(completedWorkoutAckMatch[1], 1);
+        reps = `${parseWordOrNumber(completedWorkoutAckMatch[2], 10)} reps`;
+        exerciseName = completedWorkoutAckMatch[3].trim();
+      }
+    } else if (explicitWorkoutLogMatch) {
+      const details = explicitWorkoutLogMatch[1] || '';
+      const setsMatch = details.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:sets?|เซ็ต)/i);
+      const repsMatch = details.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:reps?|ครั้ง)/i);
+      if (setsMatch) sets = parseWordOrNumber(setsMatch[1], 1);
+      if (repsMatch) reps = `${parseWordOrNumber(repsMatch[1], 10)} reps`;
+      const namePart = details
+        .replace(/\([^)]*\)/g, '')
+        .replace(/[*_#`]/g, '')
+        .replace(/\b(?:workout|exercise|session)\b/gi, '')
+        .replace(/^[:\-–—\s]+|[:\-–—\s]+$/g, '')
+        .trim();
+      if (namePart) exerciseName = namePart;
+    }
+
+    if (lastUserMsg) {
+      const userSets = lastUserMsg.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:sets?|เซ็ต)/i);
+      const userReps = lastUserMsg.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:reps?|ครั้ง)/i);
+      const userExercise = lastUserMsg.match(/\b(push[\s-]?ups?|pull[\s-]?ups?|squats?|bench(?:\s*press)?|deadlifts?|curls?|lunges?|dips?|planks?)\b/i);
+
+      if (userSets && sets === 1) sets = parseWordOrNumber(userSets[1], 1);
+      if (userReps && reps === '10 reps') reps = `${parseWordOrNumber(userReps[1], 10)} reps`;
+      if (userExercise && (exerciseName === 'Workout' || exerciseName.length < 3)) {
+        exerciseName = userExercise[1].trim();
+      }
+    }
+
+    exerciseName = exerciseName.charAt(0).toUpperCase() + exerciseName.slice(1);
+
+    return {
+      id: `synth-workout-${Date.now()}`,
+      name: 'log_completed_workout',
+      arguments: {
+        title: `${exerciseName} Session`,
+        exercises: [
+          {
+            name: exerciseName,
+            sets,
+            reps,
+          },
+        ],
+      },
+    };
+  }
+
+  // 4. Synthetic log_food_item detection
   // e.g. '✅ **Logged "Cornbread" (450g, 1197 kcal, 30.2g protein, 195.8g carbs, 32g fat) to lunch**'
   // e.g. 'Logged "Salmon" (100g, 235 kcal, 24g protein) to lunch'
-  const foodLogMatch = clean.match(
-    /(?:✅\s*)?(?:\*\*)?(?:Logged|Recorded|Added)\s+["']?([^"'(]+)["']?\s*(?:\(([^)]+)\))?\s*(?:to\s+(\w+))?/i
-  );
+  const foodLogMatch = !isWorkoutConfirmation
+    ? clean.match(
+        /(?:✅\s*)?(?:\*\*)?(?:Logged|Recorded|Added)\s+["']?([^"'(]+)["']?\s*(?:\(([^)]+)\))?\s*(?:to\s+(\w+))?/i
+      )
+    : null;
   if (foodLogMatch) {
     const foodName = foodLogMatch[1].trim();
     const details = foodLogMatch[2] || '';

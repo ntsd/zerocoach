@@ -88,6 +88,35 @@ describe('AgentHarness Synthetic Fallbacks & Memory Interception', () => {
     assert.strictEqual(call.arguments.mealType, inferMealTypeFromCurrentTime());
   });
 
+  it('extracts synthetic log_completed_workout call when model outputs plain-text status acknowledgement', () => {
+    const output = '- **Current Status**: You\'ve completed 10 reps of push-ups in two sets.\n  - **Biomechanical Note**: This is a solid progression.';
+    const call = extractSyntheticToolCall(output, 'I did 10 reps push up 2 sets');
+    assert.ok(call, 'Should synthesize a log_completed_workout tool call');
+    assert.strictEqual(call.name, 'log_completed_workout');
+    assert.strictEqual(call.arguments.exercises[0].name, 'Push-ups');
+    assert.strictEqual(call.arguments.exercises[0].sets, 2);
+    assert.strictEqual(call.arguments.exercises[0].reps, '10 reps');
+  });
+
+  it('extracts synthetic log_completed_workout call on explicit workout logging confirmation', () => {
+    const output = '✅ **Logged workout: Push-up (2 sets, 10 reps)**\n\nGreat session!';
+    const call = extractSyntheticToolCall(output, 'I did 2 sets of 10 pushups');
+    assert.ok(call, 'Should synthesize a log_completed_workout tool call');
+    assert.strictEqual(call.name, 'log_completed_workout');
+    assert.strictEqual(call.arguments.exercises[0].name, 'Push-up');
+    assert.strictEqual(call.arguments.exercises[0].sets, 2);
+    assert.strictEqual(call.arguments.exercises[0].reps, '10 reps');
+  });
+
+  it('extracts synthetic log_completed_workout call for Thai workout logging', () => {
+    const output = '✅ บันทึกการซ้อมเรียบร้อย: Push-up 2 เซ็ต 10 ครั้ง';
+    const call = extractSyntheticToolCall(output, 'วิดพื้นไป 2 เซ็ต 10 ครั้ง');
+    assert.ok(call, 'Should synthesize a log_completed_workout tool call');
+    assert.strictEqual(call.name, 'log_completed_workout');
+    assert.strictEqual(call.arguments.exercises[0].sets, 2);
+    assert.strictEqual(call.arguments.exercises[0].reps, '10 reps');
+  });
+
   it('detects accidental update_daily_macro_targets on food suggestion queries', () => {
     assert.strictEqual(
       isTargetUpdateAccidentalOnMealInquiry(
@@ -175,6 +204,12 @@ describe('AgentHarness Synthetic Fallbacks & Memory Interception', () => {
       fullPrompt.includes('update_user_settings(dailyCalorieTarget, proteinGrams'),
       'update_user_settings should include nutrition targets'
     );
+  });
+
+  it('buildScopedAgentToolPrompt includes log_completed_workout and dynamic example for workout_history', () => {
+    const prompt = buildScopedAgentToolPrompt(['workout_history']);
+    assert.ok(prompt.includes('log_completed_workout'), 'Should include log_completed_workout tool');
+    assert.ok(prompt.includes('Push-up Session'), 'Should include dynamic example for log_completed_workout');
   });
 });
 

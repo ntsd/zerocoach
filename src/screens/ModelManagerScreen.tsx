@@ -1537,7 +1537,7 @@ const styles = StyleSheet.create({
   },
   quantBadge: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     marginTop: 2,
   },
@@ -1559,7 +1559,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textPrimary,
   },
   specsGrid: {
@@ -1581,7 +1581,7 @@ const styles = StyleSheet.create({
   },
   specLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   specValue: {
@@ -1987,7 +1987,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xs,
   },
   modelTagText: {
-    fontSize: 8.5,
+    fontSize: 10.5,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
@@ -2080,7 +2080,7 @@ const styles = StyleSheet.create({
   },
   datasetInfoLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     fontWeight: '800',
     flexShrink: 0,
@@ -2096,7 +2096,7 @@ const styles = StyleSheet.create({
   },
   profileSectionLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     fontWeight: '800',
     marginBottom: 4,
@@ -2135,7 +2135,7 @@ const styles = StyleSheet.create({
   },
   profileStatLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 8,
+    fontSize: 10,
     color: COLORS.textMuted,
   },
   profileStatValue: {
@@ -2321,7 +2321,7 @@ const styles = StyleSheet.create({
   },
   memItemCategory: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: '800',
   },
   memItemContent: {

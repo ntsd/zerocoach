@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
   guideBadgeText: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: '800',
   },
   providerSub: {

@@ -58,7 +58,7 @@ const CYCLE_PILL_META: Record<
   pull: { defaultLabel: 'Pull', icon: ShieldCheck },
   legs: { defaultLabel: 'Legs', icon: Flame },
   cardio: { defaultLabel: 'Cardio', icon: Activity },
-  rest: { defaultLabel: 'Rest', icon: Moon, accentColor: '#38BDF8' },
+  rest: { defaultLabel: 'Rest', icon: Moon, accentColor: COLORS.recoveryAccent },
 };
 
 const TRAINING_GOAL_IDS: TrainingGoal[] = [
@@ -349,7 +349,7 @@ export const ProgressionsScreen: React.FC<ProgressionsScreenProps> = ({
         {/* Automatic Rest Day Banner on past dates with no logged workout */}
         {isPastDate && !completedSessionForDate && (
           <View style={styles.upNextBox}>
-            <Moon size={14} color="#38BDF8" />
+            <Moon size={14} color={COLORS.recoveryAccent} />
             <Text style={styles.upNextText}>
               {t.workout.noWorkoutOnDate.replace('{date}', formatDateDisplay(activeDate, language, t))}
             </Text>
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
   },
   modalSectionTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.textSecondary,
     letterSpacing: 0.8,
   },

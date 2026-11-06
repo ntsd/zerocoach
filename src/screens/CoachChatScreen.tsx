@@ -102,7 +102,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
         badge: hasKey ? 'CLOUD ACTIVE' : 'API KEY MISSING',
         isReady: hasKey,
         icon: Zap,
-        accentColor: '#00F0FF',
+        accentColor: COLORS.primary,
       };
     }
     if (provider === 'openai_compatible') {
@@ -514,7 +514,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
                 accessibilityLabel="Remove attached image"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <X size={12} color="#FFFFFF" />
+                <X size={12} color={COLORS.textPrimary} />
               </TouchableOpacity>
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
@@ -593,7 +593,7 @@ export const CoachChatScreen: React.FC<CoachChatScreenProps> = ({
               accessibilityLabel="Stop generation"
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
+              <Square size={16} color={COLORS.textOnPrimary} fill={COLORS.textOnPrimary} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -981,7 +981,7 @@ const styles = StyleSheet.create({
   },
   modelStatusBadgeText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
@@ -1008,7 +1008,7 @@ const styles = StyleSheet.create({
   },
   modelAlertSub: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10,
+    fontSize: 11.5,
     color: COLORS.textMuted,
     marginTop: 2,
   },

@@ -944,7 +944,7 @@ const styles = StyleSheet.create({
   },
   kpiLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 8.5,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   kpiVal: {
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
   },
   kpiSub: {
     ...TYPOGRAPHY.caption,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   chartCard: {
@@ -1008,7 +1008,7 @@ const styles = StyleSheet.create({
   },
   sessionBadgeText: {
     ...TYPOGRAPHY.badge,
-    fontSize: 8,
+    fontSize: 10,
     color: COLORS.success,
     fontWeight: '800',
   },
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
   },
   domainScoreSuperTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     letterSpacing: 1,
   },
@@ -1145,7 +1145,7 @@ const styles = StyleSheet.create({
   },
   macroPacingLabel: {
     ...TYPOGRAPHY.badge,
-    fontSize: 8.5,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   macroPacingVal: {

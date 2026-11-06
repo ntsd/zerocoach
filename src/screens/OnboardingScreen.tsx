@@ -1201,12 +1201,12 @@ const styles = StyleSheet.create({
   },
   stepCountText: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: '800',
   },
   stepTitleSubtitle: {
     ...TYPOGRAPHY.caption,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
@@ -1378,7 +1378,7 @@ const styles = StyleSheet.create({
   },
   syncedMiniText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 8,
+    fontSize: 10,
     color: COLORS.success,
     fontWeight: '800',
   },
@@ -1611,7 +1611,7 @@ const styles = StyleSheet.create({
   },
   macroBadge: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     marginBottom: 4,
   },
@@ -1625,13 +1625,13 @@ const styles = StyleSheet.create({
   },
   macroUnit: {
     ...TYPOGRAPHY.caption,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
   macroKcalSub: {
     ...TYPOGRAPHY.caption,
-    fontSize: 8,
+    fontSize: 10,
     color: COLORS.textMuted,
     marginTop: 1,
   },
@@ -1714,7 +1714,7 @@ const styles = StyleSheet.create({
   },
   previewTitle: {
     ...TYPOGRAPHY.badge,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
   },
   previewScore: {
@@ -1830,7 +1830,7 @@ const styles = StyleSheet.create({
   },
   segmentedSelectorSub: {
     ...TYPOGRAPHY.caption,
-    fontSize: 9,
+    fontSize: 10.5,
     color: COLORS.textMuted,
     textAlign: 'center',
   },

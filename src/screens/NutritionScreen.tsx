@@ -16,6 +16,7 @@ import { LoggedFoodDetailModal } from '../components/nutrition/LoggedFoodDetailM
 import { FoodItem, MealType } from '../types/nutrition';
 import { useTranslation } from '../i18n';
 import { COLORS } from '../theme/colors';
+import { getTodayString, getLocalDateString } from '@/utils/date';
 import { Utensils, Plus, RotateCcw } from 'lucide-react-native';
 
 export const NutritionScreen: React.FC = () => {
@@ -36,10 +37,7 @@ export const NutritionScreen: React.FC = () => {
 
   // Always ensure selectedDate is today on mount
   useEffect(() => {
-    const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-      d.getDate()
-    ).padStart(2, '0')}`;
+    const todayStr = getTodayString();
     if (selectedDate !== todayStr) {
       setSelectedDate(todayStr);
     }
@@ -61,34 +59,21 @@ export const NutritionScreen: React.FC = () => {
     const [year, month, day] = selectedDate.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     date.setDate(date.getDate() - 1);
-    const prevStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-      date.getDate()
-    ).padStart(2, '0')}`;
-    setSelectedDate(prevStr);
+    setSelectedDate(getLocalDateString(date));
   };
 
   const handleNextDay = () => {
-    const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-      d.getDate()
-    ).padStart(2, '0')}`;
+    const todayStr = getTodayString();
     if (selectedDate >= todayStr) return; // Prevent navigating into future dates
 
     const [year, month, day] = selectedDate.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     date.setDate(date.getDate() + 1);
-    const nextStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-      date.getDate()
-    ).padStart(2, '0')}`;
-    setSelectedDate(nextStr);
+    setSelectedDate(getLocalDateString(date));
   };
 
   const handleToday = () => {
-    const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-      d.getDate()
-    ).padStart(2, '0')}`;
-    setSelectedDate(todayStr);
+    setSelectedDate(getTodayString());
   };
 
   const handleOpenAddFood = () => {
@@ -161,6 +146,9 @@ export const NutritionScreen: React.FC = () => {
             style={styles.clearDayButton}
             onPress={() => clearDayLog(selectedDate)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t.nutrition.clearLogDay}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <RotateCcw size={14} color={COLORS.textMuted} />
             <Text style={styles.clearDayText}>{t.nutrition.clearLogDay}</Text>

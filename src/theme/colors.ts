@@ -34,21 +34,23 @@ export const COLORS = {
     modeName: 'ZEROCOACH AI',
   },
 
-  // Telemetry & Readiness Spectrum
+  // Telemetry & Readiness Spectrum (harmonized with web rose)
   readinessOptimal: '#10B981',
   readinessModerate: '#F59E0B',
-  readinessFatigued: '#EF4444',
+  readinessFatigued: '#F43F5E',
 
-  // Typography
+  // Typography (WCAG AA compliant across card & elevated surfaces)
   textPrimary: '#F8FAFC',
   textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  textMuted: '#7E8FA4', // Raised from #64748B for 5.04:1 contrast on cards
   textDark: '#080B10',
+  textOnPrimary: '#080B10', // Explicit token for primary button text (13.99:1 contrast)
 
   // UI Accents
-  purpleAccent: '#8B5CF6',
+  recoveryAccent: '#38BDF8', // Athletic Ice Sky for sleep and recovery metrics
+  purpleAccent: '#A78BFA',   // Lifted for WCAG AA compliance (6.54:1 on cards)
   warning: '#F59E0B',
-  danger: '#EF4444',
+  danger: '#F43F5E',
   success: '#10B981',
 };
 

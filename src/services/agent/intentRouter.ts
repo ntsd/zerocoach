@@ -1,4 +1,7 @@
 import { DomainName } from './types';
+import { SAFE_READ_DOMAINS, MUTATION_DOMAINS } from './guardRails';
+
+export { SAFE_READ_DOMAINS, MUTATION_DOMAINS };
 
 export const ALL_DOMAINS: DomainName[] = [
   'telemetry',
@@ -21,42 +24,22 @@ const DOMAIN_PATTERNS: DomainPattern[] = [
   {
     domain: 'food_history',
     keywords: [
-      'calorie',
-      'protein',
-      'carb',
-      'fat',
-      'fiber',
-      'sugar',
-      'food',
-      'meal',
-      'lunch',
-      'breakfast',
-      'dinner',
-      'snack',
-      'ate',
-      'eaten',
       'log food',
       'logged food',
       'delete food',
-      'macro',
+      'record food',
+      'track food',
       'nutrition diary',
-      'chicken',
-      'rice',
-      'steak',
-      'egg',
-      'beef',
-      'salad',
+      'food diary',
+      'log meal',
+      'logged meal',
       // Thai keywords
-      'กิน',
-      'มื้อ',
-      'อาหาร',
-      'ข้าว',
-      'โปรตีน',
-      'แคล',
-      'แคลอรี่',
       'บันทึกอาหาร',
+      'ลบอาหาร',
+      'จดอาหาร',
     ],
-    regex: /\b(log|delete|record|ate|eat|eaten)\b.*\b(breakfast|lunch|dinner|snack|meal|grams?|kcal|calories)\b/i,
+    regex:
+      /\b(log|logged|delete|deleted|record|recorded|ate|eat|eaten|track|tracked)\b.*\b(breakfast|lunch|dinner|snack|meal|grams?|kcal|calories|food|chicken|rice|egg|steak|beef|salad)\b|\b(breakfast|lunch|dinner|snack|meal|grams?|kcal|calories|chicken|rice|egg|steak|beef|salad)\b.*\b(logged|recorded|ate|eaten)\b|(?:บันทึก|จด|ลบ)(?:อาหาร|มื้อ)|(?:กิน|ทาน).*(?:\d+\s*(?:กรัม|แคล|จาน|ชาม|ฟอง|มื้อ|ชิ้น))|กิน.*(?:มื้อ|ไป|แล้ว|เสร็จ)/i,
   },
   {
     domain: 'food_database',
@@ -83,9 +66,6 @@ const DOMAIN_PATTERNS: DomainPattern[] = [
       'workout plan',
       'training plan',
       'routine',
-      'exercise',
-      'sets',
-      'reps',
       'swap',
       'replace exercise',
       'schedule',
@@ -96,13 +76,6 @@ const DOMAIN_PATTERNS: DomainPattern[] = [
       'full body',
       'skip workout',
       'reschedule',
-      'squat',
-      'bench press',
-      'deadlift',
-      'pull up',
-      'push up',
-      'dumbbell',
-      'barbell',
       // Thai keywords
       'โปรแกรม',
       'ตารางซ้อม',
@@ -112,7 +85,8 @@ const DOMAIN_PATTERNS: DomainPattern[] = [
       'วันพัก',
       'เลื่อนซ้อม',
     ],
-    regex: /\b(swap|replace|change|reschedule|skip)\b.*\b(exercise|workout|routine|plan)\b/i,
+    regex:
+      /\b(swap|replace|change|reschedule|skip|create|update|modify|generate)\b.*\b(exercise|workout|routine|plan|split)\b|\b(workout|training)\s+plan\b/i,
   },
   {
     domain: 'workout_history',
@@ -265,7 +239,7 @@ export function classifyUserIntent(
 ): DomainName[] {
   const normalizedQuery = (query || '').toLowerCase().trim();
   if (!normalizedQuery) {
-    return [...ALL_DOMAINS];
+    return [...SAFE_READ_DOMAINS];
   }
 
   const matchedDomains = new Set<DomainName>();
@@ -285,7 +259,7 @@ export function classifyUserIntent(
 
   // Multi-Turn Context Inheritance:
   // If no domain keywords match directly, but the query contains anaphoric action cues
-  // (e.g., "Log it", "Swap that", "Yes please"), inspect recent history turns.
+  // (e.g., "Log it", "Swap that", "Yes please", "บันทึกเลย"), inspect recent history turns.
   if (matchedDomains.size === 0 && history && history.length > 0) {
     if (ANAPHORA_ACTION_PATTERN.test(normalizedQuery)) {
       for (let i = history.length - 1; i >= 0; i--) {
@@ -306,6 +280,35 @@ export function classifyUserIntent(
           }
         }
 
+        // Check contextual food and workout entity cues in previous messages
+        const isLogAction =
+          /\b(log|record|yes|confirm|do\s+it)\b/i.test(normalizedQuery) ||
+          /(?:บันทึก|จด)/.test(normalizedQuery);
+        const isSwapAction =
+          /\b(swap|replace|change)\b/i.test(normalizedQuery) ||
+          /(?:เปลี่ยน|สลับ)/.test(normalizedQuery);
+
+        if (isLogAction) {
+          const hasFoodCue =
+            /\b(chicken|rice|steak|egg|salmon|fish|food|meal|lunch|dinner|breakfast|snack|protein|carb|calories|kcal|eat|ate)\b/i.test(
+              prevNormalized
+            ) || /(?:อาหาร|มื้อ|ข้าว|อกไก่|ไก่|ปลา|แซลมอน|เมนู|โปรตีน|แคล)/.test(prevMsg.content);
+
+          const hasWorkoutCue =
+            /\b(workout|exercise|routine|sets?|reps?|push[\s-]?ups?|squats?|bench|pull[\s-]?ups?)\b/i.test(
+              prevNormalized
+            ) || /(?:ซ้อม|ออกกำลังกาย|ตารางซ้อม|ท่า|วิดพื้น|ดึงข้อ)/.test(prevMsg.content);
+
+          if (hasFoodCue) {
+            matchedDomains.add('food_history');
+          }
+          if (hasWorkoutCue) {
+            matchedDomains.add('workout_history');
+          }
+        } else if (isSwapAction) {
+          matchedDomains.add('workout_plan');
+        }
+
         if (matchedDomains.size > 0) {
           break;
         }
@@ -313,11 +316,12 @@ export function classifyUserIntent(
     }
   }
 
-  // Safe Full-Catalog Fallback:
-  // If zero domains matched (casual chat, greeting, or unrecognized query),
-  // fall back to the complete catalog so tools are never starved.
+  // Safe Read-Only Fallback:
+  // If zero domains matched (casual chat, greeting, advisory query, or unrecognized query),
+  // fall back to SAFE_READ_DOMAINS so tools are available for memory/lookup,
+  // but state-mutation tools (food/workout logging & plan updates) are NEVER armed.
   if (matchedDomains.size === 0) {
-    return [...ALL_DOMAINS];
+    return [...SAFE_READ_DOMAINS];
   }
 
   // Ambient Memory Invariant: memory is unconditionally declared

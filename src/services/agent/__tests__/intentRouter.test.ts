@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { classifyUserIntent, ALL_DOMAINS } from '../intentRouter';
+import { classifyUserIntent, ALL_DOMAINS, SAFE_READ_DOMAINS } from '../intentRouter';
 
 describe('classifyUserIntent', () => {
   it('classifies single-domain food_history query and includes ambient memory', () => {
@@ -110,12 +110,31 @@ describe('classifyUserIntent', () => {
     assert.deepStrictEqual(equipDomains, ['memory'], 'Should scope equipment purchase to memory');
   });
 
-  it('falls back to full catalog on casual chat, greeting, or ambiguous phrasing', () => {
+  it('falls back to safe read domains on casual chat, greeting, or ambiguous phrasing', () => {
     const greetingDomains = classifyUserIntent('Hello coach, tell me a joke');
-    assert.deepStrictEqual(new Set(greetingDomains), new Set(ALL_DOMAINS), 'Should fall back to all domains');
+    assert.deepStrictEqual(new Set(greetingDomains), new Set(SAFE_READ_DOMAINS), 'Should fall back to safe read domains');
 
     const emptyDomains = classifyUserIntent('');
-    assert.deepStrictEqual(new Set(emptyDomains), new Set(ALL_DOMAINS), 'Should fall back to all domains for empty input');
+    assert.deepStrictEqual(new Set(emptyDomains), new Set(SAFE_READ_DOMAINS), 'Should fall back to safe read domains for empty input');
+  });
+
+  it('never arms mutation domains for advisory or recommendation queries', () => {
+    const foodSuggestion = classifyUserIntent('suggest food');
+    assert.strictEqual(foodSuggestion.includes('food_history'), false, 'suggest food should NOT mount food_history');
+    assert.ok(foodSuggestion.includes('memory'), 'Must include memory');
+
+    const workoutSuggestion = classifyUserIntent('suggest workout');
+    assert.strictEqual(workoutSuggestion.includes('workout_plan'), false, 'suggest workout should NOT mount workout_plan');
+    assert.strictEqual(workoutSuggestion.includes('workout_history'), false, 'suggest workout should NOT mount workout_history');
+
+    const mealInquiry = classifyUserIntent('what should I eat?');
+    assert.strictEqual(mealInquiry.includes('food_history'), false, 'what should I eat should NOT mount food_history');
+
+    const thaiFoodSuggestion = classifyUserIntent('แนะนำอาหารหน่อย');
+    assert.strictEqual(thaiFoodSuggestion.includes('food_history'), false, 'แนะนำอาหาร should NOT mount food_history');
+
+    const thaiMealInquiry = classifyUserIntent('ควรกินอะไรดี');
+    assert.strictEqual(thaiMealInquiry.includes('food_history'), false, 'ควรกินอะไรดี should NOT mount food_history');
   });
 });
 

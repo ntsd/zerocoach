@@ -7,6 +7,10 @@ import {
   isTargetUpdateAccidentalOnMealInquiry,
   buildScopedAgentToolPrompt,
 } from '../agentHarness';
+import {
+  isAdvisoryQuery,
+  isAccidentalMutationOnAdvisoryQuery,
+} from '../guardRails';
 import { inferMealTypeFromCurrentTime } from '../dispatcher';
 import {
   isNegationOrRecoveryStatement,
@@ -206,10 +210,44 @@ describe('AgentHarness Synthetic Fallbacks & Memory Interception', () => {
     );
   });
 
-  it('buildScopedAgentToolPrompt includes log_completed_workout and dynamic example for workout_history', () => {
+  it('buildScopedAgentToolPrompt includes log_completed_workout and abstract syntax example without literal payloads', () => {
     const prompt = buildScopedAgentToolPrompt(['workout_history']);
     assert.ok(prompt.includes('log_completed_workout'), 'Should include log_completed_workout tool');
-    assert.ok(prompt.includes('Push-up Session'), 'Should include dynamic example for log_completed_workout');
+    assert.ok(prompt.includes('<workout_title>'), 'Should include abstract example placeholder');
+    assert.ok(!prompt.includes('Grilled Chicken Breast'), 'Must not contain literal chicken payload');
+    assert.ok(!prompt.includes('Push Day Hypertrophy'), 'Must not contain literal workout payload');
+  });
+
+  it('correctly classifies advisory queries and guards against accidental mutations', () => {
+    assert.strictEqual(isAdvisoryQuery('suggest food'), true);
+    assert.strictEqual(isAdvisoryQuery('suggest workout'), true);
+    assert.strictEqual(isAdvisoryQuery('what should I eat?'), true);
+    assert.strictEqual(isAdvisoryQuery('what workout should I do?'), true);
+    assert.strictEqual(isAdvisoryQuery('แนะนำอาหารหน่อย'), true);
+    assert.strictEqual(isAdvisoryQuery('ควรกินอะไรดี'), true);
+    assert.strictEqual(isAdvisoryQuery('ซ้อมอะไรดี'), true);
+
+    // Explicit logging commands should NOT be treated as advisory
+    assert.strictEqual(isAdvisoryQuery('Log 200g chicken breast for lunch'), false);
+    assert.strictEqual(isAdvisoryQuery('บันทึกอาหาร'), false);
+
+    // Accidental mutation guard
+    assert.strictEqual(
+      isAccidentalMutationOnAdvisoryQuery('log_food_item', 'suggest food'),
+      true
+    );
+    assert.strictEqual(
+      isAccidentalMutationOnAdvisoryQuery('update_workout_plan', 'suggest workout'),
+      true
+    );
+    assert.strictEqual(
+      isAccidentalMutationOnAdvisoryQuery('log_completed_workout', 'what workout should I do?'),
+      true
+    );
+    assert.strictEqual(
+      isAccidentalMutationOnAdvisoryQuery('log_food_item', 'Log 200g chicken breast for lunch'),
+      false
+    );
   });
 });
 

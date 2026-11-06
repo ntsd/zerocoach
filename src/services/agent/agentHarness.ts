@@ -9,6 +9,13 @@ import {
   ToolAccessType,
 } from './types';
 import { classifyUserIntent, ALL_DOMAINS } from './intentRouter';
+import {
+  isAdvisoryQuery,
+  isAccidentalMutationOnAdvisoryQuery,
+  isTargetUpdateAccidentalOnMealInquiry,
+} from './guardRails';
+
+export { isTargetUpdateAccidentalOnMealInquiry } from './guardRails';
 import { llmService } from '@/services/llm/llmService';
 import { CompletionRequest, CompletionResult } from '@/services/llm/types';
 import { isNegationOrRecoveryStatement, inferCategoryFromContent } from '@/services/memory/memoryEngine';
@@ -78,27 +85,27 @@ export function buildScopedAgentToolPrompt(activeDomains: DomainName[] = ALL_DOM
   let dynamicExamples = '';
   if (domains.has('food_history')) {
     dynamicExamples += `
-- When the athlete wants to log food or a meal:
+- When the athlete explicitly instructs to log or record consumed food:
 <tool_call>
-{"name": "log_food_item", "arguments": {"name": "Grilled Chicken Breast", "consumedGrams": 200, "calories": 330, "proteinGrams": 62}}
+{"name": "log_food_item", "arguments": {"name": "<food_name>", "consumedGrams": <grams>, "calories": <kcal>, "proteinGrams": <protein_g>}}
 </tool_call>`;
   }
   if (domains.has('workout_history')) {
     dynamicExamples += `
-- When the athlete reports completing an exercise, sets, reps, or finished workout:
+- When the athlete explicitly reports completing an exercise, sets, reps, or finished workout:
 <tool_call>
-{"name": "log_completed_workout", "arguments": {"title": "Push-up Session", "exercises": [{"name": "Push-up", "sets": 2, "reps": "10 reps"}]}}
+{"name": "log_completed_workout", "arguments": {"title": "<workout_title>", "exercises": [{"name": "<exercise_name>", "sets": <sets>, "reps": "<reps>"}]}}
 </tool_call>`;
   }
   if (domains.has('workout_plan')) {
     dynamicExamples += `
-- When the athlete wants to create, generate, or update their workout plan:
+- When the athlete explicitly requests to create, generate, or update their workout plan:
 <tool_call>
-{"name": "update_workout_plan", "arguments": {"title": "Push Day Hypertrophy", "split": "push", "exercises": [{"name": "Push-up", "sets": 3, "reps": "10-12 reps"}, {"name": "Pike Push-up", "sets": 3, "reps": "8-10 reps"}, {"name": "Chest Dips", "sets": 3, "reps": "8-10 reps"}, {"name": "Diamond Push-up", "sets": 3, "reps": "10-12 reps"}]}}
+{"name": "update_workout_plan", "arguments": {"title": "<plan_title>", "split": "<split_name>", "exercises": [{"name": "<exercise_name>", "sets": <sets>, "reps": "<reps>"}]}}
 </tool_call>
-- When the athlete wants to swap or change an exercise:
+- When the athlete explicitly requests to swap or replace an exercise:
 <tool_call>
-{"name": "swap_plan_exercise", "arguments": {"targetExerciseNameOrId": "Push-up", "replacementExerciseNameOrId": "Incline Dumbbell Press"}}
+{"name": "swap_plan_exercise", "arguments": {"targetExerciseNameOrId": "<current_exercise>", "replacementExerciseNameOrId": "<new_exercise>"}}
 </tool_call>`;
   }
 
@@ -108,6 +115,8 @@ ${toolLines}
 
 PROTOCOL:
 - Live telemetry, today's workout, and stored memories are ALREADY in ATHLETE CONTEXT above.
+- NEVER call log_food_item, update_workout_plan, swap_plan_exercise, or log_completed_workout when the athlete asks for advice, suggestions, meal ideas, or workout recommendations. Reply conversationally with recommendations and options.
+- ONLY call mutation tools when the athlete explicitly instructs you to record, log, update, or swap.
 - When the athlete states NEW equipment they own, favorite foods/skills, new injuries, or preferences, call save_memory with the NEW fact:
 <tool_call>
 {"name": "save_memory", "arguments": {"content": "I don't eat shrimp"}}
@@ -519,29 +528,6 @@ function formatDeterministicWriteConfirmation(
   return primaryConfirmation;
 }
 
-  export function isTargetUpdateAccidentalOnMealInquiry(
-    toolName: string,
-    userMsg: string,
-    toolArgs?: Record<string, any>
-  ): boolean {
-    if (!userMsg) return false;
-    if (toolName !== 'update_daily_macro_targets' && toolName !== 'update_user_settings') return false;
-    if (toolName === 'update_user_settings' && !toolArgs?.dailyCalorieTarget && !toolArgs?.proteinGrams) {
-      return false;
-    }
-    const userMsgLower = userMsg.toLowerCase();
-    const isExplicitTargetUpdateRequest =
-      /\b(update|change|set|adjust|modify|reset)\b.*\b(target|goal|calorie|protein|macro)\b/i.test(
-        userMsgLower
-      ) || /เปลี่ยน|ตั้งค่า|ปรับ.*(เป้าหมาย|แคล|โปรตีน)/.test(userMsgLower);
-
-    const isMealInquiry =
-      /\b(what|suggest|recommend|eat|meal|food|portion|recipe)\b/i.test(userMsgLower) ||
-      /แนะนำ|ทานอะไร|กินอะไร|ควรทาน|เมนู/.test(userMsgLower);
-
-    return !isExplicitTargetUpdateRequest && isMealInquiry;
-  }
-
   export class AgentHarness {
     /**
      * Runs the agent harness loop: handles reasoning, tool execution, and final synthesis
@@ -607,7 +593,8 @@ function formatDeterministicWriteConfirmation(
         // Synthetic Tool Call Interception Fallback:
         // If small on-device LLM outputted plain-text confirmation instead of <tool_call>,
         // intercept and synthesize the corresponding ToolCall so SQLite persistence actually happens!
-        if (!detectedCall) {
+        // Suppressed on advisory queries to prevent conversational meal/workout advice from false-positive interception.
+        if (!detectedCall && !isAdvisoryQuery(lastUserMsg)) {
           detectedCall = extractSyntheticToolCall(outputText, lastUserMsg);
         }
 
@@ -691,8 +678,33 @@ function formatDeterministicWriteConfirmation(
             );
             if (foodExtract && foodExtract[1]) {
               detectedCall.arguments.name = foodExtract[1].trim();
+            } else {
+              // The user never mentioned chicken AND didn't log any food!
+              console.warn(`[AgentHarness] Blocked hallucinated chicken tool call with no food in user message`);
+              conversationHistory.push({
+                role: 'user',
+                content: `[SYSTEM: Do NOT call log_food_item unless the athlete explicitly stated what they ate. Respond conversationally.]`,
+              });
+              continue;
             }
           }
+        }
+
+        // Layer 3: Deterministic Accidental Mutation Guard
+        // Intercept any state-mutating tool calls if user query is advisory / recommendation inquiry
+        if (isAccidentalMutationOnAdvisoryQuery(detectedCall.name, lastUserMsg, detectedCall.arguments)) {
+          console.warn(
+            `[AgentHarness] Blocked accidental mutation tool "${detectedCall.name}" on advisory query: "${lastUserMsg}"`
+          );
+          conversationHistory.push({
+            role: 'assistant',
+            content: `Here are my recommendations based on your goals and targets:`,
+          });
+          conversationHistory.push({
+            role: 'user',
+            content: `[SYSTEM: The athlete is asking for advice/recommendations. Do NOT call mutation tools. Provide clear, actionable recommendations and options directly in plain text.]`,
+          });
+          continue;
         } else if (isTargetUpdateAccidentalOnMealInquiry(detectedCall.name, lastUserMsg, detectedCall.arguments)) {
           // Accidental target update protection: If the athlete is asking what to eat or for food recommendations,
           // but did not explicitly ask to change their macro targets, block the tool call and synthesize food options.
